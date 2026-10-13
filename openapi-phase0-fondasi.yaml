@@ -1,0 +1,1433 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 0: Fondasi)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 0 (Fondasi & Master Data)** Lukla Operations Engine (Fasilitas Ciwidey).
+    Mencakup:
+    - Autentikasi & 8 Peran Pengguna (RBAC)
+    - Master Data Multi-Tenant (`client_id` tagging)
+    - Master Artikel & Komponen Operasi (Garment vs Bag)
+    - Master Penjahit / Operator Jahit
+    - Rate Card & Audit History (BPMN 10: Ongkos Jahit & Potong per Klien)
+    - Minimal Production Order (Order Awal untuk Uji Modul Hilir)
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:3002/api/v1
+    description: Local Development / Prototype Server
+  - url: /api/v1
+    description: Relative API Root
+
+tags:
+  - name: Auth & RBAC
+    description: Autentikasi dan identifikasi peran 8 pengguna
+  - name: Clients
+    description: Manajemen data klien maklon (Multi-tenant partition)
+  - name: Articles & Components
+    description: Master artikel produk dan komponen operasi
+  - name: Operators
+    description: Master penjahit / operator jahit dan alokasi line
+  - name: Rate Cards (BPMN 10)
+    description: Pengaturan tarif ongkos jahit & potong beserta riwayat perubahannya
+  - name: Minimal Orders
+    description: Inisiasi order minimal untuk pengujian alur produksi dan payroll
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Auth & RBAC
+      summary: Login pengguna sesuai peran RBAC
+      description: Memverifikasi username dan password, mengembalikan token JWT untuk autentikasi.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: mandor_eko
+              password: password123
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Username atau password salah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Auth & RBAC
+      summary: Dapatkan profil dan izin peran pengguna yang sedang aktif
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil pengguna aktif
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMeResponse'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth & RBAC
+      summary: Logout dan hapus sesi aktif
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Berhasil logout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /clients:
+    get:
+      tags:
+        - Clients
+      summary: Daftar seluruh klien maklon terdaftar
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nama atau kode klien
+      responses:
+        '200':
+          description: Daftar klien
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Client'
+    post:
+      tags:
+        - Clients
+      summary: Daftarkan klien baru
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClientRequest'
+      responses:
+        '201':
+          description: Klien berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Client'
+
+  /clients/{id}:
+    get:
+      tags:
+        - Clients
+      summary: Ambil detail klien beserta ringkasan artikel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail klien
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ClientDetail'
+        '404':
+          description: Klien tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Clients
+      summary: Perbarui data klien
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateClientRequest'
+      responses:
+        '200':
+          description: Klien berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Client'
+
+  /articles:
+    get:
+      tags:
+        - Articles & Components
+      summary: Daftar artikel produk
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter artikel berdasarkan client_id
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [GARMENT, BAG]
+          description: Filter kategori produk
+      responses:
+        '200':
+          description: Daftar artikel
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Article'
+    post:
+      tags:
+        - Articles & Components
+      summary: Tambah master artikel baru
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateArticleRequest'
+      responses:
+        '201':
+          description: Artikel berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Article'
+
+  /articles/{id}:
+    get:
+      tags:
+        - Articles & Components
+      summary: Detail artikel beserta seluruh komponen operasinya
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail artikel
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ArticleDetail'
+        '404':
+          description: Artikel tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /articles/{id}/components:
+    get:
+      tags:
+        - Articles & Components
+      summary: Daftar komponen operasi suatu artikel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Article ID
+      responses:
+        '200':
+          description: Daftar komponen operasi
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Component'
+    post:
+      tags:
+        - Articles & Components
+      summary: Tambah komponen operasi baru pada artikel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Article ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComponentRequest'
+      responses:
+        '201':
+          description: Komponen berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Component'
+
+  /components/{id}:
+    put:
+      tags:
+        - Articles & Components
+      summary: Perbarui spesifikasi komponen
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateComponentRequest'
+      responses:
+        '200':
+          description: Komponen diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Component'
+    delete:
+      tags:
+        - Articles & Components
+      summary: Hapus komponen dari artikel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Komponen dihapus
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /operators:
+    get:
+      tags:
+        - Operators
+      summary: Daftar penjahit / operator jahit
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, ON_LEAVE]
+        - name: line
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter penjahit per line (e.g. LINE-1, LINE-2)
+      responses:
+        '200':
+          description: Daftar operator jahit
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Operator'
+    post:
+      tags:
+        - Operators
+      summary: Daftarkan penjahit baru (Headcount dinamis)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOperatorRequest'
+      responses:
+        '201':
+          description: Penjahit berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Operator'
+
+  /operators/{id}:
+    get:
+      tags:
+        - Operators
+      summary: Detail profil penjahit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail operator
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Operator'
+    put:
+      tags:
+        - Operators
+      summary: Perbarui data penjahit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOperatorRequest'
+      responses:
+        '200':
+          description: Data operator diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Operator'
+
+  /operators/{id}/status:
+    patch:
+      tags:
+        - Operators
+      summary: Ubah status penjahit (Aktif / Nonaktif / Cuti)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, INACTIVE, ON_LEAVE]
+      responses:
+        '200':
+          description: Status berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Operator'
+
+  /rate-cards:
+    get:
+      tags:
+        - Rate Cards (BPMN 10)
+      summary: Daftar tarif ongkos jahit & potong per komponen artikel klien
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: articleId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Daftar rate card aktif
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RateCard'
+    post:
+      tags:
+        - Rate Cards (BPMN 10)
+      summary: "Tetapkan tarif baru untuk suatu komponen (Authorized: OWNER, KEPALA_PRODUKSI)"
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRateCardRequest'
+      responses:
+        '201':
+          description: Rate card berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/RateCard'
+        '403':
+          description: Hak akses ditolak (Hanya Owner & Kepala Produksi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rate-cards/{id}:
+    put:
+      tags:
+        - Rate Cards (BPMN 10)
+      summary: Ubah tarif rate card dan catat otomatis ke riwayat audit trail
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRateCardRequest'
+      responses:
+        '200':
+          description: Rate card berhasil diperbarui dan dicatat ke riwayat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/RateCard'
+        '403':
+          description: Hak akses ditolak
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rate-cards/{id}/history:
+    get:
+      tags:
+        - Rate Cards (BPMN 10)
+      summary: Riwayat perubahan tarif (Audit Trail per komponen)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Riwayat perubahan rate card
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RateCardHistory'
+
+  /orders/minimal:
+    get:
+      tags:
+        - Minimal Orders
+      summary: Daftar order produksi minimal untuk pengujian alur hilir
+      responses:
+        '200':
+          description: Daftar order minimal
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MinimalOrder'
+    post:
+      tags:
+        - Minimal Orders
+      summary: Buat order minimal baru (Inisiasi pengujian Gudang, Line, Payroll)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMinimalOrderRequest'
+      responses:
+        '201':
+          description: Order minimal berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/MinimalOrder'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RoleEnum:
+      type: string
+      enum:
+        - OWNER
+        - TIM_SAMPLE
+        - GUDANG
+        - KEPALA_PRODUKSI
+        - MANDOR
+        - PENJAHIT
+        - QC_INSPECTOR
+        - FINANCE_PAYROLL
+        - CLIENT_PORTAL
+
+    ProductTypeEnum:
+      type: string
+      enum:
+        - GARMENT
+        - BAG
+
+    MaklonSchemeEnum:
+      type: string
+      enum:
+        - CMT
+        - SEMI_CMT
+        - FULL_PACKAGE
+
+    OperatorStatusEnum:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - ON_LEAVE
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: mandor_eko
+        password:
+          type: string
+          example: password123
+
+    LoginResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Login berhasil
+        data:
+          type: object
+          required:
+            - token
+          properties:
+            token:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    UserMeResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/UserResponse'
+
+    UserResponse:
+      type: object
+      required:
+        - id
+        - username
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          example: e6715fbc-1188-4660-84a1-096b7ff6c7cb
+        username:
+          type: string
+          example: EMP-PROD-001
+        name:
+          type: string
+          example: Bambang Supriyadi
+        email:
+          type: string
+          example: production@lukla.local
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        clientId:
+          type: string
+          nullable: true
+          example: null
+        roleDescription:
+          type: string
+          example: Kepala Produksi / Mandor
+
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - code
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: cl_snohund
+        name:
+          type: string
+          example: Snøhund Brand
+        code:
+          type: string
+          example: SNOHUND
+        contact:
+          type: string
+          nullable: true
+          example: ops@snohund.co
+        address:
+          type: string
+          nullable: true
+          example: Bandung, Jawa Barat
+        clientType:
+          type: string
+          enum: [INTERNAL, B2B]
+          example: INTERNAL
+        createdAt:
+          type: string
+          format: date-time
+
+    ClientDetail:
+      allOf:
+        - $ref: '#/components/schemas/Client'
+        - type: object
+          properties:
+            articlesCount:
+              type: integer
+              example: 4
+            activeOrdersCount:
+              type: integer
+              example: 2
+
+    CreateClientRequest:
+      type: object
+      required:
+        - name
+        - code
+      properties:
+        name:
+          type: string
+          example: Snøhund Brand
+        code:
+          type: string
+          example: SNOHUND
+        contact:
+          type: string
+          example: ops@snohund.co
+        address:
+          type: string
+          example: Ciwidey, Bandung
+        clientType:
+          type: string
+          enum: [INTERNAL, B2B]
+          default: B2B
+
+    UpdateClientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        contact:
+          type: string
+        address:
+          type: string
+
+    Article:
+      type: object
+      required:
+        - id
+        - clientId
+        - title
+        - code
+        - category
+      properties:
+        id:
+          type: string
+          example: art_parka_01
+        clientId:
+          type: string
+          example: cl_snohund
+        clientName:
+          type: string
+          example: Snøhund Brand
+        title:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        code:
+          type: string
+          example: ART-SNO-PK01
+        category:
+          $ref: '#/components/schemas/ProductTypeEnum'
+        description:
+          type: string
+          nullable: true
+          example: Heavy-duty 3-layer weatherproof technical parka
+
+    ArticleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Article'
+        - type: object
+          properties:
+            components:
+              type: array
+              items:
+                $ref: '#/components/schemas/Component'
+
+    CreateArticleRequest:
+      type: object
+      required:
+        - clientId
+        - title
+        - code
+        - category
+      properties:
+        clientId:
+          type: string
+        title:
+          type: string
+        code:
+          type: string
+        category:
+          $ref: '#/components/schemas/ProductTypeEnum'
+        description:
+          type: string
+
+    Component:
+      type: object
+      required:
+        - id
+        - articleId
+        - name
+        - sequenceNumber
+      properties:
+        id:
+          type: string
+          example: comp_kerah_01
+        articleId:
+          type: string
+          example: art_parka_01
+        name:
+          type: string
+          example: Jahit Kerah & Pasang Hoodie
+        code:
+          type: string
+          nullable: true
+          example: CMP-KRH
+        sequenceNumber:
+          type: integer
+          example: 2
+        standardSAM:
+          type: number
+          nullable: true
+          example: 5.33
+
+    CreateComponentRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Pasang Saku Kargo Dada
+        code:
+          type: string
+          example: CMP-SKD
+        sequenceNumber:
+          type: integer
+          default: 1
+        standardSAM:
+          type: number
+          example: 4.5
+
+    UpdateComponentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        sequenceNumber:
+          type: integer
+        standardSAM:
+          type: number
+
+    Operator:
+      type: object
+      required:
+        - id
+        - operatorCode
+        - name
+        - status
+      properties:
+        id:
+          type: string
+          example: opr_001
+        operatorCode:
+          type: string
+          example: JH-001
+        name:
+          type: string
+          example: Asep Saepudin
+        phone:
+          type: string
+          nullable: true
+          example: +62 813-1122-3344
+        joinDate:
+          type: string
+          format: date
+          example: 2026-01-15
+        status:
+          $ref: '#/components/schemas/OperatorStatusEnum'
+        defaultLine:
+          type: string
+          nullable: true
+          example: LINE-1
+        skillTier:
+          type: string
+          nullable: true
+          example: SENIOR
+
+    CreateOperatorRequest:
+      type: object
+      required:
+        - operatorCode
+        - name
+      properties:
+        operatorCode:
+          type: string
+          example: JH-012
+        name:
+          type: string
+          example: Siti Rahmawati
+        phone:
+          type: string
+          example: +62 812-4455-6677
+        defaultLine:
+          type: string
+          example: LINE-2
+        skillTier:
+          type: string
+          example: MEDIUM
+
+    UpdateOperatorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        defaultLine:
+          type: string
+        skillTier:
+          type: string
+
+    RateCard:
+      type: object
+      required:
+        - id
+        - clientId
+        - articleId
+        - componentId
+        - sewingRate
+        - cuttingRate
+      properties:
+        id:
+          type: string
+          example: rc_001
+        clientId:
+          type: string
+          example: cl_snohund
+        clientName:
+          type: string
+          example: Snøhund Brand
+        articleId:
+          type: string
+          example: art_parka_01
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        componentId:
+          type: string
+          example: comp_kerah_01
+        componentName:
+          type: string
+          example: Jahit Kerah & Pasang Hoodie
+        sewingRate:
+          type: number
+          example: 6200.00
+        cuttingRate:
+          type: number
+          example: 800.00
+        effectiveDate:
+          type: string
+          format: date
+          example: 2026-10-01
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateRateCardRequest:
+      type: object
+      required:
+        - clientId
+        - articleId
+        - componentId
+        - sewingRate
+      properties:
+        clientId:
+          type: string
+        articleId:
+          type: string
+        componentId:
+          type: string
+        sewingRate:
+          type: number
+          example: 6200
+        cuttingRate:
+          type: number
+          default: 0
+          example: 800
+        effectiveDate:
+          type: string
+          format: date
+        notes:
+          type: string
+          example: Penyesuaian kain Cordura tebal
+
+    UpdateRateCardRequest:
+      type: object
+      required:
+        - sewingRate
+        - changeReason
+      properties:
+        sewingRate:
+          type: number
+          example: 6500
+        cuttingRate:
+          type: number
+          example: 900
+        effectiveDate:
+          type: string
+          format: date
+        changeReason:
+          type: string
+          example: Kenaikan kompleksitas jahitan reflektif 3M pada bahu
+
+    RateCardHistory:
+      type: object
+      required:
+        - id
+        - rateCardId
+        - oldSewingRate
+        - newSewingRate
+        - oldCuttingRate
+        - newCuttingRate
+        - changedByName
+        - reason
+        - createdAt
+      properties:
+        id:
+          type: string
+          example: rch_101
+        rateCardId:
+          type: string
+          example: rc_001
+        oldSewingRate:
+          type: number
+          example: 6200
+        newSewingRate:
+          type: number
+          example: 6500
+        oldCuttingRate:
+          type: number
+          example: 800
+        newCuttingRate:
+          type: number
+          example: 900
+        changedByName:
+          type: string
+          example: Budi (Kepala Produksi)
+        reason:
+          type: string
+          example: Penambahan jahitan bartack Box-X
+        createdAt:
+          type: string
+          format: date-time
+
+    MinimalOrder:
+      type: object
+      required:
+        - id
+        - orderNumber
+        - clientId
+        - articleId
+        - targetQuantity
+        - maklonScheme
+        - status
+      properties:
+        id:
+          type: string
+          example: ord_min_001
+        orderNumber:
+          type: string
+          example: ORD-202610-001
+        clientId:
+          type: string
+          example: cl_snohund
+        clientName:
+          type: string
+          example: Snøhund Brand
+        articleId:
+          type: string
+          example: art_parka_01
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        targetQuantity:
+          type: integer
+          example: 1000
+        maklonScheme:
+          $ref: '#/components/schemas/MaklonSchemeEnum'
+        status:
+          type: string
+          enum: [DRAFT, READY_FOR_CUTTING, IN_SEWING, COMPLETED]
+          example: READY_FOR_CUTTING
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateMinimalOrderRequest:
+      type: object
+      required:
+        - clientId
+        - articleId
+        - orderNumber
+        - targetQuantity
+        - maklonScheme
+      properties:
+        clientId:
+          type: string
+        articleId:
+          type: string
+        orderNumber:
+          type: string
+          example: ORD-202610-001
+        targetQuantity:
+          type: integer
+          example: 1000
+        maklonScheme:
+          $ref: '#/components/schemas/MaklonSchemeEnum'
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operasi berhasil dijalankan.
+        data:
+          type: object
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: UNAUTHORIZED
+            message:
+              type: string
+              example: Username atau password salah
+            details:
+              type: object
+              additionalProperties: true
+              nullable: true

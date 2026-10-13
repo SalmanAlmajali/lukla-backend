@@ -33,7 +33,11 @@ func Middleware() gin.HandlerFunc {
 		cookie, err := c.Cookie(sessionCookieName)
 		if err != nil || cookie == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": gin.H{"code": "UNAUTHENTICATED", "message": "Sesi tidak valid atau sudah berakhir."},
+				"success": false,
+				"error": gin.H{
+					"code":    "UNAUTHENTICATED",
+					"message": "Sesi tidak valid atau sudah berakhir.",
+				},
 			})
 			return
 		}
