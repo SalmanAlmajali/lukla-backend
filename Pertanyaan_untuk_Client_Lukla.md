@@ -44,10 +44,13 @@ Jika waktu terbatas, mohon jawab ini lebih dulu:
 4. **Q5.4**: Apakah barang yang ditolak QC mempengaruhi upah penjahit?
     - tidak mempengaruhi upah 
 5. **Q6.1**: "Rate card" itu upah penjahit, tarif ke klien, atau keduanya?
-    - untuk upah penjahit dan tarif ke klien
+    - untuk upah penjahit (dalam komponen) dan tarif ke klien (dalam artikel)
+    - rate card per component ditentukan oleh kepala produksi
+    - rate card apapun bisa diubah oleh owner, termasuk tarif ke klien (dalam artikel)
 6. **Q6.4**: Siapa itu "Kepala Operasional" dan siapa dua Mandor penerima bonus QC?
     - kepala operasional yang mengawasi berjalan operasional.
     - dua mandor dan kepala operasional yang dapat bonus QC adalah yang memantau line produksi. 
+    - nilai bonus ditentukan oleh owner.
 7. **Q6.5**: Berapa nilai bonus per pcs dan bagaimana cara menghitungnya?
     - berdasarkan rate bonus yang diisi oleh owner
     - rate bonus dikali jumlah barang lolos QC
