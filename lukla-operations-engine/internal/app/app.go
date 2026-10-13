@@ -1,0 +1,91 @@
+// Package app wires all application dependencies and manages the HTTP server lifecycle.
+package app
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/lukla/operations-engine/internal/platform/database"
+)
+
+// App holds the wired application.
+type App struct {
+	cfg    Config
+	db     *sql.DB
+	server *http.Server
+}
+
+// New loads configuration, initialises dependencies, and returns a ready App.
+func New(ctx context.Context) (*App, error) {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	// TODO: initialise logger (platform/logger) and pass it to modules.
+
+	db, err := database.Open(ctx, database.Config{
+		URL:             cfg.DB.URL,
+		MaxOpenConns:    cfg.DB.MaxOpenConns,
+		MaxIdleConns:    cfg.DB.MaxIdleConns,
+		ConnMaxLifetime: cfg.DB.ConnMaxLifetime,
+		ConnMaxIdleTime: cfg.DB.ConnMaxIdleTime,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+
+	// TODO: wire modules, e.g.:
+	// identityRepo := identity.NewPostgresRepository(db)
+	// identitySvc  := identity.NewService(identityRepo)
+	// identityHandler := identity.NewHandler(identitySvc)
+
+	router := gin.New()
+	registerRoutes(router)
+
+	srv := &http.Server{
+		Addr:         cfg.HTTP.Addr,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
+	}
+
+	return &App{cfg: cfg, db: db, server: srv}, nil
+}
+
+// Run starts the HTTP server and blocks until ctx is cancelled, then gracefully shuts down.
+func (a *App) Run(ctx context.Context) error {
+	errCh := make(chan error, 1)
+
+	go func() {
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		_ = a.db.Close()
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), a.cfg.HTTP.ShutdownTimeout)
+		defer cancel()
+		err := a.server.Shutdown(shutdownCtx)
+		_ = a.db.Close()
+		return err
+	}
+}
+
+func registerRoutes(r *gin.Engine) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// TODO: register module routes here, e.g.:
+	// v1 := r.Group("/api/v1")
+	// identity.RegisterRoutes(v1, identityHandler)
+}
