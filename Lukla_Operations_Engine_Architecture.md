@@ -1155,12 +1155,30 @@ Pertanyaan ini harus dijawab atau diberi keputusan sementara sebelum modul terka
 
 ### Teknologi
 
-- [ ] Pilih `pgxpool` atau `database/sql` + driver PostgreSQL.
-- [ ] Pilih satu migration tool.
-- [ ] Putuskan strategi authentication/session dan CSRF sesuai deployment.
-- [ ] Putuskan apakah menggunakan RLS pada rilis awal setelah threat model dan test tersedia.
-- [ ] Putuskan apakah butuh worker/outbox setelah use case event reliable terdefinisi.
-- [ ] Tentukan observability dan error tracking sesuai budget.
+- [v] Menggunakan pgx/v5/stdlib.
+- [v] Menggunakan golang-migrate.
+- [v] Putuskan strategi authentication/session dan CSRF sesuai deployment:
+    - frontend mengirim username/email dan password melalui https
+    - backend verifikasi password hash, status akun, dan hak akses
+    - membuat session baru; generate id baru, simpan record session, kirim cookie httponly
+    - setiap request API perlu 
+        - validasi session (authentication)
+        - status user (masih aktif?)
+        - permission (authorization)
+        - tenant scope (data dalam cangkupan user yang diizinkan)
+        - business operation
+
+- [v] Putuskan apakah menggunakan RLS pada rilis awal setelah threat model dan test tersedia.
+    - untuk saat ini di rilis awal tidak menggunakan RLS
+- [v] Putuskan apakah butuh worker/outbox setelah use case event reliable terdefinisi.
+    - tidak perlu worker/outbox untuk saat ini karena berada dalam monolith
+- [v] Tentukan observability dan error tracking sesuai budget.
+    - log terstruktur dengan isi:
+        - ID permintaan
+        - metrik dasar
+        - pelacakan error
+    - endpoint kesehatan (/health)
+    - lingkungan: dev, staging, production.
 
 ---
 
