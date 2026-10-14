@@ -1,0 +1,5 @@
+DELETE FROM clients WHERE code IN (
+    'AVENTURA', 'NORDIC', 'EQUATOR', 'ALPEN', 'SUMMIT',
+    'KEMBARA', 'RIMBA', 'BORNEO', 'JAVA_EXP', 'TERRA', 'HIGHLAND'
+);
+

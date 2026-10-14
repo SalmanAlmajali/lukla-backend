@@ -4,7 +4,11 @@
 package authz
 
 import (
+	"strings"
+
+	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/platform/authn"
+	"github.com/lukla/operations-engine/internal/platform/httpx"
 )
 
 // Permission represents a granular action a role may perform.
@@ -52,4 +56,52 @@ func HasTenantAccess(claims authn.Claims, tenantID string) bool {
 		return false
 	}
 	return claims.TenantID == tenantID || claims.TenantID == "internal"
+}
+
+// RequireInternal ensures that the authenticated user has an internal staff role.
+// Akun peran eksternal (misalnya "client" / CLIENT_PORTAL) akan ditolak dengan HTTP 403 Forbidden.
+func RequireInternal() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, ok := authn.RoleFrom(c)
+		if !ok || role == "" {
+			httpx.Forbidden(c, "FORBIDDEN", "Akses ditolak: peran pengguna tidak teridentifikasi.")
+			c.Abort()
+			return
+		}
+
+		normalized := strings.ToLower(strings.TrimSpace(role))
+		if normalized == "client" || normalized == "client_portal" {
+			httpx.Forbidden(c, "FORBIDDEN", "Akses ditolak: akun klien eksternal tidak diizinkan mengakses data master klien pabrik.")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// RequireRoles ensures that the authenticated user possesses one of the allowed roles.
+func RequireRoles(allowedRoles ...string) gin.HandlerFunc {
+	allowedMap := make(map[string]bool)
+	for _, r := range allowedRoles {
+		allowedMap[strings.ToLower(strings.TrimSpace(r))] = true
+	}
+
+	return func(c *gin.Context) {
+		role, ok := authn.RoleFrom(c)
+		if !ok || role == "" {
+			httpx.Forbidden(c, "FORBIDDEN", "Akses ditolak: peran pengguna tidak teridentifikasi.")
+			c.Abort()
+			return
+		}
+
+		normalized := strings.ToLower(strings.TrimSpace(role))
+		if !allowedMap[normalized] {
+			httpx.Forbidden(c, "FORBIDDEN", "Akses ditolak: peran Anda tidak memiliki izin untuk resource ini.")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
 }

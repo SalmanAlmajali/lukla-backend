@@ -9,7 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/modules/identity"
+	"github.com/lukla/operations-engine/internal/modules/masterdata"
 	"github.com/lukla/operations-engine/internal/platform/authn"
+	"github.com/lukla/operations-engine/internal/platform/authz"
 	"github.com/lukla/operations-engine/internal/platform/database"
 )
 
@@ -43,11 +45,32 @@ func New(ctx context.Context) (*App, error) {
 	identityRepo := identity.NewPostgresRepository(db)
 	identitySvc := identity.NewService(identityRepo, cfg.Auth.TokenSecret, cfg.Auth.AccessTokenTTL)
 	identityHandler := identity.NewHandler(identitySvc)
-	authnMiddleware := authn.Middleware(cfg.Auth.TokenSecret)
+
+	userLoader := func(ctx context.Context, userID string) (*authn.UserIdentity, error) {
+		u, err := identityRepo.FindByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if u == nil {
+			return nil, nil
+		}
+		return &authn.UserIdentity{
+			ID:       u.ID,
+			RoleCode: u.RoleCode,
+			ClientID: u.ClientID,
+			IsActive: u.IsActive,
+		}, nil
+	}
+	authnMiddleware := authn.Middleware(cfg.Auth.TokenSecret, userLoader)
+	internalAuthz := authz.RequireInternal()
+
+	masterdataRepo := masterdata.NewPostgresRepository(db)
+	masterdataSvc := masterdata.NewService(masterdataRepo)
+	masterdataHandler := masterdata.NewHandler(masterdataSvc)
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, authnMiddleware)
+	registerRoutes(router, identityHandler, masterdataHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -83,7 +106,13 @@ func (a *App) Run(ctx context.Context) error {
 	}
 }
 
-func registerRoutes(r *gin.Engine, identityHandler *identity.Handler, authnMiddleware gin.HandlerFunc) {
+func registerRoutes(
+	r *gin.Engine,
+	identityHandler *identity.Handler,
+	masterdataHandler *masterdata.Handler,
+	authnMiddleware gin.HandlerFunc,
+	internalAuthz gin.HandlerFunc,
+) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -91,4 +120,6 @@ func registerRoutes(r *gin.Engine, identityHandler *identity.Handler, authnMiddl
 	// API v1 routes
 	v1 := r.Group("/api/v1")
 	identity.RegisterRoutes(v1, identityHandler, authnMiddleware)
+	masterdata.RegisterRoutes(v1, masterdataHandler, authnMiddleware, internalAuthz)
 }
+

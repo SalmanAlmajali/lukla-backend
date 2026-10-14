@@ -113,9 +113,25 @@ paths:
           schema:
             type: string
           description: Cari berdasarkan nama atau kode klien
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Nomor halaman pagination
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah data per halaman
+      security:
+        - BearerAuth: []
       responses:
         '200':
-          description: Daftar klien
+          description: Daftar klien dengan pagination
           content:
             application/json:
               schema:
@@ -123,6 +139,7 @@ paths:
                 required:
                   - success
                   - data
+                  - meta
                 properties:
                   success:
                     type: boolean
@@ -131,6 +148,32 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Client'
+                  meta:
+                    type: object
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - totalPages
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 12
+                      totalPages:
+                        type: integer
+                        example: 2
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Clients

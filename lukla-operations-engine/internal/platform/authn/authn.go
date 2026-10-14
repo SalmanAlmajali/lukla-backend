@@ -2,6 +2,7 @@
 package authn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -18,8 +19,25 @@ type Claims struct {
 	Roles    []string
 }
 
+// UserIdentity represents minimal user account details loaded for request context.
+type UserIdentity struct {
+	ID       string
+	RoleCode string
+	ClientID *string
+	IsActive bool
+}
+
+// UserLoader is a function to load a UserIdentity by their ID.
+type UserLoader func(ctx context.Context, userID string) (*UserIdentity, error)
+
 // Middleware returns a Gin middleware that validates the JWT Bearer token in the Authorization header.
-func Middleware(tokenSecret string) gin.HandlerFunc {
+// Optional loaders allow resolving the user's role and client_id from database into the context.
+func Middleware(tokenSecret string, loaders ...UserLoader) gin.HandlerFunc {
+	var loader UserLoader
+	if len(loaders) > 0 {
+		loader = loaders[0]
+	}
+
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		var tokenString string
@@ -92,6 +110,45 @@ func Middleware(tokenSecret string) gin.HandlerFunc {
 		c.Set("user_id", sub)
 		c.Set("claims", Claims{UserID: sub})
 
+		if loader != nil {
+			u, err := loader(c.Request.Context(), sub)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "INTERNAL_ERROR",
+						"message": "Gagal memverifikasi identitas pengguna.",
+					},
+				})
+				return
+			}
+			if u == nil || !u.IsActive {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "UNAUTHORIZED",
+						"message": "Pengguna tidak ditemukan atau sudah dinonaktifkan.",
+					},
+				})
+				return
+			}
+
+			c.Set("role", u.RoleCode)
+			if u.ClientID != nil {
+				c.Set("client_id", *u.ClientID)
+			}
+			c.Set("claims", Claims{
+				UserID: u.ID,
+				Roles:  []string{u.RoleCode},
+				TenantID: func() string {
+					if u.ClientID != nil {
+						return *u.ClientID
+					}
+					return ""
+				}(),
+			})
+		}
+
 		c.Next()
 	}
 }
@@ -104,6 +161,26 @@ func UserIDFrom(c *gin.Context) (string, bool) {
 	}
 	id, ok := v.(string)
 	return id, ok
+}
+
+// RoleFrom retrieves the authenticated user's role code from context.
+func RoleFrom(c *gin.Context) (string, bool) {
+	v, ok := c.Get("role")
+	if !ok {
+		return "", false
+	}
+	role, ok := v.(string)
+	return role, ok
+}
+
+// ClientIDFrom retrieves the authenticated user's client ID from context.
+func ClientIDFrom(c *gin.Context) (string, bool) {
+	v, ok := c.Get("client_id")
+	if !ok {
+		return "", false
+	}
+	cid, ok := v.(string)
+	return cid, ok
 }
 
 // ClaimsFrom retrieves Claims stored by the authn middleware.

@@ -347,3 +347,266 @@ func TestApp_LogoutUnauthorizedLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_ListClientsLiveDB_Pagination(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 0. Login to get token
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginBody))
+	reqLogin.Header.Set("Content-Type", "application/json")
+	wLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogin, reqLogin)
+
+	var loginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLogin.Body.Bytes(), &loginResp)
+	token := loginResp.Data.Token
+
+	// 1. Test Page 1 with limit 10
+	reqP1, _ := http.NewRequest(http.MethodGet, "/api/v1/clients?page=1&limit=10", nil)
+	reqP1.Header.Set("Authorization", "Bearer "+token)
+	wP1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wP1, reqP1)
+
+	if wP1.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for page 1, got %d. Body: %s", wP1.Code, wP1.Body.String())
+	}
+
+	var respP1 struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID         string `json:"id"`
+			Code       string `json:"code"`
+			Name       string `json:"name"`
+			ClientType string `json:"clientType"`
+		} `json:"data"`
+		Meta struct {
+			Page       int   `json:"page"`
+			Limit      int   `json:"limit"`
+			Total      int64 `json:"total"`
+			TotalPages int   `json:"totalPages"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(wP1.Body.Bytes(), &respP1); err != nil {
+		t.Fatalf("failed to decode page 1 response: %v", err)
+	}
+
+	if !respP1.Success {
+		t.Errorf("expected success true")
+	}
+	if respP1.Meta.Total < 12 {
+		t.Errorf("expected total at least 12 clients, got %d", respP1.Meta.Total)
+	}
+	if respP1.Meta.Page != 1 {
+		t.Errorf("expected page 1, got %d", respP1.Meta.Page)
+	}
+	if respP1.Meta.Limit != 10 {
+		t.Errorf("expected limit 10, got %d", respP1.Meta.Limit)
+	}
+	if len(respP1.Data) != 10 {
+		t.Errorf("expected 10 items on page 1, got %d", len(respP1.Data))
+	}
+	if respP1.Meta.TotalPages < 2 {
+		t.Errorf("expected totalPages >= 2, got %d", respP1.Meta.TotalPages)
+	}
+
+	// 2. Test Page 2 with limit 10
+	reqP2, _ := http.NewRequest(http.MethodGet, "/api/v1/clients?page=2&limit=10", nil)
+	reqP2.Header.Set("Authorization", "Bearer "+token)
+	wP2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wP2, reqP2)
+
+	if wP2.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for page 2, got %d. Body: %s", wP2.Code, wP2.Body.String())
+	}
+
+	var respP2 struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"data"`
+		Meta struct {
+			Page       int   `json:"page"`
+			Limit      int   `json:"limit"`
+			Total      int64 `json:"total"`
+			TotalPages int   `json:"totalPages"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(wP2.Body.Bytes(), &respP2); err != nil {
+		t.Fatalf("failed to decode page 2 response: %v", err)
+	}
+
+	if respP2.Meta.Page != 2 {
+		t.Errorf("expected page 2, got %d", respP2.Meta.Page)
+	}
+	if len(respP2.Data) < 2 {
+		t.Errorf("expected at least 2 items on page 2, got %d", len(respP2.Data))
+	}
+}
+
+func TestApp_ListClientsLiveDB_Search(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 0. Login to get token
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginBody))
+	reqLogin.Header.Set("Content-Type", "application/json")
+	wLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogin, reqLogin)
+
+	var loginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLogin.Body.Bytes(), &loginResp)
+	token := loginResp.Data.Token
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/clients?search=SNOHUND", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"data"`
+		Meta struct {
+			Total int64 `json:"total"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 client for search SNOHUND, got %d", len(resp.Data))
+	}
+	if resp.Data[0].Code != "SNOHUND" {
+		t.Errorf("expected code SNOHUND, got %s", resp.Data[0].Code)
+	}
+}
+
+func TestApp_ListClientsUnauthorizedLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	w := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for missing token, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestApp_ListClientsForbiddenClientRoleLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login with client portal account (client@lukla.local)
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginBody))
+	reqLogin.Header.Set("Content-Type", "application/json")
+	wLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogin, reqLogin)
+
+	if wLogin.Code != http.StatusOK {
+		t.Fatalf("client login failed: %s", wLogin.Body.String())
+	}
+
+	var loginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLogin.Body.Bytes(), &loginResp)
+	token := loginResp.Data.Token
+
+	// 2. Client role attempts to access GET /api/v1/clients -> MUST be 403 Forbidden!
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client role on GET /api/v1/clients, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Success {
+		t.Errorf("expected success false")
+	}
+	if resp.Error.Code != "FORBIDDEN" {
+		t.Errorf("expected error code FORBIDDEN, got %s", resp.Error.Code)
+	}
+}
+
+
+
+
