@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -1208,6 +1209,198 @@ func TestApp_ComponentsLiveDB(t *testing.T) {
 		t.Errorf("expected ArticleDetail to contain at least 5 components, got %d", len(detailResp.Data.Components))
 	}
 }
+
+func TestApp_OperatorsLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login Executive (Internal Staff)
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Login Client Snøhund (Client Portal)
+	loginSnohundBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqSnohundLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginSnohundBody))
+	reqSnohundLogin.Header.Set("Content-Type", "application/json")
+	wSnohundLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundLogin, reqSnohundLogin)
+
+	var snohundLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSnohundLogin.Body.Bytes(), &snohundLoginResp)
+	snohundToken := snohundLoginResp.Data.Token
+
+	// Test 1: Executive lists all operators -> 200 OK
+	reqAllOps, _ := http.NewRequest(http.MethodGet, "/api/v1/operators", nil)
+	reqAllOps.Header.Set("Authorization", "Bearer "+execToken)
+	wAllOps := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAllOps, reqAllOps)
+
+	if wAllOps.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for exec listing operators, got %d. Body: %s", wAllOps.Code, wAllOps.Body.String())
+	}
+
+	var allOpsResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID           string  `json:"id"`
+			OperatorCode string  `json:"operatorCode"`
+			Name         string  `json:"name"`
+			Status       string  `json:"status"`
+			DefaultLine  *string `json:"defaultLine"`
+			SkillTier    *string `json:"skillTier"`
+			JoinDate     string  `json:"joinDate"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wAllOps.Body.Bytes(), &allOpsResp); err != nil {
+		t.Fatalf("failed to decode all operators: %v", err)
+	}
+
+	if len(allOpsResp.Data) < 9 {
+		t.Fatalf("expected at least 9 seeded operators, got %d", len(allOpsResp.Data))
+	}
+
+	// Verify presence of mid-week joiner JH-008 (Skenario Uji SRS 2)
+	foundMidWeekJoiner := false
+	for _, op := range allOpsResp.Data {
+		if op.OperatorCode == "JH-008" && op.JoinDate == "2026-10-14" {
+			foundMidWeekJoiner = true
+			break
+		}
+	}
+	if !foundMidWeekJoiner {
+		t.Errorf("expected mid-week joiner operator JH-008 with joinDate 2026-10-14 to be seeded")
+	}
+
+	// Test 2: Filter by status ACTIVE
+	reqActive, _ := http.NewRequest(http.MethodGet, "/api/v1/operators?status=ACTIVE", nil)
+	reqActive.Header.Set("Authorization", "Bearer "+execToken)
+	wActive := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wActive, reqActive)
+
+	if wActive.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for status=ACTIVE, got %d", wActive.Code)
+	}
+	var activeResp struct {
+		Data []struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wActive.Body.Bytes(), &activeResp)
+	for _, op := range activeResp.Data {
+		if op.Status != "ACTIVE" {
+			t.Errorf("expected status ACTIVE, got %s", op.Status)
+		}
+	}
+
+	// Test 3: Filter by status ON_LEAVE
+	reqOnLeave, _ := http.NewRequest(http.MethodGet, "/api/v1/operators?status=ON_LEAVE", nil)
+	reqOnLeave.Header.Set("Authorization", "Bearer "+execToken)
+	wOnLeave := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOnLeave, reqOnLeave)
+
+	if wOnLeave.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for status=ON_LEAVE, got %d", wOnLeave.Code)
+	}
+	var onLeaveResp struct {
+		Data []struct {
+			OperatorCode string `json:"operatorCode"`
+			Status       string `json:"status"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wOnLeave.Body.Bytes(), &onLeaveResp)
+	if len(onLeaveResp.Data) == 0 {
+		t.Errorf("expected at least 1 ON_LEAVE operator (JH-004)")
+	}
+
+	// Test 4: Filter by Line LINE-1
+	reqLine1, _ := http.NewRequest(http.MethodGet, "/api/v1/operators?line=LINE-1", nil)
+	reqLine1.Header.Set("Authorization", "Bearer "+execToken)
+	wLine1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLine1, reqLine1)
+
+	if wLine1.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for line=LINE-1, got %d", wLine1.Code)
+	}
+	var line1Resp struct {
+		Data []struct {
+			DefaultLine *string `json:"defaultLine"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLine1.Body.Bytes(), &line1Resp)
+	for _, op := range line1Resp.Data {
+		if op.DefaultLine == nil || *op.DefaultLine != "LINE-1" {
+			t.Errorf("expected LINE-1, got %v", op.DefaultLine)
+		}
+	}
+
+	// Test 5: Search operator by name
+	reqSearch, _ := http.NewRequest(http.MethodGet, "/api/v1/operators?search=Asep", nil)
+	reqSearch.Header.Set("Authorization", "Bearer "+execToken)
+	wSearch := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSearch, reqSearch)
+
+	if wSearch.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for search=Asep, got %d", wSearch.Code)
+	}
+	var searchResp struct {
+		Data []struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSearch.Body.Bytes(), &searchResp)
+	if len(searchResp.Data) == 0 || !strings.Contains(searchResp.Data[0].Name, "Asep") {
+		t.Errorf("expected operator search result containing 'Asep'")
+	}
+
+	// Test 6: Client Snøhund attempts to access /api/v1/operators -> 403 Forbidden!
+	reqClientAccess, _ := http.NewRequest(http.MethodGet, "/api/v1/operators", nil)
+	reqClientAccess.Header.Set("Authorization", "Bearer "+snohundToken)
+	wClientAccess := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientAccess, reqClientAccess)
+
+	if wClientAccess.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client accesses /operators, got %d. Body: %s", wClientAccess.Code, wClientAccess.Body.String())
+	}
+
+	// Test 7: Request without token -> 401 Unauthorized!
+	reqNoAuth, _ := http.NewRequest(http.MethodGet, "/api/v1/operators", nil)
+	wNoAuth := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNoAuth, reqNoAuth)
+
+	if wNoAuth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated request to /operators, got %d", wNoAuth.Code)
+	}
+}
+
 
 
 

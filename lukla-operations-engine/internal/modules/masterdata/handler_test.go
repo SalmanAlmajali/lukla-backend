@@ -22,6 +22,40 @@ type mockRepository struct {
 	clients    []Client
 	articles   []Article
 	components []Component
+	operators  []Operator
+}
+
+func (m *mockRepository) ListOperators(ctx context.Context, filter ListOperatorsFilter) ([]Operator, error) {
+	var matched []Operator
+	search := strings.ToLower(strings.TrimSpace(filter.Search))
+	for _, op := range m.operators {
+		if filter.Status != "" && !strings.EqualFold(string(op.Status), filter.Status) {
+			continue
+		}
+		if filter.Line != "" {
+			if op.DefaultLine == nil || !strings.EqualFold(*op.DefaultLine, filter.Line) {
+				continue
+			}
+		}
+		if search != "" {
+			matchName := strings.Contains(strings.ToLower(op.Name), search)
+			matchCode := strings.Contains(strings.ToLower(op.OperatorCode), search)
+			if !matchName && !matchCode {
+				continue
+			}
+		}
+		matched = append(matched, op)
+	}
+	return matched, nil
+}
+
+func (m *mockRepository) FindOperatorByID(ctx context.Context, id string) (*Operator, error) {
+	for _, op := range m.operators {
+		if op.ID == id || strings.EqualFold(op.OperatorCode, id) {
+			return &op, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *mockRepository) ListComponentsByArticleID(ctx context.Context, articleID string) ([]Component, error) {
@@ -281,7 +315,74 @@ func setupTestRouter() *gin.Engine {
 		},
 	}
 
-	repo := &mockRepository{clients: mockClients, articles: mockArticles, components: mockComponents}
+	line1 := "LINE-1"
+	line2 := "LINE-2"
+	tierSenior := "SENIOR"
+	tierMed := "MEDIUM"
+	tierJun := "JUNIOR"
+	phone1 := "081122334411"
+	phone2 := "081122334412"
+	phone3 := "081122334413"
+	phone4 := "081122334414"
+
+	mockOperators := []Operator{
+		{
+			ID:           "op-01",
+			OperatorCode: "JH-001",
+			Name:         "Ahmad Supriatna",
+			Phone:        &phone1,
+			JoinDate:     "2025-01-15",
+			Status:       OperatorStatusActive,
+			DefaultLine:  &line1,
+			SkillTier:    &tierSenior,
+		},
+		{
+			ID:           "op-02",
+			OperatorCode: "JH-002",
+			Name:         "Dedi Kusnadi",
+			Phone:        &phone2,
+			JoinDate:     "2025-06-01",
+			Status:       OperatorStatusActive,
+			DefaultLine:  &line1,
+			SkillTier:    &tierMed,
+		},
+		{
+			ID:           "op-03",
+			OperatorCode: "JH-003",
+			Name:         "Endang Suhendar",
+			Phone:        &phone3,
+			JoinDate:     "2025-03-10",
+			Status:       OperatorStatusOnLeave,
+			DefaultLine:  &line2,
+			SkillTier:    &tierSenior,
+		},
+		{
+			ID:           "op-04",
+			OperatorCode: "JH-004",
+			Name:         "Iwan Setiawan",
+			Phone:        &phone4,
+			JoinDate:     "2025-08-20",
+			Status:       OperatorStatusInactive,
+			DefaultLine:  &line2,
+			SkillTier:    &tierJun,
+		},
+		{
+			ID:           "op-05",
+			OperatorCode: "JH-005",
+			Name:         "Asep Saepudin",
+			JoinDate:     "2026-01-10",
+			Status:       OperatorStatusActive,
+			DefaultLine:  nil,
+			SkillTier:    &tierMed,
+		},
+	}
+
+	repo := &mockRepository{
+		clients:    mockClients,
+		articles:   mockArticles,
+		components: mockComponents,
+		operators:  mockOperators,
+	}
 
 	svc := NewService(repo)
 	handler := NewHandler(svc)
@@ -1115,4 +1216,188 @@ func TestGetArticleDetail_IncludesComponents(t *testing.T) {
 		t.Errorf("expected 3 components in article detail, got %d", len(resp.Data.Components))
 	}
 }
+
+func TestListOperators_InternalStaff_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool       `json:"success"`
+		Data    []Operator `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 5 {
+		t.Fatalf("expected 5 operators, got %d", len(resp.Data))
+	}
+}
+
+func TestListOperators_FilterStatus_Active(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators?status=ACTIVE", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Data []Operator `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if len(resp.Data) != 3 {
+		t.Fatalf("expected 3 ACTIVE operators, got %d", len(resp.Data))
+	}
+	for _, op := range resp.Data {
+		if op.Status != OperatorStatusActive {
+			t.Errorf("expected status ACTIVE, got %s", op.Status)
+		}
+	}
+}
+
+func TestListOperators_FilterStatus_OnLeave(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators?status=ON_LEAVE", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Data []Operator `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 ON_LEAVE operator, got %d", len(resp.Data))
+	}
+	if resp.Data[0].OperatorCode != "JH-003" {
+		t.Errorf("expected operator JH-003, got %s", resp.Data[0].OperatorCode)
+	}
+}
+
+func TestListOperators_FilterStatus_Invalid(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators?status=UNKNOWN", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for invalid status, got %d", w.Code)
+	}
+}
+
+func TestListOperators_FilterLine(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators?line=LINE-1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Data []Operator `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 operators on LINE-1, got %d", len(resp.Data))
+	}
+	for _, op := range resp.Data {
+		if op.DefaultLine == nil || *op.DefaultLine != "LINE-1" {
+			t.Errorf("expected defaultLine LINE-1, got %v", op.DefaultLine)
+		}
+	}
+}
+
+func TestListOperators_Search(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators?search=Asep", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Data []Operator `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 operator matching 'Asep', got %d", len(resp.Data))
+	}
+	if resp.Data[0].OperatorCode != "JH-005" {
+		t.Errorf("expected operator JH-005, got %s", resp.Data[0].OperatorCode)
+	}
+}
+
+func TestListOperators_ClientRole_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to role "client"
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client role accesses /operators, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListOperators_Unauthorized_NoToken(t *testing.T) {
+	r := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated request to /operators, got %d", w.Code)
+	}
+}
+
+func TestListOperators_Unauthorized_InvalidToken(t *testing.T) {
+	r := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for invalid token, got %d", w.Code)
+	}
+}
+
 

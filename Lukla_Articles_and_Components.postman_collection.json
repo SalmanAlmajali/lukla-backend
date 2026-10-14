@@ -2,13 +2,13 @@
 	"info": {
 		"_postman_id": "c1f79a94-4b53-4dc9-98db-4e1b7f0e3401",
 		"name": "Lukla Operations Engine - Articles & Components API",
-		"description": "Postman Collection untuk menguji API Master Data Artikel dan Komponen (termasuk Standard SAM / Time Study Tracker) dengan Multi-Tenant Role Isolation pada Lukla Operations Engine.",
+		"description": "Postman Collection untuk menguji API Master Data Artikel, Komponen (termasuk Standard SAM / Time Study Tracker), dan Operators (Internal Staff Only) dengan Multi-Tenant Role Isolation pada Lukla Operations Engine.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:3002/api/v1",
+			"value": "http://localhost:8080/api/v1",
 			"type": "string"
 		},
 		{
@@ -878,6 +878,379 @@
 							]
 						},
 						"description": "Klien Snøhund mencoba menyuntikkan komponen ke artikel milik Klien Aventura. Harus 403 Forbidden."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04. Operators (Internal Staff Only)",
+			"item": [
+				{
+					"name": "1. List All Operators (Internal Staff)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Returns operators array with pagination meta\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    pm.expect(jsonData.data.length).to.be.at.least(9);",
+									"    pm.expect(jsonData.meta).to.be.an('object');",
+									"});",
+									"pm.test(\"Validate operator structure\", function () {",
+									"    var op = jsonData.data[0];",
+									"    pm.expect(op).to.have.property('id');",
+									"    pm.expect(op).to.have.property('operatorCode');",
+									"    pm.expect(op).to.have.property('name');",
+									"    pm.expect(op).to.have.property('status');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							]
+						},
+						"description": "Mengambil seluruh daftar operator jahit / workshop untuk staf internal (Executive, Manager, Supervisor)."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Filter Operators - Status ACTIVE",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"All returned operators have status ACTIVE\", function () {",
+									"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.status).to.eql('ACTIVE');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators?status=ACTIVE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "ACTIVE"
+								}
+							]
+						},
+						"description": "Menyaring daftar operator yang berstatus aktif."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Filter Operators - Status ON_LEAVE",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Returned operators have status ON_LEAVE\", function () {",
+									"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.status).to.eql('ON_LEAVE');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators?status=ON_LEAVE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "ON_LEAVE"
+								}
+							]
+						},
+						"description": "Menyaring operator yang sedang cuti (ON_LEAVE), misal Iwan Setiawan."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Filter Operators - Line LINE-1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"All returned operators belong to LINE-1\", function () {",
+									"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.defaultLine).to.eql('LINE-1');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators?line=LINE-1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							],
+							"query": [
+								{
+									"key": "line",
+									"value": "LINE-1"
+								}
+							]
+						},
+						"description": "Menyaring operator yang dialokasikan di lini produksi LINE-1."
+					},
+					"response": []
+				},
+				{
+					"name": "5. Search Operators by Name / Code (e.g. Ahmad)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Search returns matched operator\", function () {",
+									"    pm.expect(jsonData.data.length).to.be.at.least(1);",
+									"    pm.expect(jsonData.data[0].name).to.include(\"Ahmad\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators?search=Ahmad",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "Ahmad"
+								}
+							]
+						},
+						"description": "Pencarian nama operator jahit 'Ahmad'."
+					},
+					"response": []
+				},
+				{
+					"name": "6. Invalid Status Filter (Must be 400 Bad Request)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"Returns error payload\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('BAD_REQUEST');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators?status=INVALID_STATUS",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "INVALID_STATUS"
+								}
+							]
+						},
+						"description": "Validasi enum status operator. Parameter status tidak valid menghasilkan 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "7. Client Role Access Operators (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"pm.test(\"Returns forbidden error\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('FORBIDDEN');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/operators",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							]
+						},
+						"description": "User eksternal klien (Snøhund) mencoba melihat daftar data operator internal pabrik. Ditolak dengan 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "8. Unauthenticated Access Operators (Must be 401 Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"pm.test(\"Returns unauthorized error\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('UNAUTHORIZED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/operators",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators"
+							]
+						},
+						"description": "Request tanpa token otentikasi. Ditolak dengan 401 Unauthorized."
 					},
 					"response": []
 				}

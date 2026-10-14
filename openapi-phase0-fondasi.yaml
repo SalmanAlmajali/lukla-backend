@@ -734,6 +734,12 @@ paths:
       tags:
         - Operators
       summary: Daftar penjahit / operator jahit
+      description: |
+        Menampilkan daftar operator/penjahit pabrik beserta status, default line, skill tier, dan tanggal bergabung.
+        - **Staf Internal**: Hanya staf internal pabrik yang dapat mengakses daftar operator.
+        - **Akun Klien (CLIENT_PORTAL)**: Ditolak (HTTP 403 Forbidden). Akun klien eksternal tidak diizinkan mengakses data master operator pabrik.
+      security:
+        - BearerAuth: []
       parameters:
         - name: status
           in: query
@@ -741,12 +747,19 @@ paths:
           schema:
             type: string
             enum: [ACTIVE, INACTIVE, ON_LEAVE]
+          description: Filter status operator (ACTIVE, INACTIVE, ON_LEAVE)
         - name: line
           in: query
           required: false
           schema:
             type: string
-          description: Filter penjahit per line (e.g. LINE-1, LINE-2)
+          description: Filter penjahit per line alokasi (e.g. LINE-1, LINE-2)
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nama atau kode operator (e.g. JH-001)
       responses:
         '200':
           description: Daftar operator jahit
@@ -765,6 +778,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Operator'
+        '400':
+          description: Parameter filter status tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk akun klien eksternal (hanya staf internal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Operators

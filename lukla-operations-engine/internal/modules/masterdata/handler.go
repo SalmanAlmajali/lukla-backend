@@ -255,6 +255,37 @@ func (h *Handler) CreateComponent(c *gin.Context) {
 	httpx.Created(c, component)
 }
 
+// ListOperators handles GET /operators with status, line, and search filters.
+// Hanya dapat diakses oleh staf internal (internal staff).
+func (h *Handler) ListOperators(c *gin.Context) {
+	var filter ListOperatorsFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		httpx.ValidationError(c, "Parameter filter operator tidak valid.", err.Error())
+		return
+	}
+
+	role, _ := authn.RoleFrom(c)
+
+	operators, err := h.svc.ListOperators(c.Request.Context(), filter, role)
+	if err != nil {
+		if errors.Is(err, ErrInvalidOperatorStatus) {
+			httpx.BadRequest(c, "INVALID_STATUS", err.Error())
+			return
+		}
+		if errors.Is(err, ErrForbiddenOperatorAccess) {
+			httpx.Forbidden(c, "FORBIDDEN", err.Error())
+			return
+		}
+
+		requestID, _ := c.Get("request_id")
+		rid, _ := requestID.(string)
+		httpx.InternalServerError(c, rid)
+		return
+	}
+
+	httpx.OK(c, operators)
+}
+
 // RegisterRoutes registers masterdata routes on the given router group.
 func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerFunc, authzMiddleware gin.HandlerFunc) {
 	r.GET("/clients", authnMiddleware, authzMiddleware, h.ListClients)
@@ -266,5 +297,8 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerF
 
 	r.GET("/articles/:id/components", authnMiddleware, h.ListComponents)
 	r.POST("/articles/:id/components", authnMiddleware, h.CreateComponent)
+
+	r.GET("/operators", authnMiddleware, authzMiddleware, h.ListOperators)
 }
+
 

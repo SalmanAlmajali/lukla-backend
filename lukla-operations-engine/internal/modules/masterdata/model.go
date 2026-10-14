@@ -89,3 +89,36 @@ type CreateComponentRequest struct {
 	SequenceNumber *int     `json:"sequenceNumber"`
 	StandardSAM    *float64 `json:"standardSAM"`
 }
+
+// OperatorStatus represents the employment or availability status of an operator.
+type OperatorStatus string
+
+const (
+	OperatorStatusActive   OperatorStatus = "ACTIVE"
+	OperatorStatusInactive OperatorStatus = "INACTIVE"
+	OperatorStatusOnLeave  OperatorStatus = "ON_LEAVE"
+)
+
+// Operator represents a sewing operator / tailor in the factory.
+type Operator struct {
+	ID           string         `json:"id"`
+	OperatorCode string         `json:"operatorCode"`
+	Name         string         `json:"name"`
+	Phone        *string        `json:"phone,omitempty"`
+	JoinDate     string         `json:"joinDate"` // Format: YYYY-MM-DD
+	Status       OperatorStatus `json:"status"`
+	DefaultLine  *string        `json:"defaultLine,omitempty"`
+	SkillTier    *string        `json:"skillTier,omitempty"`
+	UserID       *string        `json:"userId,omitempty"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt,omitempty"`
+	DeletedAt    *time.Time     `json:"deletedAt,omitempty"`
+}
+
+// ListOperatorsFilter defines query parameters for filtering operators.
+type ListOperatorsFilter struct {
+	Status string `form:"status"`
+	Line   string `form:"line"`
+	Search string `form:"search"`
+}
+

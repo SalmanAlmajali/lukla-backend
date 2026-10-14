@@ -414,3 +414,138 @@ func (r *PostgresRepository) CreateComponent(ctx context.Context, comp *Componen
 	return nil
 }
 
+// ListOperators retrieves all operators matching the given filter.
+func (r *PostgresRepository) ListOperators(ctx context.Context, filter ListOperatorsFilter) ([]Operator, error) {
+	conditions := []string{"deleted_at IS NULL"}
+	args := make([]interface{}, 0)
+	argIdx := 1
+
+	if status := strings.TrimSpace(filter.Status); status != "" {
+		conditions = append(conditions, fmt.Sprintf("UPPER(status) = UPPER($%d)", argIdx))
+		args = append(args, status)
+		argIdx++
+	}
+
+	if line := strings.TrimSpace(filter.Line); line != "" {
+		conditions = append(conditions, fmt.Sprintf("UPPER(default_line) = UPPER($%d)", argIdx))
+		args = append(args, line)
+		argIdx++
+	}
+
+	if search := strings.TrimSpace(filter.Search); search != "" {
+		conditions = append(conditions, fmt.Sprintf("(LOWER(name) LIKE $%d OR LOWER(operator_code) LIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+strings.ToLower(search)+"%")
+		argIdx++
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			id::text,
+			operator_code,
+			name,
+			phone,
+			join_date::text,
+			status,
+			default_line,
+			skill_tier,
+			user_id::text,
+			created_at,
+			updated_at
+		FROM operators
+		WHERE %s
+		ORDER BY operator_code ASC;
+	`, strings.Join(conditions, " AND "))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query operators: %w", err)
+	}
+	defer rows.Close()
+
+	operators := make([]Operator, 0)
+	for rows.Next() {
+		var op Operator
+		var statusStr string
+		var userID sql.NullString
+		if err := rows.Scan(
+			&op.ID,
+			&op.OperatorCode,
+			&op.Name,
+			&op.Phone,
+			&op.JoinDate,
+			&statusStr,
+			&op.DefaultLine,
+			&op.SkillTier,
+			&userID,
+			&op.CreatedAt,
+			&op.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan operator: %w", err)
+		}
+		op.Status = OperatorStatus(statusStr)
+		if userID.Valid {
+			op.UserID = &userID.String
+		}
+		operators = append(operators, op)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("operators rows iteration: %w", err)
+	}
+
+	return operators, nil
+}
+
+// FindOperatorByID retrieves an operator by its ID or operator code.
+func (r *PostgresRepository) FindOperatorByID(ctx context.Context, id string) (*Operator, error) {
+	query := `
+		SELECT
+			id::text,
+			operator_code,
+			name,
+			phone,
+			join_date::text,
+			status,
+			default_line,
+			skill_tier,
+			user_id::text,
+			created_at,
+			updated_at
+		FROM operators
+		WHERE (id::text = $1 OR operator_code = $1)
+		  AND deleted_at IS NULL
+		LIMIT 1;
+	`
+
+	var op Operator
+	var statusStr string
+	var userID sql.NullString
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&op.ID,
+		&op.OperatorCode,
+		&op.Name,
+		&op.Phone,
+		&op.JoinDate,
+		&statusStr,
+		&op.DefaultLine,
+		&op.SkillTier,
+		&userID,
+		&op.CreatedAt,
+		&op.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find operator by id: %w", err)
+	}
+
+	op.Status = OperatorStatus(statusStr)
+	if userID.Valid {
+		op.UserID = &userID.String
+	}
+
+	return &op, nil
+}
+
+

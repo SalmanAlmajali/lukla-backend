@@ -17,6 +17,9 @@ var (
 	ErrDuplicateArticleCode   = errors.New("Kode artikel sudah digunakan")
 	ErrInvalidCategory        = errors.New("Kategori produk tidak valid, harus 'GARMENT' atau 'BAG'")
 	ErrForbiddenArticleAccess = errors.New("Akses ditolak: Anda hanya dapat mengakses data artikel milik klien Anda sendiri")
+	ErrInvalidOperatorStatus  = errors.New("Status operator tidak valid, harus 'ACTIVE', 'INACTIVE', atau 'ON_LEAVE'")
+	ErrForbiddenOperatorAccess = errors.New("Akses ditolak: akun klien eksternal tidak diizinkan mengakses data master operator pabrik")
+	ErrOperatorNotFound       = errors.New("Operator jahit tidak ditemukan")
 )
 
 // Service handles business logic for master data entities.
@@ -286,4 +289,47 @@ func (s *Service) CreateComponent(ctx context.Context, articleID string, req Cre
 
 	return &comp, nil
 }
+
+// ListOperators retrieves the list of sewing operators / tailors in the factory.
+// Hanya staf internal yang diizinkan mengakses data master operator pabrik.
+// Pengguna dengan peran klien (client / CLIENT_PORTAL) akan ditolak (403 Forbidden).
+func (s *Service) ListOperators(ctx context.Context, filter ListOperatorsFilter, requesterRole string) ([]Operator, error) {
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		return nil, ErrForbiddenOperatorAccess
+	}
+
+	if filter.Status != "" {
+		st := strings.ToUpper(strings.TrimSpace(filter.Status))
+		if st != string(OperatorStatusActive) && st != string(OperatorStatusInactive) && st != string(OperatorStatusOnLeave) {
+			return nil, ErrInvalidOperatorStatus
+		}
+		filter.Status = st
+	}
+
+	if filter.Line != "" {
+		filter.Line = strings.ToUpper(strings.TrimSpace(filter.Line))
+	}
+
+	return s.repo.ListOperators(ctx, filter)
+}
+
+// GetOperatorDetail retrieves operator details by ID or operator code.
+func (s *Service) GetOperatorDetail(ctx context.Context, id string, requesterRole string) (*Operator, error) {
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		return nil, ErrForbiddenOperatorAccess
+	}
+
+	op, err := s.repo.FindOperatorByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if op == nil {
+		return nil, ErrOperatorNotFound
+	}
+
+	return op, nil
+}
+
 

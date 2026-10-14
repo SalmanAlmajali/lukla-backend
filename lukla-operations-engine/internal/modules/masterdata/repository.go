@@ -14,5 +14,8 @@ type Repository interface {
 
 	ListComponentsByArticleID(ctx context.Context, articleID string) ([]Component, error)
 	CreateComponent(ctx context.Context, comp *Component) error
+
+	ListOperators(ctx context.Context, filter ListOperatorsFilter) ([]Operator, error)
+	FindOperatorByID(ctx context.Context, id string) (*Operator, error)
 }
 
