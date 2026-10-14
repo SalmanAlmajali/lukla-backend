@@ -1,0 +1,1475 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 3: Gudang & Blokade Kontaminasi Silang)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 3 (Gudang, Penerimaan Bahan, Blokade Kontaminasi Silang & Scrap Cutting)** Lukla Operations Engine (Fasilitas Ciwidey).
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 02), dan SRS Skenario Uji 1:
+    - **BPMN 02**: Penerimaan Bahan & Blokade Kontaminasi Silang (FR-6.1, FR-6.2, FR-6.3).
+    - **Tagging Wajib (FR-6.1)**: Setiap bahan yang tiba (baik CMT titipan klien maupun Full-Package) wajib ditandai secara fisik dan digital dengan `client_id` dan `order_id`.
+    - **Blokade Kontaminasi Silang (FR-6.2 & Skenario Uji 1)**: Sistem menolak secara mutlak (`BLOCKED`) pengeluaran bahan jika pemilik bahan (`client_id`) tidak cocok dengan pemilik order tujuan pemotongan di meja cutting.
+    - **Log Audit Blokade (Security & Compliance)**: Setiap upaya salah-keluar yang ditolak dicatat dalam log keamanan untuk review operasional dan transparansi klien.
+    - **Pencatatan Sisa Potongan / Scrap (FR-6.3)**: Sisa kain cutting dicatat kuantitas dan kategorinya (Perca, Cacat Gulungan, Ujung Roll, Error Potong) beserta rencana disposisinya.
+    - **Isolasi Stok Multi-Tenant**: Klien B2B melalui portal hanya diizinkan melihat saldo stok bahan titipan milik dirinya sendiri (`client_id`).
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local API Server (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Raw Materials Master (BPMN 02)
+    description: Manajemen katalog jenis material mentah, kain, benang, dan aksesoris garmen
+  - name: Material Receipts - Inbound (BPMN 02)
+    description: Pencatatan bahan masuk gudang dengan penandaan wajib Client ID dan Order ID (FR-6.1)
+  - name: Inventory Stock & Lots (BPMN 02)
+    description: Pelacakan saldo stok gudang, batch/lot, dan isolasi kepemilikan bahan per klien
+  - name: Material Issues & Blockade - Outbound (BPMN 02)
+    description: Pengeluaran bahan ke lantai cutting dan blokade otomatis anti-kontaminasi silang (FR-6.2 / Skenario Uji 1)
+  - name: Cutting Scraps & Waste (BPMN 02)
+    description: Pencatatan sisa potongan cutting, klasifikasi kategori limbah, dan penanganan scrap (FR-6.3)
+  - name: Blocked Attempts Audit (BPMN 02)
+    description: Audit trail dan pencatatan insiden penolakan pengeluaran bahan salah klien
+
+paths:
+  # ==========================================
+  # 1. RAW MATERIALS MASTER (BPMN 02)
+  # ==========================================
+  /inventory/materials:
+    get:
+      tags:
+        - Raw Materials Master (BPMN 02)
+      summary: Daftar katalog bahan mentah & aksesoris
+      description: |
+        Mengambil daftar jenis bahan mentah (kain, rib, benang, kancing, resleting, webbing, dll).
+        - **Akses**: `owner_executive`, `warehouse`, `production_head`, `sample_adis`.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [FABRIC, ACCESSORY, THREAD, PACKAGING, OTHER]
+          description: Filter berdasarkan kategori material
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan kode atau nama bahan
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Daftar bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 12
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Material'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Raw Materials Master (BPMN 02)
+      summary: Tambah jenis bahan mentah baru
+      description: |
+        Mendaftarkan jenis bahan baru ke dalam master katalog material.
+        - **Akses**: `owner_executive`, `warehouse`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMaterialRequest'
+      responses:
+        '201':
+          description: Bahan mentah berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Material'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: Kode material sudah terdaftar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /inventory/materials/{id}:
+    get:
+      tags:
+        - Raw Materials Master (BPMN 02)
+      summary: Detail spesifikasi bahan mentah
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID bahan mentah
+      responses:
+        '200':
+          description: Detail material berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Material'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 2. MATERIAL RECEIPTS - INBOUND (FR-6.1)
+  # ==========================================
+  /inventory/receipts:
+    get:
+      tags:
+        - Material Receipts - Inbound (BPMN 02)
+      summary: Riwayat penerimaan bahan masuk gudang
+      description: |
+        Menampilkan riwayat penerimaan barang masuk ke gudang logistik Ciwidey.
+        - **Akses**: `owner_executive`, `warehouse`, `production_head`.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan klien pemilik bahan
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan order yang dituju
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Riwayat penerimaan bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReceiptSummary'
+
+    post:
+      tags:
+        - Material Receipts - Inbound (BPMN 02)
+      summary: Catat penerimaan bahan masuk (Wajib Tag Client ID & Order ID)
+      description: |
+        Mencatat kedatangan bahan di gudang (FR-6.1):
+        - **Mandatory Tagging**: Wajib menyertakan `clientId` (pemilik bahan) dan `orderId` (alokasi pesanan).
+        - Otomatis membuat batch/lot unik (`inventory_lots`) dengan kuantitas awal dan lokasi rak penyimpanan.
+        - Saldo stok gudang bertambah secara atomik.
+        - **Akses**: `warehouse`, `owner_executive`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReceiptRequest'
+      responses:
+        '201':
+          description: Penerimaan bahan berhasil dicatat dan stok lot terbentuk
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Bahan masuk berhasil dicatat dengan tag Client ID dan Order ID."
+                  data:
+                    $ref: '#/components/schemas/ReceiptDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Client atau Order tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /inventory/receipts/{id}:
+    get:
+      tags:
+        - Material Receipts - Inbound (BPMN 02)
+      summary: Detail dokumen penerimaan bahan masuk
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID dokumen penerimaan
+      responses:
+        '200':
+          description: Detail penerimaan bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ReceiptDetail'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 3. INVENTORY STOCK & LOTS (BPMN 02)
+  # ==========================================
+  /inventory/stocks:
+    get:
+      tags:
+        - Inventory Stock & Lots (BPMN 02)
+      summary: Saldo stok bahan gudang (Multi-Tenant & Per Order)
+      description: |
+        Menampilkan ringkasan saldo stok material aktif di gudang.
+        - Jika diakses oleh akun peran `client`, secara otomatis dibatasi (RLS/tenant isolation) hanya menampilkan stok bahan milik klien bersangkutan.
+        - **Akses**: `owner_executive`, `warehouse`, `production_head`, `client`.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan klien (diabaikan jika caller adalah client)
+        - name: materialId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan material tertentu
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan tag order tertentu
+      responses:
+        '200':
+          description: Data saldo stok bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 8
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockBalance'
+
+  /inventory/lots/{id}:
+    get:
+      tags:
+        - Inventory Stock & Lots (BPMN 02)
+      summary: Detail spesifik lot/roll bahan
+      description: |
+        Melihat rincian satu gulungan/lot material, termasuk tanggal penerimaan, kuantitas awal, sisa kuantitas terkini, lokasi rak, dan tag kepemilikan.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID lot bahan
+      responses:
+        '200':
+          description: Detail lot bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/InventoryLot'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 4. MATERIAL ISSUES & BLOCKADE (FR-6.2 & Skenario Uji 1)
+  # ==========================================
+  /inventory/issues:
+    get:
+      tags:
+        - Material Issues & Blockade - Outbound (BPMN 02)
+      summary: Riwayat pengeluaran bahan ke lantai cutting
+      description: |
+        Mengambil riwayat transaksi pengeluaran material dari gudang menuju meja pemotongan cutting.
+        - **Akses**: `owner_executive`, `warehouse`, `production_head`.
+      parameters:
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Riwayat pengeluaran bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 6
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IssueSummary'
+
+    post:
+      tags:
+        - Material Issues & Blockade - Outbound (BPMN 02)
+      summary: Keluarkan bahan ke cutting (Dengan Blokade Kontaminasi Silang)
+      description: |
+        Menjalankan permintaan pengeluaran bahan ke meja potong cutting (FR-6.2 & Skenario Uji 1):
+        1. **Gateway Validasi Klien**: Membandingkan `lot.client_id` dengan `order.client_id`.
+        2. **Skenario Uji 1**: Jika `lot.client_id != order.client_id`, sistem **SEKETIKA MEMBLOKIR** transaksi:
+           - Mengembalikan response `400 Bad Request` dengan error code `INVENTORY_CLIENT_ORDER_MISMATCH`.
+           - Stok bahan **TIDAK BERKURANG**.
+           - Mencatat insiden ke dalam audit log `inventory_blocked_attempts`.
+        3. Jika ID Klien cocok dan stok mencukupi:
+           - Mengurangi saldo stok lot secara atomik dengan row-locking (`FOR UPDATE`).
+           - Menyimpan transaksi pengeluaran `inventory_issues` dan item lot terkait.
+        - **Akses**: `warehouse`, `owner_executive`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIssueRequest'
+      responses:
+        '201':
+          description: Bahan berhasil dikeluarkan ke lantai cutting
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-2026-10-001."
+                  data:
+                    $ref: '#/components/schemas/IssueDetail'
+        '400':
+          description: Validasi gagal atau terjadi pelanggaran kontaminasi silang (Skenario Uji 1)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                CrossContaminationBlocked:
+                  summary: Blokade Bahan Beda Klien (Skenario Uji 1)
+                  value:
+                    success: false
+                    error:
+                      code: "INVENTORY_CLIENT_ORDER_MISMATCH"
+                      message: "BLOKIR KEAMANAN: Bahan milik klien 'Snøhund Brand' tidak dapat dikeluarkan untuk order milik klien 'Urban Culture Maklon'."
+                InsufficientStock:
+                  summary: Stok Tidak Cukup
+                  value:
+                    success: false
+                    error:
+                      code: "INSUFFICIENT_STOCK"
+                      message: "Sisa kuantitas pada lot LOT-202610-001 hanya tersisa 45.00 meter (diminta 60.00 meter)."
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /inventory/issues/{id}:
+    get:
+      tags:
+        - Material Issues & Blockade - Outbound (BPMN 02)
+      summary: Detail transaksi pengeluaran bahan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID transaksi pengeluaran
+      responses:
+        '200':
+          description: Detail pengeluaran bahan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/IssueDetail'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 5. BLOCKED ATTEMPTS AUDIT LOG (FR-6.2 & Skenario Uji 1)
+  # ==========================================
+  /inventory/blocked-attempts:
+    get:
+      tags:
+        - Blocked Attempts Audit (BPMN 02)
+      summary: Riwayat insiden percobaan salah-keluar yang diblokir sistem
+      description: |
+        Menampilkan log keamanan dan audit trail seluruh insiden saat petugas gudang mencoba mengeluarkan bahan milik Klien A untuk order Klien B.
+        - Memuat data waktu kejadian, petugas yang mencoba, lot yang dipilih, order target, serta alasan pemblokiran eksplisit.
+        - **Akses**: `owner_executive`, `warehouse`.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Riwayat blokade berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 2
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlockedAttemptRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  # ==========================================
+  # 6. CUTTING SCRAPS & WASTE (FR-6.3)
+  # ==========================================
+  /inventory/scraps:
+    get:
+      tags:
+        - Cutting Scraps & Waste (BPMN 02)
+      summary: Riwayat sisa potongan kain (scrap) cutting
+      description: |
+        Mengambil rekapitulasi limbah sisa pemotongan bahan massal di meja cutting.
+        - **Akses**: `owner_executive`, `warehouse`, `production_head`.
+      parameters:
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: scrapCategory
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PERCA_KECIL, CACAT_KAIN_ROLL, UJUNG_GULUNGAN, KESALAHAN_POTONG]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Daftar pencatatan scrap berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - total
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CuttingScrapRecord'
+
+    post:
+      tags:
+        - Cutting Scraps & Waste (BPMN 02)
+      summary: Catat sisa potongan kain / limbah cutting (FR-6.3)
+      description: |
+        Mencatat sisa potongan kain setelah pemotongan massal di bagian cutting:
+        - Menyimpan jumlah kuantitas sisa, kategori scrap, dan disposisi material (disimpan di gudang sisa, dikembalikan ke klien, atau dimusnahkan).
+        - **Akses**: `warehouse`, `production_head`, `owner_executive`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScrapRequest'
+      responses:
+        '201':
+          description: Data sisa potongan berhasil dicatat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Data sisa potongan cutting berhasil dicatat."
+                  data:
+                    $ref: '#/components/schemas/CuttingScrapRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    UnauthorizedError:
+      description: Token autentikasi hilang atau kadaluarsa
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "UNAUTHORIZED"
+              message: "Sesi telah berakhir atau token tidak valid."
+
+    ForbiddenError:
+      description: Peran pengguna tidak memiliki hak akses
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "FORBIDDEN"
+              message: "Peran pengguna tidak memiliki hak akses untuk tindakan inventaris ini."
+
+    NotFoundError:
+      description: Sumber daya data tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "NOT_FOUND"
+              message: "Data inventaris yang diminta tidak ditemukan."
+
+    ValidationError:
+      description: Parameter atau payload request tidak memenuhi validasi bisnis
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Field kuantitas dan satuan wajib diisi."
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: "INVENTORY_CLIENT_ORDER_MISMATCH"
+            message:
+              type: string
+              example: "Bahan tidak dapat dikeluarkan untuk order dari klien yang berbeda."
+
+    Material:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - category
+        - defaultUnit
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        code:
+          type: string
+          example: "MAT-CTN-30S-BLK"
+        name:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        category:
+          type: string
+          enum: [FABRIC, ACCESSORY, THREAD, PACKAGING, OTHER]
+          example: "FABRIC"
+        defaultUnit:
+          type: string
+          example: "KG"
+        description:
+          type: string
+          example: "Kain kaos katun combed kualitas ekspor gramasi 140-150 gsm"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-14T08:00:00Z"
+
+    CreateMaterialRequest:
+      type: object
+      required:
+        - code
+        - name
+        - category
+        - defaultUnit
+      properties:
+        code:
+          type: string
+          example: "MAT-CTN-30S-BLK"
+        name:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        category:
+          type: string
+          enum: [FABRIC, ACCESSORY, THREAD, PACKAGING, OTHER]
+          example: "FABRIC"
+        defaultUnit:
+          type: string
+          example: "KG"
+        description:
+          type: string
+          example: "Kain kaos katun combed kualitas ekspor gramasi 140-150 gsm"
+
+    CreateReceiptRequest:
+      type: object
+      required:
+        - receiptNumber
+        - clientId
+        - orderId
+        - receivedDate
+        - items
+      properties:
+        receiptNumber:
+          type: string
+          example: "RCV-202610-001"
+        clientId:
+          type: string
+          format: uuid
+          description: "ID Klien pemilik bahan (FR-6.1 Mandatory Tagging)"
+          example: "e2b3c4d5-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
+        orderId:
+          type: string
+          format: uuid
+          description: "ID Pesanan alokasi bahan (FR-6.1 Mandatory Tagging)"
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        receivedDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        supplierName:
+          type: string
+          example: "PT Grand Textile Bandung"
+        deliveryNoteNumber:
+          type: string
+          example: "SJ-GT-99214"
+        notes:
+          type: string
+          example: "Bahan titipan PO Jaket Snøhund Batch 1"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateReceiptItem'
+
+    CreateReceiptItem:
+      type: object
+      required:
+        - materialId
+        - lotNumber
+        - quantity
+        - unit
+        - warehouseLocation
+      properties:
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        lotNumber:
+          type: string
+          example: "LOT-SNO-2026-01"
+        quantity:
+          type: number
+          example: 150.50
+        unit:
+          type: string
+          example: "KG"
+        rollCount:
+          type: integer
+          example: 6
+        warehouseLocation:
+          type: string
+          example: "RAK-A2-TINGKAT-1"
+        notes:
+          type: string
+          example: "Kondisi fisik kain bagus, warna sesuai lab dip"
+
+    ReceiptSummary:
+      type: object
+      required:
+        - id
+        - receiptNumber
+        - clientName
+        - orderCode
+        - receivedDate
+        - totalItemsCount
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+        receiptNumber:
+          type: string
+          example: "RCV-202610-001"
+        clientId:
+          type: string
+          format: uuid
+          example: "e2b3c4d5-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        orderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        receivedDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        supplierName:
+          type: string
+          example: "PT Grand Textile Bandung"
+        totalItemsCount:
+          type: integer
+          example: 2
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-15T09:30:00Z"
+
+    ReceiptDetail:
+      allOf:
+        - $ref: '#/components/schemas/ReceiptSummary'
+        - type: object
+          properties:
+            deliveryNoteNumber:
+              type: string
+              example: "SJ-GT-99214"
+            receivedByName:
+              type: string
+              example: "Agus Pratama (Gudang)"
+            notes:
+              type: string
+              example: "Bahan titipan PO Jaket Snøhund Batch 1"
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ReceiptItem'
+
+    ReceiptItem:
+      type: object
+      required:
+        - id
+        - materialId
+        - materialName
+        - lotId
+        - lotNumber
+        - quantity
+        - unit
+        - warehouseLocation
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e"
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        materialCode:
+          type: string
+          example: "MAT-CTN-30S-BLK"
+        materialName:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        lotId:
+          type: string
+          format: uuid
+          example: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"
+        lotNumber:
+          type: string
+          example: "LOT-SNO-2026-01"
+        quantity:
+          type: number
+          example: 150.50
+        unit:
+          type: string
+          example: "KG"
+        rollCount:
+          type: integer
+          example: 6
+        warehouseLocation:
+          type: string
+          example: "RAK-A2-TINGKAT-1"
+
+    InventoryLot:
+      type: object
+      required:
+        - id
+        - lotNumber
+        - materialId
+        - materialName
+        - clientId
+        - clientName
+        - orderId
+        - orderCode
+        - initialQuantity
+        - currentQuantity
+        - unit
+        - status
+        - warehouseLocation
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"
+        lotNumber:
+          type: string
+          example: "LOT-SNO-2026-01"
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        materialCode:
+          type: string
+          example: "MAT-CTN-30S-BLK"
+        materialName:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        clientId:
+          type: string
+          format: uuid
+          example: "e2b3c4d5-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        orderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        initialQuantity:
+          type: number
+          example: 150.50
+        currentQuantity:
+          type: number
+          example: 90.50
+        unit:
+          type: string
+          example: "KG"
+        status:
+          type: string
+          enum: [AVAILABLE, DEPLETED, RESERVED]
+          example: "AVAILABLE"
+        warehouseLocation:
+          type: string
+          example: "RAK-A2-TINGKAT-1"
+        receivedAt:
+          type: string
+          format: date-time
+          example: "2026-10-15T09:30:00Z"
+
+    StockBalance:
+      type: object
+      required:
+        - materialId
+        - materialName
+        - clientId
+        - clientName
+        - totalQuantity
+        - unit
+        - availableLotsCount
+      properties:
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        materialCode:
+          type: string
+          example: "MAT-CTN-30S-BLK"
+        materialName:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        clientId:
+          type: string
+          format: uuid
+          example: "e2b3c4d5-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        orderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        totalQuantity:
+          type: number
+          example: 240.50
+        unit:
+          type: string
+          example: "KG"
+        availableLotsCount:
+          type: integer
+          example: 3
+
+    CreateIssueRequest:
+      type: object
+      required:
+        - targetOrderId
+        - issuedDate
+        - items
+      properties:
+        issueNumber:
+          type: string
+          example: "ISS-202610-001"
+        targetOrderId:
+          type: string
+          format: uuid
+          description: "ID Pesanan massal tujuan cutting yang akan menerima bahan"
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        cuttingTableNumber:
+          type: string
+          example: "MEJA-CUTTING-01"
+        issuedDate:
+          type: string
+          format: date
+          example: "2026-10-16"
+        notes:
+          type: string
+          example: "Pengeluaran bahan untuk cutting badan dan lengan PO-2026-10-001"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateIssueItem'
+
+    CreateIssueItem:
+      type: object
+      required:
+        - lotId
+        - quantity
+      properties:
+        lotId:
+          type: string
+          format: uuid
+          description: "ID lot gudang yang akan dipotong saldonya"
+          example: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"
+        quantity:
+          type: number
+          description: "Jumlah kuantitas yang dikeluarkan ke cutting"
+          example: 60.00
+        notes:
+          type: string
+          example: "Ambil 2 roll kain"
+
+    IssueSummary:
+      type: object
+      required:
+        - id
+        - issueNumber
+        - targetOrderId
+        - targetOrderCode
+        - targetClientName
+        - issuedDate
+        - totalItemsCount
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "d4e5f6a7-b89c-0d1e-2f3a-4b5c6d7e8f9a"
+        issueNumber:
+          type: string
+          example: "ISS-202610-001"
+        targetOrderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        targetOrderCode:
+          type: string
+          example: "PO-2026-10-001"
+        targetClientName:
+          type: string
+          example: "Snøhund Brand"
+        cuttingTableNumber:
+          type: string
+          example: "MEJA-CUTTING-01"
+        issuedDate:
+          type: string
+          format: date
+          example: "2026-10-16"
+        totalItemsCount:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-16T08:15:00Z"
+
+    IssueDetail:
+      allOf:
+        - $ref: '#/components/schemas/IssueSummary'
+        - type: object
+          properties:
+            issuedByName:
+              type: string
+              example: "Agus Pratama (Gudang)"
+            notes:
+              type: string
+              example: "Pengeluaran bahan untuk cutting badan dan lengan PO-2026-10-001"
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/IssueItem'
+
+    IssueItem:
+      type: object
+      required:
+        - id
+        - lotId
+        - lotNumber
+        - materialName
+        - clientName
+        - quantity
+        - unit
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e5f6a7b8-9c0d-1e2f-3a4b-5c6d7e8f9a0b"
+        lotId:
+          type: string
+          format: uuid
+          example: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"
+        lotNumber:
+          type: string
+          example: "LOT-SNO-2026-01"
+        materialName:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        quantity:
+          type: number
+          example: 60.00
+        unit:
+          type: string
+          example: "KG"
+        remainingLotQuantity:
+          type: number
+          example: 90.50
+
+    BlockedAttemptRecord:
+      type: object
+      required:
+        - id
+        - attemptedAt
+        - attemptedByUserId
+        - attemptedByName
+        - lotId
+        - lotNumber
+        - lotClientId
+        - lotClientName
+        - targetOrderId
+        - targetOrderCode
+        - targetClientId
+        - targetClientName
+        - requestedQuantity
+        - reason
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f6a7b89c-0d1e-2f3a-4b5c-6d7e8f9a0b1c"
+        attemptedAt:
+          type: string
+          format: date-time
+          example: "2026-10-16T10:20:00Z"
+        attemptedByUserId:
+          type: string
+          format: uuid
+          example: "3c1e2f4a-8b9d-4e5f-a012-3456789abcde"
+        attemptedByName:
+          type: string
+          example: "Agus Pratama"
+        lotId:
+          type: string
+          format: uuid
+          example: "c3d4e5f6-a7b8-9c0d-1e2f-3a4b5c6d7e8f"
+        lotNumber:
+          type: string
+          example: "LOT-SNO-2026-01"
+        lotClientId:
+          type: string
+          format: uuid
+          example: "e2b3c4d5-6f7a-8b9c-0d1e-2f3a4b5c6d7e"
+        lotClientName:
+          type: string
+          example: "Snøhund Brand"
+        targetOrderId:
+          type: string
+          format: uuid
+          example: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+        targetOrderCode:
+          type: string
+          example: "PO-URBAN-2026-002"
+        targetClientId:
+          type: string
+          format: uuid
+          example: "7d8e9f0a-1b2c-3d4e-5f6a-7b8c9d0e1f2a"
+        targetClientName:
+          type: string
+          example: "Urban Culture Maklon"
+        requestedQuantity:
+          type: number
+          example: 40.00
+        reason:
+          type: string
+          example: "BLOKIR KEAMANAN: Bahan milik klien 'Snøhund Brand' tidak dapat dikeluarkan untuk order milik klien 'Urban Culture Maklon'."
+
+    CreateScrapRequest:
+      type: object
+      required:
+        - orderId
+        - materialId
+        - scrapCategory
+        - quantity
+        - unit
+        - disposition
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        scrapCategory:
+          type: string
+          enum: [PERCA_KECIL, CACAT_KAIN_ROLL, UJUNG_GULUNGAN, KESALAHAN_POTONG]
+          example: "PERCA_KECIL"
+        quantity:
+          type: number
+          example: 4.25
+        unit:
+          type: string
+          example: "KG"
+        disposition:
+          type: string
+          enum: [SIMPAN_GUDANG_SISA, KEMBALIKAN_KLIEN, JUAL_LIMBAH, BUANG]
+          example: "SIMPAN_GUDANG_SISA"
+        notes:
+          type: string
+          example: "Sisa potongan pola saku dan kerah"
+
+    CuttingScrapRecord:
+      type: object
+      required:
+        - id
+        - orderId
+        - orderCode
+        - materialId
+        - materialName
+        - scrapCategory
+        - quantity
+        - unit
+        - disposition
+        - recordedByName
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        orderId:
+          type: string
+          format: uuid
+          example: "f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c"
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        materialId:
+          type: string
+          format: uuid
+          example: "8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+        materialName:
+          type: string
+          example: "Cotton Combed 30s Reaktif - Hitam Jet Black"
+        scrapCategory:
+          type: string
+          example: "PERCA_KECIL"
+        quantity:
+          type: number
+          example: 4.25
+        unit:
+          type: string
+          example: "KG"
+        disposition:
+          type: string
+          example: "SIMPAN_GUDANG_SISA"
+        notes:
+          type: string
+          example: "Sisa potongan pola saku dan kerah"
+        recordedByName:
+          type: string
+          example: "Agus Pratama"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-16T16:00:00Z"
+
