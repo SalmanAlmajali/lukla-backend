@@ -1985,6 +1985,229 @@ func TestApp_ProductionLinesAndAllocationsLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_ProductionOutputsLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Executive Login
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+	if wExecLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login executive: %d", wExecLogin.Code)
+	}
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Client Login (to test 403 Forbidden)
+	loginClientBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqClientLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginClientBody))
+	reqClientLogin.Header.Set("Content-Type", "application/json")
+	wClientLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLogin, reqClientLogin)
+	if wClientLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login client: %d", wClientLogin.Code)
+	}
+	var clientLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientLogin.Body.Bytes(), &clientLoginResp)
+	clientToken := clientLoginResp.Data.Token
+
+	// 3. Query required entity IDs from DB
+	var lineID, orderID, operator1ID, operator2ID, componentID string
+	err = application.db.QueryRow("SELECT id FROM lines WHERE code = 'LINE-01'").Scan(&lineID)
+	if err != nil {
+		t.Fatalf("failed to find LINE-01: %v", err)
+	}
+	err = application.db.QueryRow("SELECT id FROM orders WHERE order_number = 'PO-2026-10-001'").Scan(&orderID)
+	if err != nil {
+		t.Fatalf("failed to find PO-2026-10-001: %v", err)
+	}
+	err = application.db.QueryRow("SELECT id FROM operators WHERE operator_code = 'JH-001'").Scan(&operator1ID)
+	if err != nil {
+		t.Fatalf("failed to find JH-001: %v", err)
+	}
+	err = application.db.QueryRow("SELECT id FROM operators WHERE operator_code = 'JH-002'").Scan(&operator2ID)
+	if err != nil {
+		t.Fatalf("failed to find JH-002: %v", err)
+	}
+	err = application.db.QueryRow("SELECT id FROM components WHERE code = 'CMP-SNO-PK-02'").Scan(&componentID)
+	if err != nil {
+		t.Fatalf("failed to find CMP-SNO-PK-02: %v", err)
+	}
+
+	// 4. Test Step 1: POST /api/v1/production-outputs (Single Output & Rate Snapshot Locking)
+	singleBody, _ := json.Marshal(map[string]interface{}{
+		"lineId":      lineID,
+		"orderId":     orderID,
+		"operatorId":  operator1ID,
+		"componentId": componentID,
+		"quantity":    25,
+		"timeSlot":    "08:00-08:30",
+		"workDate":    "2026-10-14",
+		"notes":       "Slot pertama lancar, mesin stabil",
+	})
+	reqSingle, _ := http.NewRequest(http.MethodPost, "/api/v1/production-outputs", bytes.NewBuffer(singleBody))
+	reqSingle.Header.Set("Authorization", "Bearer "+execToken)
+	reqSingle.Header.Set("Content-Type", "application/json")
+	wSingle := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSingle, reqSingle)
+
+	if wSingle.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created on POST /production-outputs, got %d: %s", wSingle.Code, wSingle.Body.String())
+	}
+
+	var singleResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID                 string  `json:"id"`
+			LineCode           string  `json:"lineCode"`
+			OperatorName       string  `json:"operatorName"`
+			ComponentName      string  `json:"componentName"`
+			Quantity           int     `json:"quantity"`
+			TimeSlot           string  `json:"timeSlot"`
+			WorkDate           string  `json:"workDate"`
+			SnapshotSewingRate float64 `json:"snapshotSewingRate"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wSingle.Body.Bytes(), &singleResp); err != nil {
+		t.Fatalf("failed to parse single output response: %v", err)
+	}
+
+	if !singleResp.Success || singleResp.Data.ID == "" {
+		t.Fatalf("invalid single output response: %+v", singleResp)
+	}
+	if singleResp.Data.SnapshotSewingRate != 4500.00 {
+		t.Fatalf("expected snapshot sewing rate 4500.00 locked from rate card, got %f", singleResp.Data.SnapshotSewingRate)
+	}
+	if singleResp.Data.Quantity != 25 {
+		t.Fatalf("expected quantity 25, got %d", singleResp.Data.Quantity)
+	}
+	createdOutputID := singleResp.Data.ID
+
+	// 5. Test Step 2: GET /api/v1/production-outputs/:id (Detail output)
+	reqDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/production-outputs/"+createdOutputID, nil)
+	reqDetail.Header.Set("Authorization", "Bearer "+execToken)
+	wDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDetail, reqDetail)
+
+	if wDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /production-outputs/:id, got %d: %s", wDetail.Code, wDetail.Body.String())
+	}
+
+	// 6. Test Step 3: POST /api/v1/production-outputs/batch (Batch Input across operators)
+	batchBody, _ := json.Marshal(map[string]interface{}{
+		"lineId":   lineID,
+		"orderId":  orderID,
+		"timeSlot": "08:30-09:00",
+		"workDate": "2026-10-14",
+		"items": []map[string]interface{}{
+			{
+				"operatorId":  operator1ID,
+				"componentId": componentID,
+				"quantity":    28,
+				"notes":       "Target tercapai",
+			},
+			{
+				"operatorId":  operator2ID,
+				"componentId": componentID,
+				"quantity":    26,
+				"notes":       "Target tercapai",
+			},
+		},
+	})
+	reqBatch, _ := http.NewRequest(http.MethodPost, "/api/v1/production-outputs/batch", bytes.NewBuffer(batchBody))
+	reqBatch.Header.Set("Authorization", "Bearer "+execToken)
+	reqBatch.Header.Set("Content-Type", "application/json")
+	wBatch := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wBatch, reqBatch)
+
+	if wBatch.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created on POST /production-outputs/batch, got %d: %s", wBatch.Code, wBatch.Body.String())
+	}
+
+	var batchResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID                 string  `json:"id"`
+			OperatorName       string  `json:"operatorName"`
+			Quantity           int     `json:"quantity"`
+			SnapshotSewingRate float64 `json:"snapshotSewingRate"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wBatch.Body.Bytes(), &batchResp); err != nil {
+		t.Fatalf("failed to parse batch output response: %v", err)
+	}
+	if len(batchResp.Data) != 2 {
+		t.Fatalf("expected 2 batch output items, got %d", len(batchResp.Data))
+	}
+	for _, item := range batchResp.Data {
+		if item.SnapshotSewingRate != 4500.00 {
+			t.Fatalf("expected batch item snapshotSewingRate 4500.00, got %f", item.SnapshotSewingRate)
+		}
+	}
+
+	// 7. Test Step 4: GET /api/v1/production-outputs?line_id=...&date=2026-10-14 (Filtered List)
+	reqList, _ := http.NewRequest(http.MethodGet, "/api/v1/production-outputs?line_id="+lineID+"&date=2026-10-14", nil)
+	reqList.Header.Set("Authorization", "Bearer "+execToken)
+	wList := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wList, reqList)
+
+	if wList.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /production-outputs, got %d: %s", wList.Code, wList.Body.String())
+	}
+	var listResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID       string `json:"id"`
+			LineCode string `json:"lineCode"`
+			Quantity int    `json:"quantity"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wList.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("failed to parse list output response: %v", err)
+	}
+	if len(listResp.Data) < 3 {
+		t.Fatalf("expected at least 3 output records, got %d", len(listResp.Data))
+	}
+
+	// 8. Test Step 5: 403 Forbidden for client role
+	reqForbidden, _ := http.NewRequest(http.MethodPost, "/api/v1/production-outputs", bytes.NewBuffer(singleBody))
+	reqForbidden.Header.Set("Authorization", "Bearer "+clientToken)
+	reqForbidden.Header.Set("Content-Type", "application/json")
+	wForbidden := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbidden, reqForbidden)
+
+	if wForbidden.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client accessing production-outputs, got %d", wForbidden.Code)
+	}
+}
+
+
 
 
 

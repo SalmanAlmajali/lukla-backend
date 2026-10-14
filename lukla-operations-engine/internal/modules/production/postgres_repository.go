@@ -667,3 +667,244 @@ func (r *postgresRepository) ValidateComponent(ctx context.Context, componentID 
 	}
 	return name, nil
 }
+
+// GetActiveSewingRate fetches the current active sewing rate from rate_cards for snapshot locking.
+func (r *postgresRepository) GetActiveSewingRate(ctx context.Context, articleID string, componentID string) (float64, error) {
+	query := `
+		SELECT COALESCE(sewing_rate, 0.00)
+		FROM rate_cards
+		WHERE article_id = $1 AND component_id = $2 AND deleted_at IS NULL
+		ORDER BY effective_date DESC, created_at DESC
+		LIMIT 1
+	`
+	var rate float64
+	err := r.db.QueryRowContext(ctx, query, articleID, componentID).Scan(&rate)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0.00, nil
+	}
+	if err != nil {
+		return 0.00, fmt.Errorf("get active sewing rate: %w", err)
+	}
+	return rate, nil
+}
+
+// CreateOutput records an individual 30-minute component output.
+func (r *postgresRepository) CreateOutput(ctx context.Context, output *ProductionOutput) error {
+	query := `
+		INSERT INTO production_outputs (
+			line_id, order_id, operator_id, component_id, quantity, time_slot, work_date, snapshot_sewing_rate, notes, recorded_by_user_id
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10)
+		RETURNING id, created_at, updated_at
+	`
+	var recordedBy *string
+	if output.RecordedByUserID != nil && *output.RecordedByUserID != "" {
+		recordedBy = output.RecordedByUserID
+	}
+	return r.db.QueryRowContext(
+		ctx,
+		query,
+		output.LineID,
+		output.OrderID,
+		output.OperatorID,
+		output.ComponentID,
+		output.Quantity,
+		output.TimeSlot,
+		output.WorkDate,
+		output.SnapshotSewingRate,
+		output.Notes,
+		recordedBy,
+	).Scan(&output.ID, &output.CreatedAt, &output.UpdatedAt)
+}
+
+// CreateOutputsBatch records multiple outputs within a single transaction.
+func (r *postgresRepository) CreateOutputsBatch(ctx context.Context, outputs []*ProductionOutput) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin batch tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		INSERT INTO production_outputs (
+			line_id, order_id, operator_id, component_id, quantity, time_slot, work_date, snapshot_sewing_rate, notes, recorded_by_user_id
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10)
+		RETURNING id, created_at, updated_at
+	`
+
+	for _, output := range outputs {
+		var recordedBy *string
+		if output.RecordedByUserID != nil && *output.RecordedByUserID != "" {
+			recordedBy = output.RecordedByUserID
+		}
+		if err := tx.QueryRowContext(
+			ctx,
+			query,
+			output.LineID,
+			output.OrderID,
+			output.OperatorID,
+			output.ComponentID,
+			output.Quantity,
+			output.TimeSlot,
+			output.WorkDate,
+			output.SnapshotSewingRate,
+			output.Notes,
+			recordedBy,
+		).Scan(&output.ID, &output.CreatedAt, &output.UpdatedAt); err != nil {
+			return fmt.Errorf("insert batch output item: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
+// FindOutputByID finds a single production output record by its ID.
+func (r *postgresRepository) FindOutputByID(ctx context.Context, id string) (*ProductionOutput, error) {
+	query := `
+		SELECT p.id, p.line_id, l.code AS line_code, p.order_id,
+		       p.operator_id, op.name AS operator_name,
+		       p.component_id, c.name AS component_name,
+		       p.quantity, p.time_slot, p.work_date::text, p.snapshot_sewing_rate,
+		       p.notes, p.recorded_by_user_id, COALESCE(u.full_name, 'Mandor') AS recorded_by_user_name,
+		       p.created_at, p.updated_at
+		FROM production_outputs p
+		JOIN lines l ON p.line_id = l.id
+		JOIN operators op ON p.operator_id = op.id
+		JOIN components c ON p.component_id = c.id
+		LEFT JOIN users u ON p.recorded_by_user_id = u.id
+		WHERE p.id = $1
+	`
+	var out ProductionOutput
+	var notes, recordedByUserID sql.NullString
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&out.ID,
+		&out.LineID,
+		&out.LineCode,
+		&out.OrderID,
+		&out.OperatorID,
+		&out.OperatorName,
+		&out.ComponentID,
+		&out.ComponentName,
+		&out.Quantity,
+		&out.TimeSlot,
+		&out.WorkDate,
+		&out.SnapshotSewingRate,
+		&notes,
+		&recordedByUserID,
+		&out.RecordedByUserName,
+		&out.CreatedAt,
+		&out.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrOutputNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find output by id: %w", err)
+	}
+	if notes.Valid {
+		out.Notes = &notes.String
+	}
+	if recordedByUserID.Valid {
+		out.RecordedByUserID = &recordedByUserID.String
+	}
+	return &out, nil
+}
+
+// ListOutputs retrieves production output logs with filters.
+func (r *postgresRepository) ListOutputs(ctx context.Context, filter ListOutputsFilter) ([]ProductionOutput, error) {
+	query := `
+		SELECT p.id, p.line_id, l.code AS line_code, p.order_id,
+		       p.operator_id, op.name AS operator_name,
+		       p.component_id, c.name AS component_name,
+		       p.quantity, p.time_slot, p.work_date::text, p.snapshot_sewing_rate,
+		       p.notes, p.recorded_by_user_id, COALESCE(u.full_name, 'Mandor') AS recorded_by_user_name,
+		       p.created_at, p.updated_at
+		FROM production_outputs p
+		JOIN lines l ON p.line_id = l.id
+		JOIN operators op ON p.operator_id = op.id
+		JOIN components c ON p.component_id = c.id
+		LEFT JOIN users u ON p.recorded_by_user_id = u.id
+		WHERE 1=1
+	`
+	var args []interface{}
+	argIdx := 1
+
+	if filter.LineID != "" {
+		query += fmt.Sprintf(" AND p.line_id = $%d", argIdx)
+		args = append(args, filter.LineID)
+		argIdx++
+	}
+	if filter.OrderID != "" {
+		query += fmt.Sprintf(" AND p.order_id = $%d", argIdx)
+		args = append(args, filter.OrderID)
+		argIdx++
+	}
+	if filter.OperatorID != "" {
+		query += fmt.Sprintf(" AND p.operator_id = $%d", argIdx)
+		args = append(args, filter.OperatorID)
+		argIdx++
+	}
+	if filter.ComponentID != "" {
+		query += fmt.Sprintf(" AND p.component_id = $%d", argIdx)
+		args = append(args, filter.ComponentID)
+		argIdx++
+	}
+	if filter.Date != "" {
+		query += fmt.Sprintf(" AND p.work_date = $%d::date", argIdx)
+		args = append(args, filter.Date)
+		argIdx++
+	}
+	if filter.TimeSlot != "" {
+		query += fmt.Sprintf(" AND p.time_slot = $%d", argIdx)
+		args = append(args, filter.TimeSlot)
+		argIdx++
+	}
+
+	query += " ORDER BY p.work_date DESC, p.created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list outputs: %w", err)
+	}
+	defer rows.Close()
+
+	var outputs []ProductionOutput
+	for rows.Next() {
+		var out ProductionOutput
+		var notes, recordedByUserID sql.NullString
+		if err := rows.Scan(
+			&out.ID,
+			&out.LineID,
+			&out.LineCode,
+			&out.OrderID,
+			&out.OperatorID,
+			&out.OperatorName,
+			&out.ComponentID,
+			&out.ComponentName,
+			&out.Quantity,
+			&out.TimeSlot,
+			&out.WorkDate,
+			&out.SnapshotSewingRate,
+			&notes,
+			&recordedByUserID,
+			&out.RecordedByUserName,
+			&out.CreatedAt,
+			&out.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan output: %w", err)
+		}
+		if notes.Valid {
+			out.Notes = &notes.String
+		}
+		if recordedByUserID.Valid {
+			out.RecordedByUserID = &recordedByUserID.String
+		}
+		outputs = append(outputs, out)
+	}
+	if outputs == nil {
+		outputs = []ProductionOutput{}
+	}
+	return outputs, rows.Err()
+}
+

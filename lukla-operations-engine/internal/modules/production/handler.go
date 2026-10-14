@@ -37,6 +37,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authnMiddleware gin.Handle
 		allocs.POST("/:id/transfer", h.TransferOperator)
 		allocs.GET("/:id/history", h.ListTransferHistories)
 	}
+
+	outputs := rg.Group("/production-outputs")
+	outputs.Use(authnMiddleware)
+	{
+		outputs.GET("", h.ListOutputs)
+		outputs.POST("", h.CreateOutput)
+		outputs.POST("/batch", h.CreateOutputsBatch)
+		outputs.GET("/:id", h.GetOutputDetail)
+	}
 }
 
 // ListLines handles GET /api/v1/lines.
@@ -221,6 +230,103 @@ func (h *Handler) ListTransferHistories(c *gin.Context) {
 	})
 }
 
+// ListOutputs handles GET /api/v1/production-outputs.
+func (h *Handler) ListOutputs(c *gin.Context) {
+	actor := getActor(c)
+	var filter ListOutputsFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Parameter filter output tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	outputs, err := h.svc.ListOutputs(c.Request.Context(), actor, filter)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    outputs,
+	})
+}
+
+// GetOutputDetail handles GET /api/v1/production-outputs/:id.
+func (h *Handler) GetOutputDetail(c *gin.Context) {
+	actor := getActor(c)
+	id := c.Param("id")
+	out, err := h.svc.GetOutputDetail(c.Request.Context(), actor, id)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    out,
+	})
+}
+
+// CreateOutput handles POST /api/v1/production-outputs (single 30-min output by Mandor).
+func (h *Handler) CreateOutput(c *gin.Context) {
+	actor := getActor(c)
+	var req CreateOutputRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Parameter body output tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	out, err := h.svc.CreateOutput(c.Request.Context(), actor, req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    out,
+	})
+}
+
+// CreateOutputsBatch handles POST /api/v1/production-outputs/batch (batch 30-min output by Mandor).
+func (h *Handler) CreateOutputsBatch(c *gin.Context) {
+	actor := getActor(c)
+	var req BatchCreateOutputRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Parameter batch output tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	outputs, err := h.svc.CreateOutputsBatch(c.Request.Context(), actor, req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    outputs,
+	})
+}
+
 func (h *Handler) handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrForbiddenProduction):
@@ -235,11 +341,23 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 		errors.Is(err, ErrAllocationNotFound),
 		errors.Is(err, ErrOperatorNotFound),
 		errors.Is(err, ErrOrderNotFound),
-		errors.Is(err, ErrDestinationLineNotFound):
+		errors.Is(err, ErrDestinationLineNotFound),
+		errors.Is(err, ErrOutputNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error": gin.H{
 				"code":    "NOT_FOUND",
+				"message": err.Error(),
+			},
+		})
+	case errors.Is(err, ErrInvalidQuantity),
+		errors.Is(err, ErrTimeSlotRequired),
+		errors.Is(err, ErrWorkDateRequired),
+		errors.Is(err, ErrEmptyBatchItems):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
 				"message": err.Error(),
 			},
 		})

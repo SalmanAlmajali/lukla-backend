@@ -26,5 +26,12 @@ type Repository interface {
 	ValidateOperator(ctx context.Context, operatorID string) (name string, code string, skillTier string, err error)
 	ValidateOrder(ctx context.Context, orderID string) (orderCode string, clientID string, articleID string, err error)
 	ValidateComponent(ctx context.Context, componentID string) (componentName string, err error)
+
+	// Output operations (BPMN 05)
+	ListOutputs(ctx context.Context, filter ListOutputsFilter) ([]ProductionOutput, error)
+	FindOutputByID(ctx context.Context, id string) (*ProductionOutput, error)
+	CreateOutput(ctx context.Context, output *ProductionOutput) error
+	CreateOutputsBatch(ctx context.Context, outputs []*ProductionOutput) error
+	GetActiveSewingRate(ctx context.Context, articleID string, componentID string) (float64, error)
 }
 

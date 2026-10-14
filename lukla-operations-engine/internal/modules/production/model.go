@@ -19,6 +19,11 @@ var (
 	ErrAllocationNotActive      = errors.New("hanya alokasi berstatus ACTIVE yang dapat dipindahkan")
 	ErrTransferReasonRequired   = errors.New("transferReason wajib diisi untuk audit log")
 	ErrForbiddenProduction      = errors.New("forbidden: hanya owner dan kepala produksi yang berwenang")
+	ErrOutputNotFound           = errors.New("catatan output tidak ditemukan")
+	ErrInvalidQuantity          = errors.New("jumlah output harus lebih dari 0")
+	ErrTimeSlotRequired         = errors.New("timeSlot wajib diisi")
+	ErrWorkDateRequired         = errors.New("workDate wajib diisi")
+	ErrEmptyBatchItems          = errors.New("items batch output tidak boleh kosong")
 )
 
 // ProductionLine represents a sewing assembly line on the factory floor.
@@ -134,4 +139,65 @@ type AllocationTransferLog struct {
 	TransferredByName   string    `json:"transferredByName,omitempty"`
 	TransferredAt       time.Time `json:"transferredAt"`
 }
+
+// ProductionOutput represents a recorded sewing output for an operator within a 30-minute interval.
+type ProductionOutput struct {
+	ID                 string    `json:"id"`
+	LineID             string    `json:"lineId"`
+	LineCode           string    `json:"lineCode"`
+	OrderID            string    `json:"orderId"`
+	OperatorID         string    `json:"operatorId"`
+	OperatorName       string    `json:"operatorName"`
+	ComponentID        string    `json:"componentId"`
+	ComponentName      string    `json:"componentName"`
+	Quantity           int       `json:"quantity"`
+	TimeSlot           string    `json:"timeSlot"`
+	WorkDate           string    `json:"workDate"`
+	SnapshotSewingRate float64   `json:"snapshotSewingRate"`
+	Notes              *string   `json:"notes,omitempty"`
+	RecordedByUserID   *string   `json:"recordedByUserId,omitempty"`
+	RecordedByUserName string    `json:"recordedByUserName"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
+}
+
+// ListOutputsFilter defines search and filter options for production outputs.
+type ListOutputsFilter struct {
+	LineID      string `form:"line_id"`
+	OrderID     string `form:"order_id"`
+	OperatorID  string `form:"operator_id"`
+	ComponentID string `form:"component_id"`
+	Date        string `form:"date"`
+	TimeSlot    string `form:"time_slot"`
+}
+
+// CreateOutputRequest defines payload for single 30-minute output submission by Mandor.
+type CreateOutputRequest struct {
+	LineID      string  `json:"lineId" binding:"required"`
+	OrderID     string  `json:"orderId" binding:"required"`
+	OperatorID  string  `json:"operatorId" binding:"required"`
+	ComponentID string  `json:"componentId" binding:"required"`
+	Quantity    int     `json:"quantity" binding:"required"`
+	TimeSlot    string  `json:"timeSlot" binding:"required"`
+	WorkDate    string  `json:"workDate" binding:"required"`
+	Notes       *string `json:"notes"`
+}
+
+// BatchCreateOutputRequest defines payload for multi-operator output submission at Mandor terminal.
+type BatchCreateOutputRequest struct {
+	LineID   string            `json:"lineId" binding:"required"`
+	OrderID  string            `json:"orderId" binding:"required"`
+	TimeSlot string            `json:"timeSlot" binding:"required"`
+	WorkDate string            `json:"workDate" binding:"required"`
+	Items    []BatchOutputItem `json:"items" binding:"required"`
+}
+
+// BatchOutputItem defines an individual operator's piece output within a batch submission.
+type BatchOutputItem struct {
+	OperatorID  string  `json:"operatorId" binding:"required"`
+	ComponentID string  `json:"componentId" binding:"required"`
+	Quantity    int     `json:"quantity" binding:"required"`
+	Notes       *string `json:"notes"`
+}
+
 

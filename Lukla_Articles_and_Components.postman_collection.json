@@ -2733,7 +2733,261 @@
                     ]
                 }
             ],
-            "name": "04. Tahap 1: Production Lines \u0026 Line Allocations (BPMN 04)"
+            "name": "04. Tahap 1: Production Lines & Line Allocations (BPMN 04)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Rate snapshot locked\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.snapshotSewingRate).to.be.above(0);",
+                                    "    pm.collectionVariables.set(\"output_id\", jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "1. Catat Output Mandor 30 Menit (Single & Rate Snapshot)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"lineId\": \"{{line_id}}\",\n    \"orderId\": \"{{order_id}}\",\n    \"operatorId\": \"{{operator_id}}\",\n    \"componentId\": \"{{component_id}}\",\n    \"quantity\": 25,\n    \"timeSlot\": \"08:00-08:30\",\n    \"workDate\": \"2026-10-14\",\n    \"notes\": \"Slot pagi lancar, mesin normal\"\n}"
+                        },
+                        "description": "Terminal Mandor mencatat output per 30 menit (BPMN 05). Sistem otomatis mengunci snapshot rate card sewing aktif saat pencatatan.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-outputs"
+                            ],
+                            "raw": "{{base_url}}/production-outputs"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n        \"componentName\": \"Saku kargo flap ganda\",\n        \"quantity\": 25,\n        \"timeSlot\": \"08:00-08:30\",\n        \"workDate\": \"2026-10-14\",\n        \"snapshotSewingRate\": 4500.00,\n        \"notes\": \"Slot pagi lancar, mesin normal\",\n        \"recordedByUserName\": \"Bambang Supriyadi\",\n        \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n        \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n    },\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Batch items created\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.length).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "2. Catat Output Mandor 30 Menit (Batch Multi-Operator)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"lineId\": \"{{line_id}}\",\n    \"orderId\": \"{{order_id}}\",\n    \"timeSlot\": \"08:30-09:00\",\n    \"workDate\": \"2026-10-14\",\n    \"items\": [\n        {\n            \"operatorId\": \"{{operator_id}}\",\n            \"componentId\": \"{{component_id}}\",\n            \"quantity\": 28,\n            \"notes\": \"Target tercapai\"\n        }\n    ]\n}"
+                        },
+                        "description": "Terminal Mandor mencatat output borongan untuk beberapa operator sekaligus dalam 1 interval slot waktu.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-outputs",
+                                "batch"
+                            ],
+                            "raw": "{{base_url}}/production-outputs/batch"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e\",\n            \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"lineCode\": \"LINE-01\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n            \"componentName\": \"Saku kargo flap ganda\",\n            \"quantity\": 28,\n            \"timeSlot\": \"08:30-09:00\",\n            \"workDate\": \"2026-10-14\",\n            \"snapshotSewingRate\": 4500.00,\n            \"notes\": \"Target tercapai\",\n            \"recordedByUserName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T09:02:00+07:00\",\n            \"updatedAt\": \"2026-10-14T09:02:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Outputs array returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "3. List Production Outputs (Filter Line & Date)",
+                    "request": {
+                        "description": "Mengambil daftar catatan output 30 menit dengan opsi filter berdasarkan line_id, order_id, operator_id, component_id, date, dan time_slot.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-outputs"
+                            ],
+                            "query": [
+                                {
+                                    "key": "line_id",
+                                    "value": "{{line_id}}"
+                                },
+                                {
+                                    "key": "date",
+                                    "value": "2026-10-14"
+                                }
+                            ],
+                            "raw": "{{base_url}}/production-outputs?line_id={{line_id}}&date=2026-10-14"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n            \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"lineCode\": \"LINE-01\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n            \"componentName\": \"Saku kargo flap ganda\",\n            \"quantity\": 25,\n            \"timeSlot\": \"08:00-08:30\",\n            \"workDate\": \"2026-10-14\",\n            \"snapshotSewingRate\": 4500.00,\n            \"recordedByUserName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n            \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Output detail matched\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get(\"output_id\"));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "4. Detail Production Output",
+                    "request": {
+                        "description": "Mengambil detail catatan output 30 menit berdasarkan ID.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-outputs",
+                                "{{output_id}}"
+                            ],
+                            "raw": "{{base_url}}/production-outputs/{{output_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n        \"componentName\": \"Saku kargo flap ganda\",\n        \"quantity\": 25,\n        \"timeSlot\": \"08:00-08:30\",\n        \"workDate\": \"2026-10-14\",\n        \"snapshotSewingRate\": 4500.00,\n        \"notes\": \"Slot pagi lancar, mesin normal\",\n        \"recordedByUserName\": \"Bambang Supriyadi\",\n        \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n        \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "05. Tahap 1: Production Outputs 30 Menit (BPMN 05)"
         }
     ],
     "variable": [
@@ -2799,6 +3053,21 @@
         },
         {
             "key": "line_allocation_id",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "output_id",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "order_id",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "component_id",
             "type": "string",
             "value": ""
         }

@@ -297,10 +297,192 @@ func (s *Service) ListTransferHistories(ctx context.Context, actor *authn.UserId
 	return s.repo.ListTransferHistoriesByAllocation(ctx, allocationID)
 }
 
+// ListOutputs retrieves output records with filters for internal staff.
+func (s *Service) ListOutputs(ctx context.Context, actor *authn.UserIdentity, filter ListOutputsFilter) ([]ProductionOutput, error) {
+	if actor == nil || actor.RoleCode == "client" {
+		return nil, ErrForbiddenProduction
+	}
+	return s.repo.ListOutputs(ctx, filter)
+}
+
+// GetOutputDetail retrieves detail of a single output record.
+func (s *Service) GetOutputDetail(ctx context.Context, actor *authn.UserIdentity, id string) (*ProductionOutput, error) {
+	if actor == nil || actor.RoleCode == "client" {
+		return nil, ErrForbiddenProduction
+	}
+	return s.repo.FindOutputByID(ctx, id)
+}
+
+// CreateOutput records a 30-minute component output by Mandor and locks active sewing rate snapshot.
+func (s *Service) CreateOutput(ctx context.Context, actor *authn.UserIdentity, req CreateOutputRequest) (*ProductionOutput, error) {
+	if !isAuthorizedLineManager(actor) {
+		return nil, ErrForbiddenProduction
+	}
+	if req.Quantity <= 0 {
+		return nil, ErrInvalidQuantity
+	}
+	if strings.TrimSpace(req.TimeSlot) == "" {
+		return nil, ErrTimeSlotRequired
+	}
+	if strings.TrimSpace(req.WorkDate) == "" {
+		return nil, ErrWorkDateRequired
+	}
+
+	// 1. Validate line
+	lineDetail, err := s.repo.FindLineByID(ctx, req.LineID)
+	if err != nil {
+		return nil, err
+	}
+	if lineDetail.Status != "ACTIVE" {
+		return nil, ErrLineNotFound
+	}
+
+	// 2. Validate order
+	_, _, articleID, err := s.repo.ValidateOrder(ctx, req.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Validate operator
+	opName, _, _, err := s.repo.ValidateOperator(ctx, req.OperatorID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Validate component
+	compName, err := s.repo.ValidateComponent(ctx, req.ComponentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 5. Get active sewing rate for snapshot locking (BPMN 05 -> Tahap 2 Payroll)
+	rate, err := s.repo.GetActiveSewingRate(ctx, articleID, req.ComponentID)
+	if err != nil {
+		return nil, err
+	}
+
+	var actorUserID *string
+	recordedByName := "Mandor"
+	if actor != nil && actor.ID != "" {
+		actorUserID = &actor.ID
+	}
+
+	output := &ProductionOutput{
+		LineID:             req.LineID,
+		LineCode:           lineDetail.Code,
+		OrderID:            req.OrderID,
+		OperatorID:         req.OperatorID,
+		OperatorName:       opName,
+		ComponentID:        req.ComponentID,
+		ComponentName:      compName,
+		Quantity:           req.Quantity,
+		TimeSlot:           strings.TrimSpace(req.TimeSlot),
+		WorkDate:           strings.TrimSpace(req.WorkDate),
+		SnapshotSewingRate: rate,
+		Notes:              req.Notes,
+		RecordedByUserID:   actorUserID,
+		RecordedByUserName: recordedByName,
+	}
+
+	if err := s.repo.CreateOutput(ctx, output); err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}
+
+// CreateOutputsBatch records multiple outputs at once for fast terminal entry by Mandor.
+func (s *Service) CreateOutputsBatch(ctx context.Context, actor *authn.UserIdentity, req BatchCreateOutputRequest) ([]ProductionOutput, error) {
+	if !isAuthorizedLineManager(actor) {
+		return nil, ErrForbiddenProduction
+	}
+	if len(req.Items) == 0 {
+		return nil, ErrEmptyBatchItems
+	}
+	if strings.TrimSpace(req.TimeSlot) == "" {
+		return nil, ErrTimeSlotRequired
+	}
+	if strings.TrimSpace(req.WorkDate) == "" {
+		return nil, ErrWorkDateRequired
+	}
+
+	// 1. Validate line
+	lineDetail, err := s.repo.FindLineByID(ctx, req.LineID)
+	if err != nil {
+		return nil, err
+	}
+	if lineDetail.Status != "ACTIVE" {
+		return nil, ErrLineNotFound
+	}
+
+	// 2. Validate order
+	_, _, articleID, err := s.repo.ValidateOrder(ctx, req.OrderID)
+	if err != nil {
+		return nil, err
+	}
+
+	var actorUserID *string
+	recordedByName := "Mandor"
+	if actor != nil && actor.ID != "" {
+		actorUserID = &actor.ID
+	}
+
+	outputs := make([]*ProductionOutput, 0, len(req.Items))
+	for _, item := range req.Items {
+		if item.Quantity <= 0 {
+			return nil, ErrInvalidQuantity
+		}
+
+		opName, _, _, err := s.repo.ValidateOperator(ctx, item.OperatorID)
+		if err != nil {
+			return nil, err
+		}
+
+		compName, err := s.repo.ValidateComponent(ctx, item.ComponentID)
+		if err != nil {
+			return nil, err
+		}
+
+		rate, err := s.repo.GetActiveSewingRate(ctx, articleID, item.ComponentID)
+		if err != nil {
+			return nil, err
+		}
+
+		out := &ProductionOutput{
+			LineID:             req.LineID,
+			LineCode:           lineDetail.Code,
+			OrderID:            req.OrderID,
+			OperatorID:         item.OperatorID,
+			OperatorName:       opName,
+			ComponentID:        item.ComponentID,
+			ComponentName:      compName,
+			Quantity:           item.Quantity,
+			TimeSlot:           strings.TrimSpace(req.TimeSlot),
+			WorkDate:           strings.TrimSpace(req.WorkDate),
+			SnapshotSewingRate: rate,
+			Notes:              item.Notes,
+			RecordedByUserID:   actorUserID,
+			RecordedByUserName: recordedByName,
+		}
+		outputs = append(outputs, out)
+	}
+
+	if err := s.repo.CreateOutputsBatch(ctx, outputs); err != nil {
+		return nil, err
+	}
+
+	result := make([]ProductionOutput, len(outputs))
+	for i, o := range outputs {
+		result[i] = *o
+	}
+	return result, nil
+}
+
 func isAuthorizedLineManager(actor *authn.UserIdentity) bool {
 	if actor == nil {
 		return false
 	}
 	return actor.RoleCode == "owner_executive" || actor.RoleCode == "production_head"
 }
+
 
