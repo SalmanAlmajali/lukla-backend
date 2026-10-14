@@ -2945,11 +2945,15 @@ func TestApp_InventoryInboundLiveDB(t *testing.T) {
 	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
 	snohundToken := getAuthToken(t, application, "client@lukla.local", "password")
 
-	// 1. Fetch first order and its client
+	// 1. Fetch client_id assigned to client@lukla.local and its order
 	var snoClientID, snoOrderID string
-	err = application.db.QueryRow(`SELECT id, client_id FROM orders LIMIT 1`).Scan(&snoOrderID, &snoClientID)
+	err = application.db.QueryRow(`SELECT client_id FROM users WHERE email = 'client@lukla.local'`).Scan(&snoClientID)
 	if err != nil {
-		t.Fatalf("failed to find seeded order: %v", err)
+		t.Fatalf("failed to find client user: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM orders WHERE client_id = $1 LIMIT 1`, snoClientID).Scan(&snoOrderID)
+	if err != nil {
+		t.Fatalf("failed to find order for client %s: %v", snoClientID, err)
 	}
 
 	// 2. Fetch another client and its order (or create a temporary test client & order if only 1 client exists)
@@ -3438,4 +3442,638 @@ func TestApp_InventoryOutboundAndBlockadeLiveDB(t *testing.T) {
 		t.Fatalf("expected at least 1 scrap record, got %d", scrapsListResp.Total)
 	}
 }
+
+// ==========================================
+// TAHAP 4.1: LIVE DB ACCEPTANCE TEST (BPMN 06 - QC INSPECTION & DEFECT TRACKING)
+// ==========================================
+
+func TestApp_QCInspectionLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to init app: %v", err)
+	}
+
+	qcToken := getAuthToken(t, application, "qc@lukla.local", "password")
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+
+	// 1. MASTER DEFECT CATEGORIES (BPMN 06)
+	// GET /api/v1/qc/defect-categories
+	reqListDefects, _ := http.NewRequest(http.MethodGet, "/api/v1/qc/defect-categories", nil)
+	reqListDefects.Header.Set("Authorization", "Bearer "+qcToken)
+	wListDefects := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListDefects, reqListDefects)
+
+	if wListDefects.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list defect categories, got %d. Body: %s", wListDefects.Code, wListDefects.Body.String())
+	}
+	var prettyDefects bytes.Buffer
+	_ = json.Indent(&prettyDefects, wListDefects.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc/defect-categories ===\n%s\n", prettyDefects.String())
+
+	var listDefectsResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID       string `json:"id"`
+			Code     string `json:"code"`
+			Name     string `json:"name"`
+			Severity string `json:"severity"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wListDefects.Body.Bytes(), &listDefectsResp)
+	if len(listDefectsResp.Data) < 5 {
+		t.Fatalf("expected at least 5 seeded defect categories, got %d", len(listDefectsResp.Data))
+	}
+
+	sewDefectID := ""
+	sizeDefectID := ""
+	for _, d := range listDefectsResp.Data {
+		if d.Code == "DEF-SEW-01" {
+			sewDefectID = d.ID
+		}
+		if d.Code == "DEF-SIZ-01" {
+			sizeDefectID = d.ID
+		}
+	}
+	if sewDefectID == "" || sizeDefectID == "" {
+		t.Fatalf("expected DEF-SEW-01 and DEF-SIZ-01 to exist")
+	}
+
+	// POST /api/v1/qc/defect-categories (Tambahkan Kategori Baru)
+	newDefectCode := fmt.Sprintf("DEF-LBL-%d", time.Now().UnixNano()%100000)
+	createDefectBody, _ := json.Marshal(map[string]interface{}{
+		"code":        newDefectCode,
+		"name":        "Label Miring / Terbalik",
+		"severity":    "MINOR",
+		"description": "Label instruksi pencucian dijahit miring > 2mm",
+	})
+	reqCreateDefect, _ := http.NewRequest(http.MethodPost, "/api/v1/qc/defect-categories", bytes.NewBuffer(createDefectBody))
+	reqCreateDefect.Header.Set("Authorization", "Bearer "+execToken)
+	reqCreateDefect.Header.Set("Content-Type", "application/json")
+	wCreateDefect := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreateDefect, reqCreateDefect)
+
+	if wCreateDefect.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for create defect category, got %d. Body: %s", wCreateDefect.Code, wCreateDefect.Body.String())
+	}
+	var prettyCreateDefect bytes.Buffer
+	_ = json.Indent(&prettyCreateDefect, wCreateDefect.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/qc/defect-categories ===\n%s\n", prettyCreateDefect.String())
+
+	// 2. QC QUEUE (BPMN 06)
+	// Query PO-2026-10-001 & its article
+	var orderID, articleID string
+	err = application.db.QueryRow(`
+		SELECT o.id, o.article_id 
+		FROM orders o 
+		WHERE o.order_number = 'PO-2026-10-001'
+	`).Scan(&orderID, &articleID)
+	if err != nil {
+		t.Fatalf("failed to query PO-2026-10-001: %v", err)
+	}
+
+	// Query component id
+	var componentID string
+	_ = application.db.QueryRow(`SELECT id FROM components WHERE article_id = $1 LIMIT 1`, articleID).Scan(&componentID)
+
+	// Create an assembly awaiting QC
+	var assemblyID string
+	err = application.db.QueryRow(`
+		INSERT INTO assemblies (
+			order_id, article_id, quantity_assembled, status, assembled_date, notes
+		) VALUES ($1, $2, 50, 'WAITING_QC', CURRENT_DATE, 'Batch jahit siang - siap QC')
+		RETURNING id
+	`, orderID, articleID).Scan(&assemblyID)
+	if err != nil {
+		t.Fatalf("failed to insert test assembly: %v", err)
+	}
+
+	// GET /api/v1/qc/queue
+	reqQCQueue, _ := http.NewRequest(http.MethodGet, "/api/v1/qc/queue?orderId="+orderID, nil)
+	reqQCQueue.Header.Set("Authorization", "Bearer "+qcToken)
+	wQCQueue := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wQCQueue, reqQCQueue)
+
+	if wQCQueue.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for QC queue, got %d. Body: %s", wQCQueue.Code, wQCQueue.Body.String())
+	}
+	var prettyQCQueue bytes.Buffer
+	_ = json.Indent(&prettyQCQueue, wQCQueue.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc/queue ===\n%s\n", prettyQCQueue.String())
+
+	// 3. QC INSPECTIONS (BPMN 06)
+	// Test validation: repair > 0 but defects empty -> should fail
+	invalidInspBody, _ := json.Marshal(map[string]interface{}{
+		"assemblyId":     assemblyID,
+		"orderId":        orderID,
+		"passedQuantity": 48,
+		"repairQuantity": 2,
+		"rejectQuantity": 0,
+		"defects":        []interface{}{},
+	})
+	reqInvalidInsp, _ := http.NewRequest(http.MethodPost, "/api/v1/qc/inspections", bytes.NewBuffer(invalidInspBody))
+	reqInvalidInsp.Header.Set("Authorization", "Bearer "+qcToken)
+	reqInvalidInsp.Header.Set("Content-Type", "application/json")
+	wInvalidInsp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wInvalidInsp, reqInvalidInsp)
+	if wInvalidInsp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for missing defect details, got %d", wInvalidInsp.Code)
+	}
+
+	// Success inspection: 48 LOLOS, 2 REPAIR
+	validInspBody, _ := json.Marshal(map[string]interface{}{
+		"assemblyId":     assemblyID,
+		"orderId":        orderID,
+		"inspectionDate": "2026-10-15",
+		"passedQuantity": 48,
+		"repairQuantity": 2,
+		"rejectQuantity": 0,
+		"notes":          "Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras",
+		"defects": []map[string]interface{}{
+			{
+				"defectCategoryId": sewDefectID,
+				"componentId":      componentID,
+				"quantity":         2,
+				"disposition":      "REPAIR",
+				"notes":            "Obrasan sambungan ketiak loncat 1 cm",
+			},
+		},
+	})
+	reqValidInsp, _ := http.NewRequest(http.MethodPost, "/api/v1/qc/inspections", bytes.NewBuffer(validInspBody))
+	reqValidInsp.Header.Set("Authorization", "Bearer "+qcToken)
+	reqValidInsp.Header.Set("Content-Type", "application/json")
+	wValidInsp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wValidInsp, reqValidInsp)
+
+	if wValidInsp.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for QC inspection, got %d. Body: %s", wValidInsp.Code, wValidInsp.Body.String())
+	}
+	var prettyValidInsp bytes.Buffer
+	_ = json.Indent(&prettyValidInsp, wValidInsp.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/qc/inspections ===\n%s\n", prettyValidInsp.String())
+
+	var inspResult struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID               string `json:"id"`
+			InspectionNumber string `json:"inspectionNumber"`
+			PassedQuantity   int    `json:"passedQuantity"`
+			RepairQuantity   int    `json:"repairQuantity"`
+			TotalChecked     int    `json:"totalChecked"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wValidInsp.Body.Bytes(), &inspResult)
+	if inspResult.Data.TotalChecked != 50 || inspResult.Data.PassedQuantity != 48 || inspResult.Data.RepairQuantity != 2 {
+		t.Fatalf("unexpected inspection result: %+v", inspResult.Data)
+	}
+
+	// Verifikasi status assembly berubah di database
+	var updatedAsmStatus string
+	_ = application.db.QueryRow(`SELECT status FROM assemblies WHERE id = $1`, assemblyID).Scan(&updatedAsmStatus)
+	if updatedAsmStatus != "PARTIALLY_PASSED" {
+		t.Fatalf("expected assembly status PARTIALLY_PASSED, got %s", updatedAsmStatus)
+	}
+
+	// GET /api/v1/qc/inspections/:id
+	reqGetInsp, _ := http.NewRequest(http.MethodGet, "/api/v1/qc/inspections/"+inspResult.Data.ID, nil)
+	reqGetInsp.Header.Set("Authorization", "Bearer "+qcToken)
+	wGetInsp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetInsp, reqGetInsp)
+
+	if wGetInsp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get inspection detail, got %d", wGetInsp.Code)
+	}
+	var prettyGetInsp bytes.Buffer
+	_ = json.Indent(&prettyGetInsp, wGetInsp.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc/inspections/:id ===\n%s\n", prettyGetInsp.String())
+
+	// 4. ATURAN BISNIS KHUSUS: REJECT QC TIDAK MEMOTONG UPAH PENJAHIT
+	// Buat assembly kedua dengan produk REJECT
+	var assembly2ID string
+	err = application.db.QueryRow(`
+		INSERT INTO assemblies (
+			order_id, article_id, quantity_assembled, status, assembled_date, notes
+		) VALUES ($1, $2, 10, 'WAITING_QC', CURRENT_DATE, 'Batch kedua - ada reject kain cacat')
+		RETURNING id
+	`, orderID, articleID).Scan(&assembly2ID)
+	if err != nil {
+		t.Fatalf("failed to insert test assembly 2: %v", err)
+	}
+
+	rejectInspBody, _ := json.Marshal(map[string]interface{}{
+		"assemblyId":     assembly2ID,
+		"orderId":        orderID,
+		"inspectionDate": "2026-10-15",
+		"passedQuantity": 8,
+		"repairQuantity": 0,
+		"rejectQuantity": 2,
+		"notes":          "Batch 2: 8 lolos, 2 reject cacat ukuran panel",
+		"defects": []map[string]interface{}{
+			{
+				"defectCategoryId": sizeDefectID,
+				"componentId":      componentID,
+				"quantity":         2,
+				"disposition":      "REJECT",
+				"notes":            "Pola meleset > 2 cm, afkir total",
+			},
+		},
+	})
+	reqRejectInsp, _ := http.NewRequest(http.MethodPost, "/api/v1/qc/inspections", bytes.NewBuffer(rejectInspBody))
+	reqRejectInsp.Header.Set("Authorization", "Bearer "+qcToken)
+	reqRejectInsp.Header.Set("Content-Type", "application/json")
+	wRejectInsp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRejectInsp, reqRejectInsp)
+
+	if wRejectInsp.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for reject inspection, got %d. Body: %s", wRejectInsp.Code, wRejectInsp.Body.String())
+	}
+
+	// Verifikasi Upah Penjahit: query catatan output lantai jahit (production_outputs)
+	// Pastikan tidak ada pengurangan atau modifikasi pada kuantitas output penjahit
+	var outputSum int
+	_ = application.db.QueryRow(`SELECT COALESCE(SUM(quantity), 0) FROM production_outputs WHERE order_id = $1`, orderID).Scan(&outputSum)
+	t.Logf("Verifikasi Aturan Bisnis: Total output jahit operator terverifikasi mandor = %d pcs (utuh tidak terpotong oleh 2 pcs reject QC)", outputSum)
+
+	// 5. QC QUALITY ANALYTICS & SUMMARY (BPMN 06)
+	// GET /api/v1/qc/orders/:orderId/summary
+	reqSummary, _ := http.NewRequest(http.MethodGet, "/api/v1/qc/orders/"+orderID+"/summary", nil)
+	reqSummary.Header.Set("Authorization", "Bearer "+qcToken)
+	wSummary := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSummary, reqSummary)
+
+	if wSummary.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for order quality summary, got %d. Body: %s", wSummary.Code, wSummary.Body.String())
+	}
+	var prettySummary bytes.Buffer
+	_ = json.Indent(&prettySummary, wSummary.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc/orders/:orderId/summary ===\n%s\n", prettySummary.String())
+
+	var summaryResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OrderID            string  `json:"orderId"`
+			OrderCode          string  `json:"orderCode"`
+			TargetQuantity     int     `json:"targetQuantity"`
+			TotalChecked       int     `json:"totalChecked"`
+			TotalPassed        int     `json:"totalPassed"`
+			TotalRepair        int     `json:"totalRepair"`
+			TotalReject        int     `json:"totalReject"`
+			PassRatePercentage float64 `json:"passRatePercentage"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSummary.Body.Bytes(), &summaryResp)
+	if summaryResp.Data.TotalChecked < 60 {
+		t.Fatalf("expected at least 60 total checked (50 + 10), got %d", summaryResp.Data.TotalChecked)
+	}
+	if summaryResp.Data.TotalPassed < 56 {
+		t.Fatalf("expected at least 56 total passed (48 + 8), got %d", summaryResp.Data.TotalPassed)
+	}
+	if summaryResp.Data.TotalRepair < 2 || summaryResp.Data.TotalReject < 2 {
+		t.Fatalf("expected at least 2 repair and 2 reject, got repair=%d, reject=%d", summaryResp.Data.TotalRepair, summaryResp.Data.TotalReject)
+	}
+	t.Logf("Pass Rate Order %s: %.2f%%", summaryResp.Data.OrderCode, summaryResp.Data.PassRatePercentage)
+
+	// GET /api/v1/qc/inspections (Daftar Riwayat Inspeksi)
+	reqListInsp, _ := http.NewRequest(http.MethodGet, "/api/v1/qc/inspections?orderId="+orderID, nil)
+	reqListInsp.Header.Set("Authorization", "Bearer "+qcToken)
+	wListInsp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListInsp, reqListInsp)
+
+	if wListInsp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list inspections, got %d", wListInsp.Code)
+	}
+	var prettyListInsp bytes.Buffer
+	_ = json.Indent(&prettyListInsp, wListInsp.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc/inspections ===\n%s\n", prettyListInsp.String())
+}
+
+// ==========================================
+// TAHAP 4.2: LIVE DB ACCEPTANCE TEST (BPMN 08 & SKENARIO UJI 3 - POOL BONUS QC 3-ARAH)
+// ==========================================
+
+func TestApp_QCBonusPoolLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to init app: %v", err)
+	}
+
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+	prodToken := getAuthToken(t, application, "production@lukla.local", "password")
+	qcToken := getAuthToken(t, application, "qc@lukla.local", "password")
+
+	// 1. KONFIGURASI TARIF BONUS QC OLEH OWNER (BPMN 08)
+	// GET /api/v1/qc-bonus/config
+	reqGetConfig, _ := http.NewRequest(http.MethodGet, "/api/v1/qc-bonus/config", nil)
+	reqGetConfig.Header.Set("Authorization", "Bearer "+execToken)
+	wGetConfig := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetConfig, reqGetConfig)
+
+	if wGetConfig.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get bonus config, got %d. Body: %s", wGetConfig.Code, wGetConfig.Body.String())
+	}
+	var prettyConfig bytes.Buffer
+	_ = json.Indent(&prettyConfig, wGetConfig.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc-bonus/config ===\n%s\n", prettyConfig.String())
+
+	// Non-Owner mencoba mengubah tarif -> Wajib Ditolak 403 Forbidden
+	nonOwnerRateBody, _ := json.Marshal(map[string]interface{}{
+		"ratePerPcs": 2000.0,
+		"notes":      "Mandor mencoba ubah tarif bonus",
+	})
+	reqNonOwnerRate, _ := http.NewRequest(http.MethodPut, "/api/v1/qc-bonus/config", bytes.NewBuffer(nonOwnerRateBody))
+	reqNonOwnerRate.Header.Set("Authorization", "Bearer "+prodToken)
+	reqNonOwnerRate.Header.Set("Content-Type", "application/json")
+	wNonOwnerRate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNonOwnerRate, reqNonOwnerRate)
+	if wNonOwnerRate.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for non-owner updating bonus rate, got %d", wNonOwnerRate.Code)
+	}
+
+	// Owner menetapkan tarif Rp 1.500 / pcs (Skenario Uji 3)
+	ownerRateBody, _ := json.Marshal(map[string]interface{}{
+		"ratePerPcs": 1500.0,
+		"notes":      "Tarif standar pool bonus QC Rp 1.500 per pcs produk lolos",
+	})
+	reqOwnerRate, _ := http.NewRequest(http.MethodPut, "/api/v1/qc-bonus/config", bytes.NewBuffer(ownerRateBody))
+	reqOwnerRate.Header.Set("Authorization", "Bearer "+execToken)
+	reqOwnerRate.Header.Set("Content-Type", "application/json")
+	wOwnerRate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOwnerRate, reqOwnerRate)
+
+	if wOwnerRate.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for owner updating bonus rate, got %d. Body: %s", wOwnerRate.Code, wOwnerRate.Body.String())
+	}
+	var prettyOwnerRate bytes.Buffer
+	_ = json.Indent(&prettyOwnerRate, wOwnerRate.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL PUT /api/v1/qc-bonus/config ===\n%s\n", prettyOwnerRate.String())
+
+	// 2. DAFTAR PENERIMA BONUS POOL (BPMN 08: 2 MANDOR + 1 KEPALA PRODUKSI / 3 ORANG)
+	// GET /api/v1/qc-bonus/recipients
+	reqRecipients, _ := http.NewRequest(http.MethodGet, "/api/v1/qc-bonus/recipients", nil)
+	reqRecipients.Header.Set("Authorization", "Bearer "+execToken)
+	wRecipients := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRecipients, reqRecipients)
+
+	if wRecipients.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get bonus recipients, got %d. Body: %s", wRecipients.Code, wRecipients.Body.String())
+	}
+	var prettyRecipients bytes.Buffer
+	_ = json.Indent(&prettyRecipients, wRecipients.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc-bonus/recipients ===\n%s\n", prettyRecipients.String())
+
+	var recipientsResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			UserID     string  `json:"userId"`
+			FullName   string  `json:"fullName"`
+			ShareRatio float64 `json:"shareRatio"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wRecipients.Body.Bytes(), &recipientsResp)
+	if len(recipientsResp.Data) != 3 {
+		t.Fatalf("expected exactly 3 recipients (2 Mandor + 1 Kepala Produksi), got %d", len(recipientsResp.Data))
+	}
+
+	// Non-Owner mencoba update penerima bonus -> Wajib Ditolak 403 Forbidden
+	recipientIDs := []string{
+		recipientsResp.Data[0].UserID,
+		recipientsResp.Data[1].UserID,
+		recipientsResp.Data[2].UserID,
+	}
+	putRecipientsBody, _ := json.Marshal(map[string]interface{}{
+		"recipientUserIds": recipientIDs,
+	})
+	reqNonOwnerPutRec, _ := http.NewRequest(http.MethodPut, "/api/v1/qc-bonus/recipients", bytes.NewBuffer(putRecipientsBody))
+	reqNonOwnerPutRec.Header.Set("Authorization", "Bearer "+prodToken)
+	reqNonOwnerPutRec.Header.Set("Content-Type", "application/json")
+	wNonOwnerPutRec := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNonOwnerPutRec, reqNonOwnerPutRec)
+	if wNonOwnerPutRec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for non-owner updating recipients, got %d", wNonOwnerPutRec.Code)
+	}
+
+	// Owner memperbarui daftar 3 penerima bonus -> 200 OK
+	reqOwnerPutRec, _ := http.NewRequest(http.MethodPut, "/api/v1/qc-bonus/recipients", bytes.NewBuffer(putRecipientsBody))
+	reqOwnerPutRec.Header.Set("Authorization", "Bearer "+execToken)
+	reqOwnerPutRec.Header.Set("Content-Type", "application/json")
+	wOwnerPutRec := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOwnerPutRec, reqOwnerPutRec)
+	if wOwnerPutRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for owner updating recipients, got %d. Body: %s", wOwnerPutRec.Code, wOwnerPutRec.Body.String())
+	}
+	var prettyPutRec bytes.Buffer
+	_ = json.Indent(&prettyPutRec, wOwnerPutRec.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL PUT /api/v1/qc-bonus/recipients ===\n%s\n", prettyPutRec.String())
+
+	// 3. SKENARIO UJI 3: AKUMULASI 3.000 PCS LOLOS QC & PEMBAGIAN RATA TEPAT ÷ 3
+	// Bersihkan data uji Skenario Uji 3 sebelumnya agar test selalu idempotent
+	_, _ = application.db.Exec(`
+		DELETE FROM qc_bonus_distributions 
+		WHERE period_id IN (SELECT id FROM qc_bonus_periods WHERE name LIKE '%Skenario Uji 3%')
+	`)
+	_, _ = application.db.Exec(`
+		DELETE FROM qc_bonus_periods 
+		WHERE name LIKE '%Skenario Uji 3%'
+	`)
+	_, _ = application.db.Exec(`
+		DELETE FROM qc_inspections 
+		WHERE inspection_number LIKE 'QC-SKENARIO3-%' 
+		   OR (inspection_date >= '2026-11-01'::DATE AND inspection_date <= '2026-11-07'::DATE)
+	`)
+	_, _ = application.db.Exec(`
+		DELETE FROM assemblies 
+		WHERE notes LIKE '%Skenario Uji 3%' 
+		   OR (assembled_date >= '2026-11-01'::DATE AND assembled_date <= '2026-11-07'::DATE)
+	`)
+
+	// Buka Periode Baru: POST /api/v1/qc-bonus/periods
+	createPeriodBody, _ := json.Marshal(map[string]interface{}{
+		"name":      "Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)",
+		"startDate": "2026-11-01",
+		"endDate":   "2026-11-07",
+		"notes":     "Verifikasi matematis Skenario Uji 3: 3.000 pcs lolos x Rp 1.500 = Rp 4.500.000 dibagi rata ke 3 orang",
+	})
+	reqCreatePeriod, _ := http.NewRequest(http.MethodPost, "/api/v1/qc-bonus/periods", bytes.NewBuffer(createPeriodBody))
+	reqCreatePeriod.Header.Set("Authorization", "Bearer "+execToken)
+	reqCreatePeriod.Header.Set("Content-Type", "application/json")
+	wCreatePeriod := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreatePeriod, reqCreatePeriod)
+
+	if wCreatePeriod.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for create bonus period, got %d. Body: %s", wCreatePeriod.Code, wCreatePeriod.Body.String())
+	}
+	var prettyCreatePeriod bytes.Buffer
+	_ = json.Indent(&prettyCreatePeriod, wCreatePeriod.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/qc-bonus/periods ===\n%s\n", prettyCreatePeriod.String())
+
+	var periodCreated struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCreatePeriod.Body.Bytes(), &periodCreated)
+	periodID := periodCreated.Data.ID
+
+	// Seed persis 3.000 pcs lolos QC pada rentang tanggal periode (2026-11-01 s.d. 2026-11-07)
+	var orderID, articleID, inspectorID string
+	_ = application.db.QueryRow(`SELECT id, article_id FROM orders WHERE order_number = 'PO-2026-10-001'`).Scan(&orderID, &articleID)
+	_ = application.db.QueryRow(`SELECT id FROM users WHERE email = 'qc@lukla.local'`).Scan(&inspectorID)
+
+	var testAssemblyID string
+	err = application.db.QueryRow(`
+		INSERT INTO assemblies (
+			order_id, article_id, quantity_assembled, status, assembled_date, notes
+		) VALUES ($1, $2, 3000, 'PASSED', '2026-11-03'::DATE, 'Batch masal 3000 pcs untuk Skenario Uji 3')
+		RETURNING id
+	`, orderID, articleID).Scan(&testAssemblyID)
+	if err != nil {
+		t.Fatalf("failed to insert 3000 pcs assembly: %v", err)
+	}
+
+	testInspNumber := fmt.Sprintf("QC-SKENARIO3-%d", time.Now().UnixNano()%100000)
+	_, err = application.db.Exec(`
+		INSERT INTO qc_inspections (
+			inspection_number, assembly_id, order_id, inspector_id, inspection_date,
+			total_checked, passed_quantity, repair_quantity, reject_quantity, notes
+		) VALUES ($1, $2, $3, $4, '2026-11-03'::DATE, 3000, 3000, 0, 0, 'Inspeksi 3.000 pcs lolos QC sempurna untuk Skenario Uji 3')
+	`, testInspNumber, testAssemblyID, orderID, inspectorID)
+	if err != nil {
+		t.Fatalf("failed to insert 3000 pcs inspection: %v", err)
+	}
+
+	// Trigger Perhitungan Pool Bonus: POST /api/v1/qc-bonus/periods/:id/calculate
+	reqCalc, _ := http.NewRequest(http.MethodPost, "/api/v1/qc-bonus/periods/"+periodID+"/calculate", nil)
+	reqCalc.Header.Set("Authorization", "Bearer "+execToken)
+	wCalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCalc, reqCalc)
+
+	if wCalc.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for calculate bonus period, got %d. Body: %s", wCalc.Code, wCalc.Body.String())
+	}
+	var prettyCalc bytes.Buffer
+	_ = json.Indent(&prettyCalc, wCalc.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/qc-bonus/periods/:id/calculate ===\n%s\n", prettyCalc.String())
+
+	var calcResult struct {
+		Success bool `json:"success"`
+		Message string `json:"message"`
+		Data    struct {
+			ID                 string  `json:"id"`
+			Status             string  `json:"status"`
+			RatePerPcsApplied  float64 `json:"ratePerPcsApplied"`
+			TotalPassedPcs     int     `json:"totalPassedPcs"`
+			TotalPoolAmount    float64 `json:"totalPoolAmount"`
+			RecipientCount     int     `json:"recipientCount"`
+			AmountPerRecipient float64 `json:"amountPerRecipient"`
+			Distributions      []struct {
+				UserID      string  `json:"userId"`
+				FullName    string  `json:"fullName"`
+				Role        string  `json:"role"`
+				ShareAmount float64 `json:"shareAmount"`
+			} `json:"distributions"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCalc.Body.Bytes(), &calcResult)
+
+	// VERIFIKASI SKENARIO UJI 3:
+	// 1. Total produk lolos = 3.000 pcs
+	if calcResult.Data.TotalPassedPcs != 3000 {
+		t.Fatalf("Skenario Uji 3 Failed: expected totalPassedPcs 3000, got %d", calcResult.Data.TotalPassedPcs)
+	}
+	// 2. Tarif berlaku = Rp 1.500 / pcs
+	if calcResult.Data.RatePerPcsApplied != 1500.0 {
+		t.Fatalf("Skenario Uji 3 Failed: expected rate 1500.0, got %.2f", calcResult.Data.RatePerPcsApplied)
+	}
+	// 3. Total dana pool = 3.000 x 1.500 = Rp 4.500.000
+	if calcResult.Data.TotalPoolAmount != 4500000.0 {
+		t.Fatalf("Skenario Uji 3 Failed: expected total pool 4,500,000, got %.2f", calcResult.Data.TotalPoolAmount)
+	}
+	// 4. Jumlah penerima = 3 orang
+	if calcResult.Data.RecipientCount != 3 {
+		t.Fatalf("Skenario Uji 3 Failed: expected 3 recipients, got %d", calcResult.Data.RecipientCount)
+	}
+	// 5. Bagian per penerima = Rp 1.500.000
+	if calcResult.Data.AmountPerRecipient != 1500000.0 {
+		t.Fatalf("Skenario Uji 3 Failed: expected amount per recipient 1,500,000, got %.2f", calcResult.Data.AmountPerRecipient)
+	}
+	// 6. Verifikasi rincian distribusi per orang (masing-masing tepat Rp 1.500.000)
+	var sumShares float64
+	for _, dist := range calcResult.Data.Distributions {
+		if dist.ShareAmount != 1500000.0 {
+			t.Fatalf("Skenario Uji 3 Failed: %s received %.2f, expected exactly 1,500,000.00", dist.FullName, dist.ShareAmount)
+		}
+		sumShares += dist.ShareAmount
+		t.Logf("Distribusi Hak Penerima: %s (%s) = Rp %.2f", dist.FullName, dist.Role, dist.ShareAmount)
+	}
+	if sumShares != calcResult.Data.TotalPoolAmount {
+		t.Fatalf("Skenario Uji 3 Failed: sum of shares (%.2f) does not match total pool (%.2f)", sumShares, calcResult.Data.TotalPoolAmount)
+	}
+	t.Logf("VERIFIKASI SKENARIO UJI 3 SUKSES: 3.000 pcs lolos QC x Rp 1.500 = Rp 4.500.000 terbagi rata sempurna ke 3 orang (Rp 1.500.000/orang)")
+
+	// 4. PENGUNCIAN PERIODE BONUS (LOCKING): POST /api/v1/qc-bonus/periods/:id/lock
+	lockBody, _ := json.Marshal(map[string]interface{}{
+		"notes": "Disetujui oleh Owner untuk pencairan payroll",
+	})
+	reqLock, _ := http.NewRequest(http.MethodPost, "/api/v1/qc-bonus/periods/"+periodID+"/lock", bytes.NewBuffer(lockBody))
+	reqLock.Header.Set("Authorization", "Bearer "+execToken)
+	reqLock.Header.Set("Content-Type", "application/json")
+	wLock := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLock, reqLock)
+
+	if wLock.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for lock bonus period, got %d. Body: %s", wLock.Code, wLock.Body.String())
+	}
+	var prettyLock bytes.Buffer
+	_ = json.Indent(&prettyLock, wLock.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/qc-bonus/periods/:id/lock ===\n%s\n", prettyLock.String())
+
+	// Verifikasi rekalkulasi ditolak setelah periode dikunci (LOCKED)
+	reqRecalc, _ := http.NewRequest(http.MethodPost, "/api/v1/qc-bonus/periods/"+periodID+"/calculate", nil)
+	reqRecalc.Header.Set("Authorization", "Bearer "+execToken)
+	wRecalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRecalc, reqRecalc)
+	if wRecalc.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict when recalculating locked period, got %d", wRecalc.Code)
+	}
+
+	// 5. GET /api/v1/qc-bonus/periods/:id (Detail Lengkap Periode Terkunci)
+	reqGetPeriod, _ := http.NewRequest(http.MethodGet, "/api/v1/qc-bonus/periods/"+periodID, nil)
+	reqGetPeriod.Header.Set("Authorization", "Bearer "+qcToken)
+	wGetPeriod := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetPeriod, reqGetPeriod)
+
+	if wGetPeriod.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get period detail, got %d", wGetPeriod.Code)
+	}
+	var prettyGetPeriod bytes.Buffer
+	_ = json.Indent(&prettyGetPeriod, wGetPeriod.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc-bonus/periods/:id ===\n%s\n", prettyGetPeriod.String())
+
+	// 6. GET /api/v1/qc-bonus/periods (Daftar Seluruh Periode)
+	reqListPeriods, _ := http.NewRequest(http.MethodGet, "/api/v1/qc-bonus/periods", nil)
+	reqListPeriods.Header.Set("Authorization", "Bearer "+execToken)
+	wListPeriods := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListPeriods, reqListPeriods)
+
+	if wListPeriods.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list periods, got %d", wListPeriods.Code)
+	}
+	var prettyListPeriods bytes.Buffer
+	_ = json.Indent(&prettyListPeriods, wListPeriods.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/qc-bonus/periods ===\n%s\n", prettyListPeriods.String())
+}
+
+
 

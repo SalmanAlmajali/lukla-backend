@@ -4640,7 +4640,7 @@
                     ],
                     "name": "11. GET /inventory/blocked-attempts - Audit Trail Percobaan Salah-Keluar (200 OK)",
                     "request": {
-                        "description": "Menginspeksi log audit percobaan pengeluaran bahan yang diblokir oleh sistem (FR-6.3 & Skenario Uji 1). Menyajikan rincian user PIC, lot number, target order, target client, dan kronologi alasan pemblokiran.",
+                        "description": "Menginspeksi log audit percobaan pengeluaran bahan yang diblokir oleh sistem (FR-6.3 \u0026 Skenario Uji 1). Menyajikan rincian user PIC, lot number, target order, target client, dan kronologi alasan pemblokiran.",
                         "header": [
                             {
                                 "key": "Authorization",
@@ -4990,7 +4990,992 @@
                     ]
                 }
             ],
-            "name": "09. Tahap 3: Gudang & Inventaris - Penerimaan, Stok Lot, Pengeluaran Cutting & Blokade Silang (BPMN 02)"
+            "name": "09. Tahap 3: Gudang \u0026 Inventaris - Penerimaan, Stok Lot, Pengeluaran Cutting \u0026 Blokade Silang (BPMN 02)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"QC Token is returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.token).to.be.a('string');",
+                                    "    pm.collectionVariables.set(\"qc_token\", jsonData.data.token);",
+                                    "    console.log(\"Saved qc_token: \" + jsonData.data.token);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "1. Login QC Inspector (Siti Handayani)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"qc@lukla.local\",\n    \"password\": \"password\"\n}"
+                        },
+                        "description": "Login sebagai QC Inspector (Siti Handayani). Token otomatis disimpan ke variabel collection {{qc_token}}.",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ],
+                            "raw": "{{base_url}}/auth/login"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"token\": \"mock_qc_jwt_token\",\n        \"user\": {\n            \"canAccessApp\": true,\n            \"email\": \"qc@lukla.local\",\n            \"employeeCode\": \"EMP-QC-001\",\n            \"fullName\": \"Siti Handayani\",\n            \"id\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n            \"isActive\": true,\n            \"roleCode\": \"qc_inspector\",\n            \"roleName\": \"QC Inspector\"\n        }\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Defect categories returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.length).to.be.at.least(5);",
+                                    "    pm.collectionVariables.set(\"defect_category_id\", jsonData.data[0].id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "2. GET /qc/defect-categories - Master Kategori Defect",
+                    "request": {
+                        "description": "Mengambil master katalog kategori defect garmen (Jahitan Lepas, Kerutan, Noda Kain, Ukuran Meleset, Aksesoris Cacat).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "defect-categories"
+                            ],
+                            "raw": "{{base_url}}/qc/defect-categories"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"7017b769-4676-42bf-8585-9c9b31741d7e\",\n            \"code\": \"DEF-ACC-01\",\n            \"name\": \"Aksesoris Rusak / Cacat\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Resleting macet, kancing patah, atau tali serut sobek\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"5827c3a5-4ec0-47bd-a95f-ec1eb4102375\",\n            \"code\": \"DEF-SEW-01\",\n            \"name\": \"Jahitan Loncat / Lepas\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Jahitan rantai atau obras melompat lebih dari 3 tusukan\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"e3f5ef1c-88cf-49ba-9a81-75b688136bb3\",\n            \"code\": \"DEF-SIZ-01\",\n            \"name\": \"Ukuran Meleset / Measurement Off\",\n            \"severity\": \"CRITICAL\",\n            \"description\": \"Toleransi ukuran panjang/lingkar melebihi batas spek (+/- 1 cm)\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"b0ca448f-5937-4c82-b0a9-e5691b732ff8\",\n            \"code\": \"DEF-STN-01\",\n            \"name\": \"Noda Kain / Minyak Mesin\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Terciprat pelumas mesin atau noda kotoran pada panel\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"12ad38b7-59ff-4f57-a3f6-fe99e7954a55\",\n            \"code\": \"DEF-WRI-01\",\n            \"name\": \"Kerutan / Puckering\",\n            \"severity\": \"MINOR\",\n            \"description\": \"Kerutan kain berlebih di sekitar sambungan jahitan\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "3. POST /qc/defect-categories - Tambah Kategori Defect Baru",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"DEF-LBL-01\",\n    \"name\": \"Label Miring / Terbalik\",\n    \"severity\": \"MINOR\",\n    \"description\": \"Label instruksi pencucian dijahit miring \u003e 2mm\"\n}"
+                        },
+                        "description": "Menambahkan jenis cacat baru ke dalam master data katalog.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "defect-categories"
+                            ],
+                            "raw": "{{base_url}}/qc/defect-categories"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"id\": \"d46113a1-89ff-4c9c-ab0d-6284b25cf1f0\",\n        \"code\": \"DEF-LBL-01\",\n        \"name\": \"Label Miring / Terbalik\",\n        \"severity\": \"MINOR\",\n        \"description\": \"Label instruksi pencucian dijahit miring \u003e 2mm\",\n        \"isActive\": true,\n        \"createdAt\": \"2026-10-15T05:34:32.885205+07:00\",\n        \"updatedAt\": \"2026-10-15T05:34:32.885205+07:00\"\n    },\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "if (jsonData.data \u0026\u0026 jsonData.data.length \u003e 0) {",
+                                    "    pm.collectionVariables.set(\"assembly_id\", jsonData.data[0].assemblyId);",
+                                    "    pm.collectionVariables.set(\"order_id\", jsonData.data[0].orderId);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "4. GET /qc/queue - Antrean Assembly Siap QC",
+                    "request": {
+                        "description": "Mengambil daftar batch produk assembly dari line jahit yang berstatus WAITING_QC.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "queue"
+                            ],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ],
+                            "raw": "{{base_url}}/qc/queue?limit=20"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": [\n        {\n            \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"lineId\": \"1eb68e03-b478-4ff5-ae69-b66a00b266c5\",\n            \"lineCode\": \"LINE-02\",\n            \"completedQuantity\": 50,\n            \"status\": \"WAITING_QC\",\n            \"completedAt\": \"2026-10-15T05:36:02.855583+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "if (jsonData.data) {",
+                                    "    pm.collectionVariables.set(\"inspection_id\", jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "5. POST /qc/inspections - Submit Hasil Periksa QC (48 Lolos, 2 Repair)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n    \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n    \"inspectionDate\": \"2026-10-15\",\n    \"passedQuantity\": 48,\n    \"repairQuantity\": 2,\n    \"rejectQuantity\": 0,\n    \"notes\": \"Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras\",\n    \"defects\": [\n        {\n            \"defectCategoryId\": \"5827c3a5-4ec0-47bd-a95f-ec1eb4102375\",\n            \"quantity\": 2,\n            \"disposition\": \"REPAIR\",\n            \"notes\": \"Obrasan sambungan ketiak loncat 1 cm\"\n        }\n    ]\n}"
+                        },
+                        "description": "Mencatat hasil inspeksi assembly: 48 pcs Lolos (siap pool bonus) dan 2 pcs Repair (perbaikan obras).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "inspections"
+                            ],
+                            "raw": "{{base_url}}/qc/inspections"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n        \"inspectionNumber\": \"QC-20261015-0001\",\n        \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 48,\n        \"repairQuantity\": 2,\n        \"rejectQuantity\": 0,\n        \"totalChecked\": 50,\n        \"notes\": \"Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras\",\n        \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"de69dbbd-8650-4c1f-b31f-499199ff6c5c\",\n                \"defectCategoryCode\": \"DEF-SEW-01\",\n                \"defectCategoryName\": \"Jahitan Loncat / Lepas\",\n                \"severity\": \"MAJOR\",\n                \"componentId\": \"bfd19a70-cd0e-47e6-b2cc-5146a569af56\",\n                \"componentName\": \"QC Akhir \u0026 Labeling\",\n                \"quantity\": 2,\n                \"disposition\": \"REPAIR\",\n                \"notes\": \"Obrasan sambungan ketiak loncat 1 cm\"\n            }\n        ]\n    },\n    \"message\": \"Pemeriksaan QC berhasil dicatat\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "6. GET /qc/inspections/:id - Detail Hasil Periksa \u0026 Log Defect",
+                    "request": {
+                        "description": "Mengambil rincian inspeksi berdasarkan ID lengkap dengan identitas inspector dan breakdown defect.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "inspections",
+                                "{{inspection_id}}"
+                            ],
+                            "raw": "{{base_url}}/qc/inspections/{{inspection_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n        \"inspectionNumber\": \"QC-20261015-0001\",\n        \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 48,\n        \"repairQuantity\": 2,\n        \"rejectQuantity\": 0,\n        \"totalChecked\": 50,\n        \"notes\": \"Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras\",\n        \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"de69dbbd-8650-4c1f-b31f-499199ff6c5c\",\n                \"defectCategoryCode\": \"DEF-SEW-01\",\n                \"defectCategoryName\": \"Jahitan Loncat / Lepas\",\n                \"severity\": \"MAJOR\",\n                \"componentId\": \"bfd19a70-cd0e-47e6-b2cc-5146a569af56\",\n                \"componentName\": \"QC Akhir \u0026 Labeling\",\n                \"quantity\": 2,\n                \"disposition\": \"REPAIR\",\n                \"notes\": \"Obrasan sambungan ketiak loncat 1 cm\"\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "7. POST /qc/inspections - Submit Hasil Periksa QC dengan Reject (8 Lolos, 2 Reject)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assemblyId\": \"933513bd-74f2-47dc-a9c1-5a43035b794b\",\n    \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n    \"inspectionDate\": \"2026-10-15\",\n    \"passedQuantity\": 8,\n    \"repairQuantity\": 0,\n    \"rejectQuantity\": 2,\n    \"notes\": \"Batch 2: 8 lolos, 2 reject cacat ukuran panel\",\n    \"defects\": [\n        {\n            \"defectCategoryId\": \"e3f5ef1c-88cf-49ba-9a81-75b688136bb3\",\n            \"quantity\": 2,\n            \"disposition\": \"REJECT\",\n            \"notes\": \"Pola meleset \u003e 2 cm, afkir total\"\n        }\n    ]\n}"
+                        },
+                        "description": "Mencatat hasil inspeksi dengan produk Reject (cacat permanen). Sesuai aturan bisnis BPMN 06, reject tidak memotong upah penjahit.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "inspections"
+                            ],
+                            "raw": "{{base_url}}/qc/inspections"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"id\": \"2edcd68a-25e3-4945-8b06-d71fa548c5da\",\n        \"inspectionNumber\": \"QC-20261015-0002\",\n        \"assemblyId\": \"933513bd-74f2-47dc-a9c1-5a43035b794b\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 8,\n        \"repairQuantity\": 0,\n        \"rejectQuantity\": 2,\n        \"totalChecked\": 10,\n        \"notes\": \"Batch 2: 8 lolos, 2 reject cacat ukuran panel\",\n        \"createdAt\": \"2026-10-15T05:36:02.994594+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"7cb89112-a5cf-4f91-91ea-02a819b5d401\",\n                \"defectCategoryCode\": \"DEF-SIZ-01\",\n                \"defectCategoryName\": \"Ukuran Meleset / Measurement Off\",\n                \"severity\": \"CRITICAL\",\n                \"quantity\": 2,\n                \"disposition\": \"REJECT\",\n                \"notes\": \"Pola meleset \u003e 2 cm, afkir total\"\n            }\n        ]\n    },\n    \"message\": \"Pemeriksaan QC berhasil dicatat\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "8. GET /qc/orders/:orderId/summary - Analitik Kualitas \u0026 Pass Rate per Order",
+                    "request": {
+                        "description": "Mengambil rekapitulasi kualitas order: total diperiksa, lolos, repair, reject, persentase Pass Rate, dan Top Defect ranking.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "orders",
+                                "fad2530f-90d9-4a76-af96-d9f7db451a98",
+                                "summary"
+                            ],
+                            "raw": "{{base_url}}/qc/orders/fad2530f-90d9-4a76-af96-d9f7db451a98/summary"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": {\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"targetQuantity\": 1000,\n        \"totalChecked\": 60,\n        \"totalPassed\": 56,\n        \"totalRepair\": 2,\n        \"totalReject\": 2,\n        \"passRatePercentage\": 93.33333333333333,\n        \"isOrderCompleted\": false,\n        \"topDefects\": [\n            {\n                \"categoryName\": \"Jahitan Loncat / Lepas\",\n                \"count\": 2\n            },\n            {\n                \"categoryName\": \"Ukuran Meleset / Measurement Off\",\n                \"count\": 2\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "9. GET /qc/inspections - Riwayat Inspeksi QC",
+                    "request": {
+                        "description": "Mengambil seluruh riwayat inspeksi produk yang telah dilakukan inspector pada order tertentu.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{qc_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "inspections"
+                            ],
+                            "query": [
+                                {
+                                    "key": "orderId",
+                                    "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
+                                }
+                            ],
+                            "raw": "{{base_url}}/qc/inspections?orderId=fad2530f-90d9-4a76-af96-d9f7db451a98"
+                        }
+                    },
+                    "response": [
+                        {
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"2edcd68a-25e3-4945-8b06-d71fa548c5da\",\n            \"inspectionNumber\": \"QC-20261015-0002\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"inspectorName\": \"Siti Handayani\",\n            \"inspectionDate\": \"2026-10-15\",\n            \"passedQuantity\": 8,\n            \"repairQuantity\": 0,\n            \"rejectQuantity\": 2,\n            \"totalChecked\": 10,\n            \"createdAt\": \"2026-10-15T05:36:02.994594+07:00\"\n        },\n        {\n            \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n            \"inspectionNumber\": \"QC-20261015-0001\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"inspectorName\": \"Siti Handayani\",\n            \"inspectionDate\": \"2026-10-15\",\n            \"passedQuantity\": 48,\n            \"repairQuantity\": 2,\n            \"rejectQuantity\": 0,\n            \"totalChecked\": 50,\n            \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json; charset=utf-8"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "10. Tahap 4: Quality Control \u0026 Defect Tracking (BPMN 06)"
+        },
+        {
+            "item": [
+                {
+                    "name": "01. GET /qc-bonus/config - Ambil Konfigurasi Tarif Aktif",
+                    "request": {
+                        "description": "Mengambil konfigurasi tarif pool bonus QC per pcs produk lolos inspeksi saat ini beserta riwayat perubahannya.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "config"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/config"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"currency\": \"IDR\",\n        \"rateHistory\": [\n            {\n                \"changedAt\": \"2026-10-15T06:07:33.424357+07:00\",\n                \"changedBy\": \"Budi Santoso\",\n                \"effectiveFrom\": \"2026-10-15T06:07:33.424357+07:00\",\n                \"id\": \"9cbbd377-69c7-4348-8df0-7a87e4976722\",\n                \"notes\": \"Tarif standar pool bonus QC Rp 1.500 per pcs produk lolos\",\n                \"ratePerPcs\": 1500\n            }\n        ],\n        \"ratePerPcs\": 1500,\n        \"updatedAt\": \"2026-10-15T06:07:33.424357+07:00\",\n        \"updatedBy\": \"Budi Santoso\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "originalRequest": {
+                                "header": [
+                                    {
+                                        "key": "Authorization",
+                                        "value": "Bearer {{auth_token}}"
+                                    }
+                                ],
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/qc-bonus/config"
+                                }
+                            },
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "02. PUT /qc-bonus/config - Non-Owner Coba Update Tarif (403 Forbidden)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"ratePerPcs\": 2000,\n    \"notes\": \"Mandor mencoba menaikkan tarif bonus tanpa hak akses\"\n}"
+                        },
+                        "description": "RBAC Guard BPMN 08: Hanya peran OWNER_EXECUTIVE yang berwenang menetapkan tarif. Akses oleh peran lain menghasilkan 403 Forbidden.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "config"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/config"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"hanya owner yang berwenang mengonfigurasi tarif pool bonus QC\"\n    },\n    \"success\": false\n}",
+                            "code": 403,
+                            "name": "Forbidden 403",
+                            "status": "Forbidden"
+                        }
+                    ]
+                },
+                {
+                    "name": "03. PUT /qc-bonus/config - Owner Tetapkan Tarif Rp 1.500 / pcs (200 OK)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"ratePerPcs\": 1500,\n    \"notes\": \"Tarif standar pool bonus QC Rp 1.500 per pcs produk lolos\"\n}"
+                        },
+                        "description": "Owner menetapkan tarif bonus QC Rp 1.500 per pcs produk yang lolos QC.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "config"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/config"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"currency\": \"IDR\",\n        \"rateHistory\": [\n            {\n                \"changedAt\": \"2026-10-15T06:07:33.424357+07:00\",\n                \"changedBy\": \"Budi Santoso\",\n                \"effectiveFrom\": \"2026-10-15T06:07:33.424357+07:00\",\n                \"id\": \"9cbbd377-69c7-4348-8df0-7a87e4976722\",\n                \"notes\": \"Tarif standar pool bonus QC Rp 1.500 per pcs produk lolos\",\n                \"ratePerPcs\": 1500\n            }\n        ],\n        \"ratePerPcs\": 1500,\n        \"updatedAt\": \"2026-10-15T06:07:33.424357+07:00\",\n        \"updatedBy\": \"Budi Santoso\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "04. GET /qc-bonus/recipients - Daftar 3 Penerima Pool Bonus (200 OK)",
+                    "request": {
+                        "description": "Mengambil daftar penerima aktif hak pool bonus QC (2 Mandor + 1 Kepala Produksi = 3 orang, shareRatio = 0.3333333333333333).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "recipients"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/recipients"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"fullName\": \"Bambang Supriyadi\",\n            \"id\": \"175d3ec1-ea7d-426b-8777-22f305c48b26\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-MDR-001\",\n            \"userId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\"\n        },\n        {\n            \"fullName\": \"Cecep Hidayat\",\n            \"id\": \"763bc7a7-54be-4f51-a20c-c4ee67dd93cf\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-MDR-002\",\n            \"userId\": \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n        },\n        {\n            \"fullName\": \"Dadang Kurnia\",\n            \"id\": \"2e73fae2-a396-419b-ab07-16013a7c6be4\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-KAPROD-001\",\n            \"userId\": \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "05. PUT /qc-bonus/recipients - Non-Owner Coba Update Penerima (403 Forbidden)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"recipientUserIds\": [\n        \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n        \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n    ]\n}"
+                        },
+                        "description": "RBAC Guard: Hanya peran OWNER yang berwenang mengubah daftar penerima bonus pool.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "recipients"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/recipients"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"hanya owner yang berwenang mengonfigurasi penerima pool bonus QC\"\n    },\n    \"success\": false\n}",
+                            "code": 403,
+                            "name": "Forbidden 403",
+                            "status": "Forbidden"
+                        }
+                    ]
+                },
+                {
+                    "name": "06. PUT /qc-bonus/recipients - Owner Perbarui Penerima Pool Bonus (200 OK)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"recipientUserIds\": [\n        \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n        \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\",\n        \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n    ]\n}"
+                        },
+                        "description": "Owner memperbarui daftar penerima hak pool bonus QC.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "recipients"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/recipients"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"fullName\": \"Bambang Supriyadi\",\n            \"id\": \"175d3ec1-ea7d-426b-8777-22f305c48b26\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-MDR-001\",\n            \"userId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\"\n        },\n        {\n            \"fullName\": \"Cecep Hidayat\",\n            \"id\": \"763bc7a7-54be-4f51-a20c-c4ee67dd93cf\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-MDR-002\",\n            \"userId\": \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n        },\n        {\n            \"fullName\": \"Dadang Kurnia\",\n            \"id\": \"2e73fae2-a396-419b-ab07-16013a7c6be4\",\n            \"isActive\": true,\n            \"roleName\": \"Kepala Produksi / Mandor\",\n            \"shareRatio\": 0.3333333333333333,\n            \"title\": \"EMP-KAPROD-001\",\n            \"userId\": \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n        }\n    ],\n    \"message\": \"Daftar penerima pool bonus berhasil diperbarui\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "07. POST /qc-bonus/periods - Buka Periode Bonus Baru (201 Created)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n    \"startDate\": \"2026-11-01\",\n    \"endDate\": \"2026-11-07\",\n    \"notes\": \"Verifikasi matematis Skenario Uji 3: 3.000 pcs lolos x Rp 1.500 = Rp 4.500.000 dibagi rata ke 3 orang\"\n}"
+                        },
+                        "description": "Membuka siklus periode bonus QC baru dengan status awal DRAFT.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"amountPerRecipient\": 0,\n        \"createdAt\": \"2026-10-15T06:07:33.743744+07:00\",\n        \"distributions\": [],\n        \"endDate\": \"2026-11-07\",\n        \"id\": \"6f2f8254-fe4a-411c-8103-23f103c08d5a\",\n        \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n        \"notes\": \"Verifikasi matematis Skenario Uji 3: 3.000 pcs lolos x Rp 1.500 = Rp 4.500.000 dibagi rata ke 3 orang\",\n        \"ratePerPcsApplied\": 0,\n        \"recipientCount\": 0,\n        \"startDate\": \"2026-11-01\",\n        \"status\": \"DRAFT\",\n        \"totalPassedPcs\": 0,\n        \"totalPoolAmount\": 0\n    },\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Created 201",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "name": "08. POST /qc-bonus/periods/:id/calculate - Hitung \u0026 Bagi Rata Skenario Uji 3 (3.000 pcs ÷ 3) (200 OK)",
+                    "request": {
+                        "description": "Kalkulasi pool bonus sesuai Skenario Uji 3 (SRS FR-10.3 / BPMN 08): Mengagregasi 3.000 pcs lolos QC x Rp 1.500 = Rp 4.500.000, lalu membaginya tepat sepertiga rata (Rp 1.500.000/orang) ke 3 penerima tanpa sisa pembulatan.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{bonus_period_id}}",
+                                "calculate"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{bonus_period_id}}/calculate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"amountPerRecipient\": 1500000,\n        \"createdAt\": \"2026-10-15T06:07:33.743744+07:00\",\n        \"distributions\": [\n            {\n                \"fullName\": \"Bambang Supriyadi\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\"\n            },\n            {\n                \"fullName\": \"Cecep Hidayat\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n            },\n            {\n                \"fullName\": \"Dadang Kurnia\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n            }\n        ],\n        \"endDate\": \"2026-11-07\",\n        \"id\": \"6f2f8254-fe4a-411c-8103-23f103c08d5a\",\n        \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n        \"notes\": \"Verifikasi matematis Skenario Uji 3: 3.000 pcs lolos x Rp 1.500 = Rp 4.500.000 dibagi rata ke 3 orang\",\n        \"ratePerPcsApplied\": 1500,\n        \"recipientCount\": 3,\n        \"startDate\": \"2026-11-01\",\n        \"status\": \"CALCULATED\",\n        \"totalPassedPcs\": 3000,\n        \"totalPoolAmount\": 4500000\n    },\n    \"message\": \"Kalkulasi pool bonus berhasil: 3000 pcs lolos x Rp 1500 = Rp 4500000, dibagi rata ke 3 orang (Rp 1500000/orang)\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "09. POST /qc-bonus/periods/:id/lock - Kunci Periode Bonus (200 OK)",
+                    "request": {
+                        "description": "Mengunci periode bonus QC menjadi status LOCKED setelah disetujui Owner untuk pencairan payroll.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{bonus_period_id}}",
+                                "lock"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{bonus_period_id}}/lock"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"amountPerRecipient\": 1500000,\n        \"createdAt\": \"2026-10-15T06:07:33.743744+07:00\",\n        \"distributions\": [\n            {\n                \"fullName\": \"Bambang Supriyadi\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\"\n            },\n            {\n                \"fullName\": \"Cecep Hidayat\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n            },\n            {\n                \"fullName\": \"Dadang Kurnia\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n            }\n        ],\n        \"endDate\": \"2026-11-07\",\n        \"id\": \"6f2f8254-fe4a-411c-8103-23f103c08d5a\",\n        \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n        \"notes\": \"Disetujui oleh Owner untuk pencairan payroll\",\n        \"ratePerPcsApplied\": 1500,\n        \"recipientCount\": 3,\n        \"startDate\": \"2026-11-01\",\n        \"status\": \"LOCKED\",\n        \"totalPassedPcs\": 3000,\n        \"totalPoolAmount\": 4500000\n    },\n    \"message\": \"Periode bonus QC berhasil dikunci\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "10. POST /qc-bonus/periods/:id/calculate - Recalculate Periode Terkunci (409 Conflict)",
+                    "request": {
+                        "description": "Menjamin sifat immutable: Periode berstatus LOCKED ditolak jika dihitung ulang dengan 409 Conflict.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{bonus_period_id}}",
+                                "calculate"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{bonus_period_id}}/calculate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"CONFLICT\",\n        \"message\": \"periode bonus QC sudah berstatus LOCKED dan tidak dapat dihitung ulang\"\n    },\n    \"success\": false\n}",
+                            "code": 409,
+                            "name": "Conflict 409",
+                            "status": "Conflict"
+                        }
+                    ]
+                },
+                {
+                    "name": "11. GET /qc-bonus/periods/:id - Detail Periode Terkunci (200 OK)",
+                    "request": {
+                        "description": "Mengambil rincian detail periode bonus QC dan pembagian hak bonus ke masing-masing penerima.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{bonus_period_id}}"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{bonus_period_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"amountPerRecipient\": 1500000,\n        \"createdAt\": \"2026-10-15T06:07:33.743744+07:00\",\n        \"distributions\": [\n            {\n                \"fullName\": \"Bambang Supriyadi\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\"\n            },\n            {\n                \"fullName\": \"Cecep Hidayat\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\"\n            },\n            {\n                \"fullName\": \"Dadang Kurnia\",\n                \"payoutStatus\": \"PENDING_DISBURSEMENT\",\n                \"role\": \"Kepala Produksi / Mandor\",\n                \"shareAmount\": 1500000,\n                \"userId\": \"f5d8de29-e94c-441a-a124-96b2540e2c56\"\n            }\n        ],\n        \"endDate\": \"2026-11-07\",\n        \"id\": \"6f2f8254-fe4a-411c-8103-23f103c08d5a\",\n        \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n        \"notes\": \"Disetujui oleh Owner untuk pencairan payroll\",\n        \"ratePerPcsApplied\": 1500,\n        \"recipientCount\": 3,\n        \"startDate\": \"2026-11-01\",\n        \"status\": \"LOCKED\",\n        \"totalPassedPcs\": 3000,\n        \"totalPoolAmount\": 4500000\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "12. GET /qc-bonus/periods - Daftar Riwayat Periode (200 OK)",
+                    "request": {
+                        "description": "Mengambil daftar ringkasan seluruh siklus periode bonus QC yang pernah dibuat di sistem.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"amountPerRecipient\": 1500000,\n            \"createdAt\": \"2026-10-15T06:07:33.743744+07:00\",\n            \"endDate\": \"2026-11-07\",\n            \"id\": \"6f2f8254-fe4a-411c-8103-23f103c08d5a\",\n            \"name\": \"Pool Bonus QC - Skenario Uji 3 (3.000 pcs ÷ 3)\",\n            \"ratePerPcs\": 1500,\n            \"recipientCount\": 3,\n            \"startDate\": \"2026-11-01\",\n            \"status\": \"LOCKED\",\n            \"totalPassedPcs\": 3000,\n            \"totalPoolAmount\": 4500000\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "11. Tahap 4.2: QC Pool Bonus 3-Arah \u0026 Skenario Uji 3 (BPMN 08)"
         }
     ],
     "variable": [
@@ -5123,6 +6108,21 @@
             "key": "scrap_id",
             "type": "string",
             "value": "bc4eba1e-b2a3-41a9-8f39-4ea026932f66"
+        },
+        {
+            "key": "qc_token",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "defect_category_id",
+            "type": "string",
+            "value": "5827c3a5-4ec0-47bd-a95f-ec1eb4102375"
+        },
+        {
+            "key": "inspection_id",
+            "type": "string",
+            "value": "68721089-55e6-473f-9ba1-ef155ee32f11"
         }
     ]
 }

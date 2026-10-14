@@ -14,8 +14,9 @@ Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan peng
 | **Tahap 2.2** | Locking, Audit Adjustment, & Summary Report (BPMN 07) | 14 Okt 2026 | 000025 | Selesai | [Laporan Tahap 2.2](./tahap-2.2-payroll-locking-adjustment-summary.md) |
 | **Tahap 3.1** | Katalog Bahan, Penerimaan Bertagging, & Stok Lot (BPMN 02) | 14 Okt 2026 | 000026 - 000027 | Selesai | [Laporan Tahap 3.1](./tahap-3.1-katalog-bahan-penerimaan-stok-lot.md) |
 | **Tahap 3.2** | Pengeluaran ke Cutting & Blokade Kontaminasi Silang (BPMN 02) | 14 Okt 2026 | 000028 | Selesai | [Laporan Tahap 3.2](./tahap-3.2-pengeluaran-cutting-blokade-skenario1.md) |
-| **Tahap 4** | QC & Pool Bonus (BPMN 06, 08) | *Akan Datang* | - | Direncanakan | - |
-| **Tahap 5** | Portal Klien & Notifikasi (BPMN 11, 01) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 4.1** | QC Engine, Defect Tracking, & Verifikasi Upah Penjahit (BPMN 06) | 15 Okt 2026 | 000029 | Selesai | [Laporan Tahap 4.1](./tahap-4.1-qc-inspeksi.md) |
+| **Tahap 4.2** | Pool Bonus QC 3-Arah & Skenario Uji 3 (BPMN 08) | 15 Okt 2026 | 000030 | Selesai | [Laporan Tahap 4.2](./tahap-4.2-pool-bonus-skenario3.md) |
+| **Tahap 5** | Portal Klien & Notifikasi (BPMN 11, 01) | *Berikutnya* | - | Direncanakan | - |
 | **Tahap 6** | Sample & Time Study (BPMN 03) | *Akan Datang* | - | Direncanakan | - |
 | **Tahap 7** | Overhead & Uji End-to-End (BPMN 09, 01) | *Akan Datang* | - | Direncanakan | - |
 

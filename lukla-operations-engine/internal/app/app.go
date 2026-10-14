@@ -13,6 +13,8 @@ import (
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
 	"github.com/lukla/operations-engine/internal/modules/payroll"
 	"github.com/lukla/operations-engine/internal/modules/production"
+	"github.com/lukla/operations-engine/internal/modules/qcbonus"
+	"github.com/lukla/operations-engine/internal/modules/quality"
 	"github.com/lukla/operations-engine/internal/modules/ratecard"
 	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/authz"
@@ -88,9 +90,17 @@ func New(ctx context.Context) (*App, error) {
 	inventorySvc := inventory.NewService(inventoryRepo)
 	inventoryHandler := inventory.NewHandler(inventorySvc)
 
+	qualityRepo := quality.NewPostgresRepository(db)
+	qualitySvc := quality.NewService(qualityRepo)
+	qualityHandler := quality.NewHandler(qualitySvc)
+
+	qcbonusRepo := qcbonus.NewPostgresRepository(db)
+	qcbonusSvc := qcbonus.NewService(qcbonusRepo)
+	qcbonusHandler := qcbonus.NewHandler(qcbonusSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, authnMiddleware, internalAuthz)
+	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, qualityHandler, qcbonusHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -134,6 +144,8 @@ func registerRoutes(
 	productionHandler *production.Handler,
 	payrollHandler *payroll.Handler,
 	inventoryHandler *inventory.Handler,
+	qualityHandler *quality.Handler,
+	qcbonusHandler *qcbonus.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -149,5 +161,8 @@ func registerRoutes(
 	productionHandler.RegisterRoutes(v1, authnMiddleware)
 	payroll.RegisterRoutes(v1, payrollHandler, authnMiddleware)
 	inventory.RegisterRoutes(v1, inventoryHandler, authnMiddleware)
+	quality.RegisterRoutes(v1, qualityHandler, authnMiddleware)
+	qcbonus.RegisterRoutes(v1, qcbonusHandler, authnMiddleware)
 }
+
 
