@@ -16,6 +16,7 @@ type mockPayrollRepository struct {
 	periods        map[string]*PayrollPeriod
 	slips          map[string]*PayrollSlip
 	slipDetails    map[string]*PayrollSlipDetail
+	adjustments    map[string][]PayrollAdjustment
 	outputs        []OperatorOutputAggregation
 	createErr      error
 	calculateErr   error
@@ -27,6 +28,7 @@ func newMockRepository() *mockPayrollRepository {
 		periods:     make(map[string]*PayrollPeriod),
 		slips:       make(map[string]*PayrollSlip),
 		slipDetails: make(map[string]*PayrollSlipDetail),
+		adjustments: make(map[string][]PayrollAdjustment),
 	}
 }
 
@@ -132,6 +134,92 @@ func (m *mockPayrollRepository) FindSlipByID(ctx context.Context, slipID string)
 		return s, nil
 	}
 	return nil, ErrSlipNotFound
+}
+
+func (m *mockPayrollRepository) LockPeriod(ctx context.Context, periodID, lockedByUserID string, notes *string) (*PayrollPeriod, error) {
+	p, ok := m.periods[periodID]
+	if !ok {
+		return nil, ErrPeriodNotFound
+	}
+	if p.Status == string(PeriodStatusLocked) {
+		return nil, ErrPeriodAlreadyLocked
+	}
+	if p.Status != string(PeriodStatusCalculated) {
+		return nil, ErrPeriodMustBeCalculatedToLock
+	}
+	p.Status = string(PeriodStatusLocked)
+	now := time.Now()
+	p.LockedAt = &now
+	p.LockedByUserID = &lockedByUserID
+	if notes != nil {
+		p.Notes = notes
+	}
+	for _, slip := range m.slips {
+		if slip.PayrollPeriodID == periodID {
+			slip.Status = string(SlipStatusLocked)
+		}
+	}
+	return p, nil
+}
+
+func (m *mockPayrollRepository) CreateAdjustment(ctx context.Context, periodID string, adj *PayrollAdjustment) error {
+	p, ok := m.periods[periodID]
+	if !ok {
+		return ErrPeriodNotFound
+	}
+	adj.ID = "adj-001"
+	adj.CreatedAt = time.Now()
+	m.adjustments[periodID] = append(m.adjustments[periodID], *adj)
+
+	for _, s := range m.slips {
+		if s.PayrollPeriodID == periodID && s.OperatorID == adj.OperatorID {
+			s.AdjustmentsTotal += adj.Amount
+			s.NetPayableTotal += adj.Amount
+		}
+	}
+	p.TotalAdjustments += adj.Amount
+	p.TotalNetPayable += adj.Amount
+	return nil
+}
+
+func (m *mockPayrollRepository) ListAdjustmentsByPeriod(ctx context.Context, periodID string) ([]PayrollAdjustment, error) {
+	if _, ok := m.periods[periodID]; !ok {
+		return nil, ErrPeriodNotFound
+	}
+	adjs, ok := m.adjustments[periodID]
+	if !ok {
+		return []PayrollAdjustment{}, nil
+	}
+	return adjs, nil
+}
+
+func (m *mockPayrollRepository) GetPayrollSummaryReport(ctx context.Context, periodID string) (*PayrollSummaryReport, error) {
+	p, ok := m.periods[periodID]
+	if !ok {
+		return nil, ErrPeriodNotFound
+	}
+	var lineSummaries []LinePayrollSummary
+	var slips []PayrollSlip
+	for _, s := range m.slips {
+		if s.PayrollPeriodID == periodID {
+			slips = append(slips, *s)
+		}
+	}
+	return &PayrollSummaryReport{
+		PeriodID:                p.ID,
+		PeriodCode:              p.PeriodCode,
+		StartDate:               p.StartDate,
+		EndDate:                 p.EndDate,
+		MealAllowancePercentage: p.MealAllowancePercentage,
+		Status:                  p.Status,
+		TotalOperators:          p.TotalOperatorsCount,
+		TotalGrossPieceRate:     p.TotalGrossPieceRate,
+		TotalMealAllowance:      p.TotalMealAllowance,
+		TotalAdjustments:        p.TotalAdjustments,
+		GrandTotalPayable:       p.TotalNetPayable,
+		LinesSummary:            lineSummaries,
+		OperatorsSummary:        slips,
+	}, nil
 }
 
 func setupTestRouter(repo Repository, role string) *gin.Engine {
@@ -459,4 +547,308 @@ func TestGetSlipDetail_NotFound(t *testing.T) {
 		t.Fatalf("expected 404 Not Found, got %d", w.Code)
 	}
 }
+
+func TestLockPeriod_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:         "p-1",
+		PeriodCode: "PAY-2026-W42",
+		Status:     string(PeriodStatusCalculated),
+	}
+	repo.slips["slip-1"] = &PayrollSlip{
+		ID:              "slip-1",
+		PayrollPeriodID: "p-1",
+		OperatorID:      "op-1",
+		Status:          string(SlipStatusCalculated),
+	}
+	r := setupTestRouter(repo, "owner_executive")
+
+	body := `{"notes":"Approved and finalized by Owner"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/lock", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool          `json:"success"`
+		Message string        `json:"message"`
+		Data    PayrollPeriod `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Data.Status != string(PeriodStatusLocked) {
+		t.Errorf("expected status LOCKED, got %s", resp.Data.Status)
+	}
+	if resp.Data.Notes == nil || *resp.Data.Notes != "Approved and finalized by Owner" {
+		t.Errorf("expected notes to be saved, got %v", resp.Data.Notes)
+	}
+	if repo.slips["slip-1"].Status != string(SlipStatusLocked) {
+		t.Errorf("expected slip status LOCKED, got %s", repo.slips["slip-1"].Status)
+	}
+}
+
+func TestLockPeriod_DraftPeriod_Rejected(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:         "p-1",
+		PeriodCode: "PAY-2026-W42",
+		Status:     string(PeriodStatusDraft),
+	}
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/lock", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for locking DRAFT period, got %d", w.Code)
+	}
+}
+
+func TestLockPeriod_AlreadyLocked_Conflict(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:         "p-1",
+		PeriodCode: "PAY-2026-W42",
+		Status:     string(PeriodStatusLocked),
+	}
+	r := setupTestRouter(repo, "owner_executive")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/lock", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict for already locked period, got %d", w.Code)
+	}
+}
+
+func TestLockPeriod_UnauthorizedRole(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:         "p-1",
+		PeriodCode: "PAY-2026-W42",
+		Status:     string(PeriodStatusCalculated),
+	}
+	r := setupTestRouter(repo, "tailor_operator")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/lock", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got %d", w.Code)
+	}
+}
+
+func TestCreateAdjustment_Bonus_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:              "p-1",
+		PeriodCode:      "PAY-2026-W42",
+		Status:          string(PeriodStatusCalculated),
+		TotalNetPayable: 500000.0,
+	}
+	repo.slips["slip-1"] = &PayrollSlip{
+		ID:                  "slip-1",
+		PayrollPeriodID:     "p-1",
+		OperatorID:          "op-1",
+		GrossPieceRateTotal: 500000.0,
+		NetPayableTotal:     500000.0,
+	}
+	r := setupTestRouter(repo, "finance")
+
+	body := `{"operatorId":"op-1","adjustmentType":"BONUS","amount":50000,"reason":"Bonus lembur darurat shift malam"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/adjustments", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool              `json:"success"`
+		Data    PayrollAdjustment `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Data.Amount != 50000 {
+		t.Errorf("expected amount 50000, got %f", resp.Data.Amount)
+	}
+	if resp.Data.AdjustmentType != "BONUS" {
+		t.Errorf("expected type BONUS, got %s", resp.Data.AdjustmentType)
+	}
+
+	// Verify slip and period totals updated
+	slip := repo.slips["slip-1"]
+	if slip.AdjustmentsTotal != 50000 {
+		t.Errorf("expected slip adjustment 50000, got %f", slip.AdjustmentsTotal)
+	}
+	if slip.NetPayableTotal != 550000 {
+		t.Errorf("expected slip net payable 550000, got %f", slip.NetPayableTotal)
+	}
+	if repo.periods["p-1"].TotalNetPayable != 550000 {
+		t.Errorf("expected period net payable 550000, got %f", repo.periods["p-1"].TotalNetPayable)
+	}
+}
+
+func TestCreateAdjustment_Deduction_NegativeAmount(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:              "p-1",
+		PeriodCode:      "PAY-2026-W42",
+		Status:          string(PeriodStatusCalculated),
+		TotalNetPayable: 500000.0,
+	}
+	repo.slips["slip-1"] = &PayrollSlip{
+		ID:                  "slip-1",
+		PayrollPeriodID:     "p-1",
+		OperatorID:          "op-1",
+		GrossPieceRateTotal: 500000.0,
+		NetPayableTotal:     500000.0,
+	}
+	r := setupTestRouter(repo, "finance")
+
+	body := `{"operatorId":"op-1","adjustmentType":"DEDUCTION","amount":25000,"reason":"Koreksi potongan kasbon"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/adjustments", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool              `json:"success"`
+		Data    PayrollAdjustment `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Data.Amount != -25000 {
+		t.Errorf("expected deduction amount -25000, got %f", resp.Data.Amount)
+	}
+	if repo.slips["slip-1"].NetPayableTotal != 475000 {
+		t.Errorf("expected slip net payable 475000, got %f", repo.slips["slip-1"].NetPayableTotal)
+	}
+}
+
+func TestCreateAdjustment_InvalidType_Rejected(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1"}
+	r := setupTestRouter(repo, "owner_executive")
+
+	body := `{"operatorId":"op-1","adjustmentType":"INVALID_TYPE","amount":50000,"reason":"Testing"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/adjustments", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d", w.Code)
+	}
+}
+
+func TestCreateAdjustment_MissingReason_Rejected(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1"}
+	r := setupTestRouter(repo, "finance")
+
+	body := `{"operatorId":"op-1","adjustmentType":"BONUS","amount":50000,"reason":"   "}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/adjustments", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for missing reason, got %d", w.Code)
+	}
+}
+
+func TestCreateAdjustment_ZeroAmount_Rejected(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1"}
+	r := setupTestRouter(repo, "finance")
+
+	body := `{"operatorId":"op-1","adjustmentType":"BONUS","amount":0,"reason":"Zero test"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/adjustments", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for zero amount, got %d", w.Code)
+	}
+}
+
+func TestListAdjustments_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1"}
+	repo.adjustments["p-1"] = []PayrollAdjustment{
+		{ID: "adj-1", AdjustmentType: "BONUS", Amount: 50000, Reason: "Bonus"},
+	}
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/p-1/adjustments", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool                `json:"success"`
+		Data    []PayrollAdjustment `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 adjustment, got %d", len(resp.Data))
+	}
+}
+
+func TestGetPayrollSummary_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:                  "p-1",
+		PeriodCode:          "PAY-2026-W42",
+		Status:              string(PeriodStatusCalculated),
+		TotalGrossPieceRate: 500000,
+		TotalMealAllowance:  62500,
+		TotalNetPayable:     562500,
+	}
+	repo.slips["slip-1"] = &PayrollSlip{
+		ID:                  "slip-1",
+		PayrollPeriodID:     "p-1",
+		OperatorName:        "Siti",
+		GrossPieceRateTotal: 500000,
+		MealAllowanceAmount: 62500,
+		NetPayableTotal:     562500,
+	}
+	r := setupTestRouter(repo, "owner_executive")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/p-1/summary", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool                 `json:"success"`
+		Data    PayrollSummaryReport `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Data.PeriodCode != "PAY-2026-W42" {
+		t.Errorf("expected period code PAY-2026-W42, got %s", resp.Data.PeriodCode)
+	}
+	if len(resp.Data.OperatorsSummary) != 1 {
+		t.Errorf("expected 1 slip in summary, got %d", len(resp.Data.OperatorsSummary))
+	}
+}
+
 

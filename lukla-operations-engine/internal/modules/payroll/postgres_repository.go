@@ -584,3 +584,255 @@ func (r *PostgresRepository) FindSlipByID(ctx context.Context, slipID string) (*
 
 	return &detail, nil
 }
+
+func (r *PostgresRepository) LockPeriod(ctx context.Context, periodID string, lockedByUserID string, notes *string) (*PayrollPeriod, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin lock tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var currentStatus string
+	var currentNotes *string
+	err = tx.QueryRowContext(ctx, "SELECT status, notes FROM payroll_periods WHERE id = $1 FOR UPDATE", periodID).Scan(&currentStatus, &currentNotes)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrPeriodNotFound
+		}
+		return nil, fmt.Errorf("lock period query: %w", err)
+	}
+
+	if currentStatus == string(PeriodStatusLocked) {
+		return nil, ErrPeriodAlreadyLocked
+	}
+	if currentStatus == string(PeriodStatusDraft) {
+		return nil, ErrPeriodMustBeCalculatedToLock
+	}
+
+	finalNotes := currentNotes
+	if notes != nil && *notes != "" {
+		finalNotes = notes
+	}
+
+	updatePeriodQuery := `
+		UPDATE payroll_periods
+		SET status = 'LOCKED',
+			locked_at = NOW(),
+			locked_by_user_id = $1,
+			notes = $2,
+			updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err = tx.ExecContext(ctx, updatePeriodQuery, lockedByUserID, finalNotes, periodID)
+	if err != nil {
+		return nil, fmt.Errorf("update period to locked: %w", err)
+	}
+
+	// Update slips to LOCKED status
+	_, err = tx.ExecContext(ctx, "UPDATE payroll_slips SET status = 'LOCKED', updated_at = NOW() WHERE payroll_period_id = $1", periodID)
+	if err != nil {
+		return nil, fmt.Errorf("update slips to locked: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit lock tx: %w", err)
+	}
+
+	return r.FindPeriodByID(ctx, periodID)
+}
+
+func (r *PostgresRepository) CreateAdjustment(ctx context.Context, periodID string, adj *PayrollAdjustment) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin adjustment tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Verify period exists
+	var pID string
+	err = tx.QueryRowContext(ctx, "SELECT id FROM payroll_periods WHERE id = $1 FOR UPDATE", periodID).Scan(&pID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrPeriodNotFound
+		}
+		return fmt.Errorf("query period for adjustment: %w", err)
+	}
+
+	// Verify slip exists for operator in this period
+	var slipID string
+	err = tx.QueryRowContext(ctx, "SELECT id FROM payroll_slips WHERE payroll_period_id = $1 AND operator_id = $2 FOR UPDATE", periodID, adj.OperatorID).Scan(&slipID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrSlipNotFound
+		}
+		return fmt.Errorf("query slip for adjustment: %w", err)
+	}
+
+	// Insert adjustment
+	insertAdjQuery := `
+		INSERT INTO payroll_adjustments (
+			payroll_period_id, operator_id, adjustment_type, amount, reason, created_by_user_id
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at
+	`
+	err = tx.QueryRowContext(
+		ctx,
+		insertAdjQuery,
+		periodID,
+		adj.OperatorID,
+		adj.AdjustmentType,
+		adj.Amount,
+		adj.Reason,
+		adj.CreatedByUserID,
+	).Scan(&adj.ID, &adj.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("insert adjustment: %w", err)
+	}
+
+	// Update slip totals
+	updateSlipQuery := `
+		UPDATE payroll_slips
+		SET adjustments_total = adjustments_total + $1,
+			net_payable_total = net_payable_total + $1,
+			updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err = tx.ExecContext(ctx, updateSlipQuery, adj.Amount, slipID)
+	if err != nil {
+		return fmt.Errorf("update slip adjustments: %w", err)
+	}
+
+	// Update period totals
+	updatePeriodQuery := `
+		UPDATE payroll_periods
+		SET total_adjustments = total_adjustments + $1,
+			total_net_payable = total_net_payable + $1,
+			updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err = tx.ExecContext(ctx, updatePeriodQuery, adj.Amount, periodID)
+	if err != nil {
+		return fmt.Errorf("update period adjustments: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+func (r *PostgresRepository) ListAdjustmentsByPeriod(ctx context.Context, periodID string) ([]PayrollAdjustment, error) {
+	// Verify period exists
+	if _, err := r.FindPeriodByID(ctx, periodID); err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT 
+			pa.id, pa.payroll_period_id, pa.operator_id, op.name AS operator_name,
+			pa.adjustment_type, pa.amount, pa.reason, pa.created_by_user_id,
+			COALESCE(u.full_name, 'System') AS created_by_name, pa.created_at
+		FROM payroll_adjustments pa
+		JOIN operators op ON pa.operator_id = op.id
+		LEFT JOIN users u ON pa.created_by_user_id = u.id
+		WHERE pa.payroll_period_id = $1
+		ORDER BY pa.created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, periodID)
+	if err != nil {
+		return nil, fmt.Errorf("list adjustments: %w", err)
+	}
+	defer rows.Close()
+
+	adjustments := []PayrollAdjustment{}
+	for rows.Next() {
+		var a PayrollAdjustment
+		if err := rows.Scan(
+			&a.ID,
+			&a.PayrollPeriodID,
+			&a.OperatorID,
+			&a.OperatorName,
+			&a.AdjustmentType,
+			&a.Amount,
+			&a.Reason,
+			&a.CreatedByUserID,
+			&a.CreatedByName,
+			&a.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan adjustment: %w", err)
+		}
+		adjustments = append(adjustments, a)
+	}
+	return adjustments, nil
+}
+
+func (r *PostgresRepository) GetPayrollSummaryReport(ctx context.Context, periodID string) (*PayrollSummaryReport, error) {
+	period, err := r.FindPeriodByID(ctx, periodID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. Total pieces produced in period
+	var totalPieces int
+	_ = r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(total_pieces), 0) FROM payroll_slips WHERE payroll_period_id = $1", periodID).Scan(&totalPieces)
+
+	// 2. Lines summary
+	lineQuery := `
+		SELECT 
+			l.id AS line_id,
+			l.code AS line_code,
+			l.name AS line_name,
+			COUNT(DISTINCT po.operator_id) AS operators_count,
+			COALESCE(SUM(po.quantity), 0) AS pieces_produced,
+			COALESCE(SUM(po.quantity * po.snapshot_sewing_rate), 0.00) AS gross_amount
+		FROM lines l
+		LEFT JOIN production_outputs po ON po.line_id = l.id 
+			AND po.work_date >= $1::DATE 
+			AND po.work_date <= $2::DATE
+		GROUP BY l.id, l.code, l.name
+		ORDER BY l.code ASC
+	`
+	rows, err := r.db.QueryContext(ctx, lineQuery, period.StartDate, period.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("query lines summary: %w", err)
+	}
+	defer rows.Close()
+
+	linesSummary := []LinePayrollSummary{}
+	for rows.Next() {
+		var ls LinePayrollSummary
+		if err := rows.Scan(
+			&ls.LineID,
+			&ls.LineCode,
+			&ls.LineName,
+			&ls.OperatorsCount,
+			&ls.PiecesProduced,
+			&ls.GrossAmount,
+		); err != nil {
+			return nil, fmt.Errorf("scan line summary: %w", err)
+		}
+		linesSummary = append(linesSummary, ls)
+	}
+
+	// 3. Operators summary slips
+	slips, _, err := r.ListSlipsByPeriod(ctx, periodID, ListSlipsFilter{Limit: 100})
+	if err != nil {
+		return nil, err
+	}
+
+	report := &PayrollSummaryReport{
+		PeriodID:                period.ID,
+		PeriodCode:              period.PeriodCode,
+		StartDate:               period.StartDate,
+		EndDate:                 period.EndDate,
+		MealAllowancePercentage: period.MealAllowancePercentage,
+		Status:                  period.Status,
+		TotalOperators:          period.TotalOperatorsCount,
+		TotalPiecesProduced:     totalPieces,
+		TotalGrossPieceRate:     period.TotalGrossPieceRate,
+		TotalMealAllowance:      period.TotalMealAllowance,
+		TotalAdjustments:        period.TotalAdjustments,
+		GrandTotalPayable:       period.TotalNetPayable,
+		LinesSummary:            linesSummary,
+		OperatorsSummary:        slips,
+	}
+
+	return report, nil
+}

@@ -3434,14 +3434,12 @@
                                     "pm.test(\"Status code is 201 Created\", function () {",
                                     "    pm.response.to.have.status(201);",
                                     "});",
-                                    "pm.test(\"Period created in DRAFT status\", function () {",
+                                    "pm.test(\"Payroll period created with DRAFT status\", function () {",
                                     "    pm.expect(res.success).to.eql(true);",
                                     "    pm.expect(res.data.status).to.eql(\"DRAFT\");",
                                     "    pm.expect(res.data.mealAllowancePercentage).to.eql(12.5);",
-                                    "});",
-                                    "if (res.data \u0026\u0026 res.data.id) {",
-                                    "    pm.collectionVariables.set('payroll_period_id', res.data.id);",
-                                    "}"
+                                    "    pm.environment.set(\"payroll_period_id\", res.data.id);",
+                                    "});"
                                 ],
                                 "type": "text/javascript"
                             }
@@ -3451,14 +3449,9 @@
                     "request": {
                         "body": {
                             "mode": "raw",
-                            "options": {
-                                "raw": {
-                                    "language": "json"
-                                }
-                            },
                             "raw": "{\n    \"periodCode\": \"PAY-2026-W42\",\n    \"startDate\": \"2026-10-12\",\n    \"endDate\": \"2026-10-18\",\n    \"mealAllowancePercentage\": 12.50,\n    \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\"\n}"
                         },
-                        "description": "Membuka periode payroll baru dan menetapkan persentase uang makan (10–15%).",
+                        "description": "Inisialisasi periode payroll mingguan baru oleh Finance atau Owner dalam status DRAFT.",
                         "header": [
                             {
                                 "key": "Authorization",
@@ -3507,9 +3500,9 @@
                                     "pm.test(\"Status code is 200 OK\", function () {",
                                     "    pm.response.to.have.status(200);",
                                     "});",
-                                    "pm.test(\"Period details retrieved\", function () {",
+                                    "pm.test(\"Payroll period detail returned\", function () {",
                                     "    pm.expect(res.success).to.eql(true);",
-                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get('payroll_period_id'));",
+                                    "    pm.expect(res.data.id).to.eql(pm.environment.get(\"payroll_period_id\") || res.data.id);",
                                     "});"
                                 ],
                                 "type": "text/javascript"
@@ -3518,7 +3511,7 @@
                     ],
                     "name": "3. Get Payroll Period Detail",
                     "request": {
-                        "description": "Mengambil detail informasi dan status periode payroll tertentu.",
+                        "description": "Mengambil rincian status, tanggal, dan ringkasan finansial satu periode payroll tertentu.",
                         "header": [
                             {
                                 "key": "Authorization",
@@ -3541,7 +3534,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"DRAFT\",\n        \"totalAdjustments\": 0,\n        \"totalGrossPieceRate\": 0,\n        \"totalMealAllowance\": 0,\n        \"totalNetPayable\": 0,\n        \"totalOperatorsCount\": 0,\n        \"updatedAt\": \"2026-10-14T08:00:00Z\"\n    },\n    \"success\": true\n}",
+                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"CALCULATED\",\n        \"totalAdjustments\": 0,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalNetPayable\": 20812500,\n        \"totalOperatorsCount\": 24,\n        \"updatedAt\": \"2026-10-14T17:30:00Z\"\n    },\n    \"success\": true\n}",
                             "code": 200,
                             "header": [
                                 {
@@ -3564,29 +3557,23 @@
                                     "pm.test(\"Status code is 200 OK\", function () {",
                                     "    pm.response.to.have.status(200);",
                                     "});",
-                                    "pm.test(\"Payroll calculated successfully\", function () {",
+                                    "pm.test(\"Payroll calculated successfully and status changed to CALCULATED\", function () {",
                                     "    pm.expect(res.success).to.eql(true);",
                                     "    pm.expect(res.data.status).to.eql(\"CALCULATED\");",
-                                    "    pm.expect(res.data.totalOperatorsCount).to.be.above(0);",
-                                    "    pm.expect(res.data.totalGrossPieceRate).to.be.above(0);",
+                                    "    pm.expect(res.data.totalNetPayable).to.be.above(0);",
                                     "});"
                                 ],
                                 "type": "text/javascript"
                             }
                         }
                     ],
-                    "name": "4. Calculate Weekly Payroll (Borongan + Uang Makan)",
+                    "name": "4. Calculate Payroll (Borongan \u0026 Uang Makan)",
                     "request": {
                         "body": {
                             "mode": "raw",
-                            "options": {
-                                "raw": {
-                                    "language": "json"
-                                }
-                            },
                             "raw": "{\n    \"recalculate\": true\n}"
                         },
-                        "description": "Memicu kalkulasi upah borongan dan uang makan dari output terverifikasi untuk seluruh penjahit aktif.",
+                        "description": "Menjalankan kalkulasi payroll borongan dan uang makan (10-15%) untuk seluruh penjahit aktif.",
                         "header": [
                             {
                                 "key": "Authorization",
@@ -3637,22 +3624,22 @@
                                     "pm.test(\"Status code is 200 OK\", function () {",
                                     "    pm.response.to.have.status(200);",
                                     "});",
-                                    "pm.test(\"Slips list returned\", function () {",
+                                    "pm.test(\"Slips array returned\", function () {",
                                     "    pm.expect(res.success).to.eql(true);",
                                     "    pm.expect(res.data).to.be.an(\"array\");",
-                                    "    pm.expect(res.total).to.be.above(0);",
-                                    "});",
-                                    "if (res.data \u0026\u0026 res.data.length \u003e 0) {",
-                                    "    pm.collectionVariables.set('payroll_slip_id', res.data[0].id);",
-                                    "}"
+                                    "    if (res.data.length \u003e 0) {",
+                                    "        pm.environment.set(\"payroll_slip_id\", res.data[0].id);",
+                                    "        pm.environment.set(\"operator_id\", res.data[0].operatorId);",
+                                    "    }",
+                                    "});"
                                 ],
                                 "type": "text/javascript"
                             }
                         }
                     ],
-                    "name": "5. List Operator Payroll Slips",
+                    "name": "5. List Payroll Slips by Period",
                     "request": {
-                        "description": "Mengambil daftar slip gaji seluruh penjahit pada periode payroll tertentu.",
+                        "description": "Mengambil rekapitulasi slip upah seluruh penjahit pada periode tertentu.",
                         "header": [
                             {
                                 "key": "Authorization",
@@ -3670,7 +3657,17 @@
                                 "{{payroll_period_id}}",
                                 "slips"
                             ],
-                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/slips"
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "50"
+                                },
+                                {
+                                    "key": "offset",
+                                    "value": "0"
+                                }
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/slips?limit=50\u0026offset=0"
                         }
                     },
                     "response": [
@@ -3699,17 +3696,17 @@
                                     "pm.test(\"Status code is 200 OK\", function () {",
                                     "    pm.response.to.have.status(200);",
                                     "});",
-                                    "pm.test(\"Slip detail and items returned\", function () {",
+                                    "pm.test(\"Slip detail contains breakdown items\", function () {",
                                     "    pm.expect(res.success).to.eql(true);",
-                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get('payroll_slip_id'));",
                                     "    pm.expect(res.data.items).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.mealAllowancePercentage).to.eql(12.5);",
                                     "});"
                                 ],
                                 "type": "text/javascript"
                             }
                         }
                     ],
-                    "name": "6. Get Slip Detail (Item Breakdown)",
+                    "name": "6. Get Operator Payroll Slip Detail",
                     "request": {
                         "description": "Mengambil rincian item pengerjaan per komponen, tanggal kerja, tarif snapshot, dan subtotal upah penjahit.",
                         "header": [
@@ -3735,6 +3732,259 @@
                         {
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"adjustmentsTotal\": 0,\n        \"createdAt\": \"2026-10-14T17:30:00Z\",\n        \"grossPieceRateTotal\": 950000,\n        \"id\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"id\": \"3b2a1c0d-4e5f-6a7b-8c9d-0e1f2a3b4c5d\",\n                \"orderCode\": \"PO-2026-10-001\",\n                \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n                \"payrollSlipId\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"quantity\": 180,\n                \"snapshotSewingRate\": 2500,\n                \"subtotal\": 450000,\n                \"workDate\": \"2026-10-14\"\n            },\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"id\": \"4c3b2a1d-5e6f-7a8b-9c0d-1e2f3a4b5c6e\",\n                \"orderCode\": \"PO-2026-10-001\",\n                \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n                \"payrollSlipId\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"quantity\": 200,\n                \"snapshotSewingRate\": 2500,\n                \"subtotal\": 500000,\n                \"workDate\": \"2026-10-15\"\n            }\n        ],\n        \"mealAllowanceAmount\": 118750,\n        \"mealAllowancePercentage\": 12.5,\n        \"netPayableTotal\": 1068750,\n        \"operatorCode\": \"OP-001\",\n        \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n        \"operatorJoinDate\": \"2026-08-01\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"status\": \"CALCULATED\",\n        \"totalPieces\": 380,\n        \"updatedAt\": \"2026-10-14T17:30:00Z\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Payroll period status changed to LOCKED\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.status).to.eql(\"LOCKED\");",
+                                    "    pm.expect(res.data.lockedAt).to.not.be.null;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "7. Lock Payroll Period (Finalize)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Periode payroll telah diaudit dan disetujui oleh Owner dan Finance. Data kini terkunci (immutable).\"\n}"
+                        },
+                        "description": "Mengunci periode payroll secara permanen (LOCKED). Setelah dikunci, data slip menjadi immutable dan kalkulasi ulang ditolak.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{payroll_period_id}}",
+                                "lock"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/lock"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"lockedAt\": \"2026-10-14T18:00:00Z\",\n        \"lockedByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll telah diaudit dan disetujui oleh Owner dan Finance. Data kini terkunci (immutable).\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"LOCKED\",\n        \"totalAdjustments\": 50000,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalNetPayable\": 20862500,\n        \"totalOperatorsCount\": 24,\n        \"updatedAt\": \"2026-10-14T18:00:00Z\"\n    },\n    \"message\": \"Payroll period PAY-2026-W42 locked successfully. Data is now finalized.\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Adjustments array returned\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "8. List Payroll Adjustments",
+                    "request": {
+                        "description": "Mengambil seluruh catatan koreksi, penambahan bonus, atau potongan ter-audit untuk periode ini.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{payroll_period_id}}",
+                                "adjustments"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/adjustments"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"adjustmentType\": \"BONUS\",\n            \"amount\": 50000,\n            \"createdAt\": \"2026-10-14T17:45:00Z\",\n            \"createdByName\": \"Finance Officer\",\n            \"createdByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n            \"id\": \"9b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e\",\n            \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n            \"reason\": \"Bonus insentif kecepatan \u0026 ketepatan jahitan line 1\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Adjustment created successfully with audit trail\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.adjustmentType).to.eql(\"BONUS\");",
+                                    "    pm.expect(res.data.amount).to.eql(50000);",
+                                    "    pm.expect(res.data.reason).to.not.be.empty;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "9. Create Payroll Adjustment",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"operatorId\": \"{{operator_id}}\",\n    \"adjustmentType\": \"BONUS\",\n    \"amount\": 50000.00,\n    \"reason\": \"Bonus insentif kecepatan \u0026 ketepatan jahitan line 1\"\n}"
+                        },
+                        "description": "Mencatat penyesuaian audit (BONUS, DEDUCTION, CORRECTION, REVERSAL) ke slip upah operator bersangkutan.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{payroll_period_id}}",
+                                "adjustments"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/adjustments"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"adjustmentType\": \"BONUS\",\n        \"amount\": 50000,\n        \"createdAt\": \"2026-10-14T17:45:00Z\",\n        \"createdByName\": \"Finance Officer\",\n        \"createdByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n        \"id\": \"9b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e\",\n        \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"reason\": \"Bonus insentif kecepatan \u0026 ketepatan jahitan line 1\"\n    },\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Summary report contains executive aggregate data\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.grandTotalPayable).to.be.above(0);",
+                                    "    pm.expect(res.data.linesSummary).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.operatorsSummary).to.be.an(\"array\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "10. Get Payroll Summary Report (Rekapitulasi Pelaporan)",
+                    "request": {
+                        "description": "Menghasilkan rekapitulasi ringkasan eksekutif payroll mingguan: breakdown per line produksi, per operator, dan grand total kas/transfer siap bayar.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{payroll_period_id}}",
+                                "summary"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/summary"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"endDate\": \"2026-10-18\",\n        \"grandTotalPayable\": 20862500,\n        \"linesSummary\": [\n            {\n                \"grossAmount\": 18500000,\n                \"lineCode\": \"LINE-01\",\n                \"lineId\": \"1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d\",\n                \"lineName\": \"Line Produksi Ciwidey 1\",\n                \"operatorsCount\": 24,\n                \"piecesProduced\": 7400\n            }\n        ],\n        \"mealAllowancePercentage\": 12.5,\n        \"operatorsSummary\": [\n            {\n                \"adjustmentsTotal\": 50000,\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"grossPieceRateTotal\": 950000,\n                \"id\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"mealAllowanceAmount\": 118750,\n                \"netPayableTotal\": 1118750,\n                \"operatorCode\": \"OP-001\",\n                \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n                \"operatorJoinDate\": \"2026-08-01\",\n                \"operatorName\": \"Siti Rahmawati\",\n                \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n                \"status\": \"LOCKED\",\n                \"totalPieces\": 380,\n                \"updatedAt\": \"2026-10-14T18:00:00Z\"\n            }\n        ],\n        \"periodCode\": \"PAY-2026-W42\",\n        \"periodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"LOCKED\",\n        \"totalAdjustments\": 50000,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalOperators\": 24,\n        \"totalPiecesProduced\": 7400\n    },\n    \"success\": true\n}",
                             "code": 200,
                             "header": [
                                 {

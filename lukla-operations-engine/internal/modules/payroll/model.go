@@ -6,14 +6,18 @@ import (
 )
 
 var (
-	ErrPeriodNotFound            = errors.New("periode payroll tidak ditemukan")
-	ErrPeriodAlreadyLocked       = errors.New("periode payroll sudah dikunci (locked) dan tidak dapat dimodifikasi")
-	ErrPeriodCodeExists          = errors.New("kode periode payroll sudah digunakan")
-	ErrInvalidPeriodDates        = errors.New("tanggal mulai periode harus sebelum atau sama dengan tanggal akhir")
-	ErrInvalidMealAllowance      = errors.New("persentase uang makan harus berada di antara 10.00% dan 15.00%")
-	ErrSlipNotFound              = errors.New("slip gaji operator tidak ditemukan")
-	ErrForbiddenPayroll          = errors.New("forbidden: hanya owner dan finance yang berwenang")
-	ErrPeriodDraftCannotBeLocked = errors.New("periode berstatus DRAFT belum dapat dikunci sebelum dikalkulasi")
+	ErrPeriodNotFound               = errors.New("periode payroll tidak ditemukan")
+	ErrPeriodAlreadyLocked          = errors.New("periode payroll sudah dikunci (locked) dan tidak dapat dimodifikasi")
+	ErrPeriodCodeExists             = errors.New("kode periode payroll sudah digunakan")
+	ErrInvalidPeriodDates           = errors.New("tanggal mulai periode harus sebelum atau sama dengan tanggal akhir")
+	ErrInvalidMealAllowance         = errors.New("persentase uang makan harus berada di antara 10.00% dan 15.00%")
+	ErrSlipNotFound                 = errors.New("slip gaji operator tidak ditemukan")
+	ErrForbiddenPayroll             = errors.New("forbidden: hanya owner dan finance yang berwenang")
+	ErrPeriodDraftCannotBeLocked    = errors.New("periode berstatus DRAFT belum dapat dikunci sebelum dikalkulasi")
+	ErrInvalidAdjustmentType        = errors.New("tipe penyesuaian harus BONUS, DEDUCTION, CORRECTION, atau REVERSAL")
+	ErrAdjustmentReasonRequired     = errors.New("alasan penyesuaian (reason) wajib diisi untuk audit trail")
+	ErrAdjustmentZeroAmount         = errors.New("nominal penyesuaian (amount) tidak boleh bernilai 0")
+	ErrPeriodMustBeCalculatedToLock = errors.New("periode harus berstatus CALCULATED sebelum dapat dikunci")
 )
 
 type PeriodStatus string
@@ -133,4 +137,64 @@ type OperatorOutputAggregation struct {
 	SnapshotSewingRate float64
 	Subtotal           float64
 }
+
+type AdjustmentType string
+
+const (
+	AdjustmentTypeBonus      AdjustmentType = "BONUS"
+	AdjustmentTypeDeduction  AdjustmentType = "DEDUCTION"
+	AdjustmentTypeCorrection AdjustmentType = "CORRECTION"
+	AdjustmentTypeReversal   AdjustmentType = "REVERSAL"
+)
+
+type PayrollAdjustment struct {
+	ID              string    `json:"id"`
+	PayrollPeriodID string    `json:"payrollPeriodId"`
+	OperatorID      string    `json:"operatorId"`
+	OperatorName    string    `json:"operatorName"`
+	AdjustmentType  string    `json:"adjustmentType"`
+	Amount          float64   `json:"amount"`
+	Reason          string    `json:"reason"`
+	CreatedByUserID string    `json:"createdByUserId"`
+	CreatedByName   string    `json:"createdByName"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
+
+type CreateAdjustmentRequest struct {
+	OperatorID     string  `json:"operatorId" binding:"required"`
+	AdjustmentType string  `json:"adjustmentType" binding:"required"`
+	Amount         float64 `json:"amount" binding:"required"`
+	Reason         string  `json:"reason" binding:"required"`
+}
+
+type LockPayrollPeriodRequest struct {
+	Notes string `json:"notes"`
+}
+
+type LinePayrollSummary struct {
+	LineID         string  `json:"lineId"`
+	LineCode       string  `json:"lineCode"`
+	LineName       string  `json:"lineName"`
+	OperatorsCount int     `json:"operatorsCount"`
+	PiecesProduced int     `json:"piecesProduced"`
+	GrossAmount    float64 `json:"grossAmount"`
+}
+
+type PayrollSummaryReport struct {
+	PeriodID                string               `json:"periodId"`
+	PeriodCode              string               `json:"periodCode"`
+	StartDate               string               `json:"startDate"`
+	EndDate                 string               `json:"endDate"`
+	MealAllowancePercentage float64              `json:"mealAllowancePercentage"`
+	Status                  string               `json:"status"`
+	TotalOperators          int                  `json:"totalOperators"`
+	TotalPiecesProduced     int                  `json:"totalPiecesProduced"`
+	TotalGrossPieceRate     float64              `json:"totalGrossPieceRate"`
+	TotalMealAllowance      float64              `json:"totalMealAllowance"`
+	TotalAdjustments        float64              `json:"totalAdjustments"`
+	GrandTotalPayable       float64              `json:"grandTotalPayable"`
+	LinesSummary            []LinePayrollSummary `json:"linesSummary"`
+	OperatorsSummary        []PayrollSlip        `json:"operatorsSummary,omitempty"`
+}
+
 

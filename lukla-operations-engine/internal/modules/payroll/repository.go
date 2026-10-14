@@ -15,5 +15,10 @@ type Repository interface {
 
 	ListSlipsByPeriod(ctx context.Context, periodID string, filter ListSlipsFilter) ([]PayrollSlip, int, error)
 	FindSlipByID(ctx context.Context, slipID string) (*PayrollSlipDetail, error)
+
+	LockPeriod(ctx context.Context, periodID string, lockedByUserID string, notes *string) (*PayrollPeriod, error)
+	CreateAdjustment(ctx context.Context, periodID string, adj *PayrollAdjustment) error
+	ListAdjustmentsByPeriod(ctx context.Context, periodID string) ([]PayrollAdjustment, error)
+	GetPayrollSummaryReport(ctx context.Context, periodID string) (*PayrollSummaryReport, error)
 }
 

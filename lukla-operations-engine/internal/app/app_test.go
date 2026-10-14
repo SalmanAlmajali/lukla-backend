@@ -2656,6 +2656,279 @@ func TestApp_PayrollSkenario2LiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_PayrollLockingAndAdjustmentLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+	finToken := getAuthToken(t, application, "finance@lukla.local", "password")
+
+	var lineID, orderID, componentID string
+	err = application.db.QueryRow(`SELECT id FROM lines WHERE status = 'ACTIVE' LIMIT 1`).Scan(&lineID)
+	if err != nil {
+		t.Fatalf("no active line found: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM orders WHERE status = 'IN_PRODUCTION' LIMIT 1`).Scan(&orderID)
+	if err != nil {
+		t.Fatalf("no active order found: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM components LIMIT 1`).Scan(&componentID)
+	if err != nil {
+		t.Fatalf("no component found: %v", err)
+	}
+
+	opCode := fmt.Sprintf("OP-LOCK-%d", time.Now().UnixNano())
+	var operatorID string
+	err = application.db.QueryRow(`
+		INSERT INTO operators (operator_code, name, join_date, status, default_line)
+		VALUES ($1, 'Rudi Penjahit Uji Locking', '2026-10-01', 'ACTIVE', 'LINE-01')
+		RETURNING id
+	`, opCode).Scan(&operatorID)
+	if err != nil {
+		t.Fatalf("failed to insert operator: %v", err)
+	}
+
+	periodCode := fmt.Sprintf("PAY-LOCK-%d", time.Now().UnixNano())
+	t.Cleanup(func() {
+		_, _ = application.db.Exec(`DELETE FROM payroll_periods WHERE period_code = $1`, periodCode)
+		_, _ = application.db.Exec(`DELETE FROM production_outputs WHERE operator_id = $1`, operatorID)
+		_, _ = application.db.Exec(`DELETE FROM operators WHERE id = $1`, operatorID)
+	})
+
+	// Output: 100 pcs @ 4000 = 400,000
+	_, err = application.db.Exec(`
+		INSERT INTO production_outputs (line_id, order_id, operator_id, component_id, quantity, time_slot, work_date, snapshot_sewing_rate)
+		VALUES ($1, $2, $3, $4, 100, '09:00-09:30', '2026-10-20', 4000.00)
+	`, lineID, orderID, operatorID, componentID)
+	if err != nil {
+		t.Fatalf("failed to insert production outputs: %v", err)
+	}
+
+	// 1. Create period: meal allowance 10.0%
+	createReqBody := map[string]interface{}{
+		"periodCode":              periodCode,
+		"startDate":               "2026-10-19",
+		"endDate":                 "2026-10-25",
+		"mealAllowancePercentage": 10.00,
+		"notes":                   "Uji Locking & Adjustment Tahap 2.2",
+	}
+	createJSON, _ := json.Marshal(createReqBody)
+
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBuffer(createJSON))
+	reqCreate.Header.Set("Authorization", "Bearer "+finToken)
+	reqCreate.Header.Set("Content-Type", "application/json")
+	wCreate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreate, reqCreate)
+
+	if wCreate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for period, got %d. Body: %s", wCreate.Code, wCreate.Body.String())
+	}
+
+	var createdPeriodResp struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createdPeriodResp)
+	periodID := createdPeriodResp.Data.ID
+
+	// 2. Cannot lock DRAFT period before calculation
+	reqLockDraft, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/lock", nil)
+	reqLockDraft.Header.Set("Authorization", "Bearer "+execToken)
+	wLockDraft := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLockDraft, reqLockDraft)
+
+	if wLockDraft.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when locking DRAFT period, got %d. Body: %s", wLockDraft.Code, wLockDraft.Body.String())
+	}
+
+	// 3. Calculate payroll
+	reqCalc, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/calculate", bytes.NewBufferString(`{}`))
+	reqCalc.Header.Set("Authorization", "Bearer "+finToken)
+	reqCalc.Header.Set("Content-Type", "application/json")
+	wCalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCalc, reqCalc)
+
+	if wCalc.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for calculate, got %d. Body: %s", wCalc.Code, wCalc.Body.String())
+	}
+
+	// 4. Create Adjustment 1: BONUS Rp 60.000
+	adj1Body := map[string]interface{}{
+		"operatorId":     operatorID,
+		"adjustmentType": "BONUS",
+		"amount":         60000.0,
+		"reason":         "Bonus pencapaian target mingguan",
+	}
+	adj1JSON, _ := json.Marshal(adj1Body)
+	reqAdj1, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/adjustments", bytes.NewBuffer(adj1JSON))
+	reqAdj1.Header.Set("Authorization", "Bearer "+finToken)
+	reqAdj1.Header.Set("Content-Type", "application/json")
+	wAdj1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAdj1, reqAdj1)
+
+	if wAdj1.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for adjustment 1, got %d. Body: %s", wAdj1.Code, wAdj1.Body.String())
+	}
+
+	// 5. Create Adjustment 2: DEDUCTION Rp 15.000
+	adj2Body := map[string]interface{}{
+		"operatorId":     operatorID,
+		"adjustmentType": "DEDUCTION",
+		"amount":         15000.0,
+		"reason":         "Potongan kasbon harian",
+	}
+	adj2JSON, _ := json.Marshal(adj2Body)
+	reqAdj2, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/adjustments", bytes.NewBuffer(adj2JSON))
+	reqAdj2.Header.Set("Authorization", "Bearer "+finToken)
+	reqAdj2.Header.Set("Content-Type", "application/json")
+	wAdj2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAdj2, reqAdj2)
+
+	if wAdj2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for adjustment 2, got %d. Body: %s", wAdj2.Code, wAdj2.Body.String())
+	}
+
+	// 6. List Adjustments
+	reqListAdj, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/"+periodID+"/adjustments", nil)
+	reqListAdj.Header.Set("Authorization", "Bearer "+finToken)
+	wListAdj := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListAdj, reqListAdj)
+
+	if wListAdj.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list adjustments, got %d", wListAdj.Code)
+	}
+	var listAdjResp struct {
+		Data []struct {
+			AdjustmentType string  `json:"adjustmentType"`
+			Amount         float64 `json:"amount"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wListAdj.Body.Bytes(), &listAdjResp)
+	if len(listAdjResp.Data) != 2 {
+		t.Fatalf("expected 2 adjustments, got %d", len(listAdjResp.Data))
+	}
+
+	// 7. Check Slip totals:
+	// Gross: 400,000, Meal: 40,000, Adjustments: +60,000 -15,000 = 45,000
+	// Net Payable: 400,000 + 40,000 + 45,000 = 485,000
+	reqSlips, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/"+periodID+"/slips?operatorId="+operatorID, nil)
+	reqSlips.Header.Set("Authorization", "Bearer "+finToken)
+	wSlips := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSlips, reqSlips)
+
+	if wSlips.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slips, got %d", wSlips.Code)
+	}
+	var slipsResp struct {
+		Data []struct {
+			GrossPieceRateTotal float64 `json:"grossPieceRateTotal"`
+			MealAllowanceAmount float64 `json:"mealAllowanceAmount"`
+			AdjustmentsTotal    float64 `json:"adjustmentsTotal"`
+			NetPayableTotal     float64 `json:"netPayableTotal"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSlips.Body.Bytes(), &slipsResp)
+	if len(slipsResp.Data) == 0 {
+		t.Fatalf("expected at least 1 slip")
+	}
+	slip := slipsResp.Data[0]
+	if slip.GrossPieceRateTotal != 400000.00 {
+		t.Errorf("expected gross 400000.00, got %f", slip.GrossPieceRateTotal)
+	}
+	if slip.MealAllowanceAmount != 40000.00 {
+		t.Errorf("expected meal 40000.00, got %f", slip.MealAllowanceAmount)
+	}
+	if slip.AdjustmentsTotal != 45000.00 {
+		t.Errorf("expected adjustments 45000.00, got %f", slip.AdjustmentsTotal)
+	}
+	if slip.NetPayableTotal != 485000.00 {
+		t.Errorf("expected net payable 485000.00, got %f", slip.NetPayableTotal)
+	}
+
+	// 8. Get Summary Report
+	reqSummary, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/"+periodID+"/summary", nil)
+	reqSummary.Header.Set("Authorization", "Bearer "+execToken)
+	wSummary := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSummary, reqSummary)
+
+	if wSummary.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for summary, got %d. Body: %s", wSummary.Code, wSummary.Body.String())
+	}
+	var summaryResp struct {
+		Data struct {
+			TotalGrossPieceRate float64 `json:"totalGrossPieceRate"`
+			TotalMealAllowance  float64 `json:"totalMealAllowance"`
+			TotalAdjustments    float64 `json:"totalAdjustments"`
+			GrandTotalPayable   float64 `json:"grandTotalPayable"`
+			TotalOperators      int     `json:"totalOperators"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSummary.Body.Bytes(), &summaryResp)
+	if summaryResp.Data.GrandTotalPayable != 485000.00 {
+		t.Errorf("expected grandTotalPayable 485000.00, got %f", summaryResp.Data.GrandTotalPayable)
+	}
+
+	// 9. Lock the Period via POST /api/v1/payroll/periods/{id}/lock by Executive
+	lockBody := map[string]interface{}{
+		"notes": "Periode diverifikasi dan disetujui untuk transfer perbankan",
+	}
+	lockJSON, _ := json.Marshal(lockBody)
+	reqLock, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/lock", bytes.NewBuffer(lockJSON))
+	reqLock.Header.Set("Authorization", "Bearer "+execToken)
+	reqLock.Header.Set("Content-Type", "application/json")
+	wLock := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLock, reqLock)
+
+	if wLock.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for lock, got %d. Body: %s", wLock.Code, wLock.Body.String())
+	}
+
+	// Verify status in DB is LOCKED
+	var dbStatus string
+	err = application.db.QueryRow(`SELECT status FROM payroll_periods WHERE id = $1`, periodID).Scan(&dbStatus)
+	if err != nil || dbStatus != "LOCKED" {
+		t.Fatalf("expected period status LOCKED in DB, got %s, err: %v", dbStatus, err)
+	}
+
+	// Verify slip status in DB is LOCKED
+	var slipStatus string
+	err = application.db.QueryRow(`SELECT status FROM payroll_slips WHERE payroll_period_id = $1 AND operator_id = $2`, periodID, operatorID).Scan(&slipStatus)
+	if err != nil || slipStatus != "LOCKED" {
+		t.Fatalf("expected slip status LOCKED in DB, got %s, err: %v", slipStatus, err)
+	}
+
+	// 10. CRITICAL GOVERNANCE RULE: Recalculate on LOCKED period MUST RETURN 409 CONFLICT!
+	reqRecalc, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/calculate", bytes.NewBufferString(`{}`))
+	reqRecalc.Header.Set("Authorization", "Bearer "+finToken)
+	reqRecalc.Header.Set("Content-Type", "application/json")
+	wRecalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRecalc, reqRecalc)
+
+	if wRecalc.Code != http.StatusConflict {
+		t.Fatalf("GOVERNANCE BREACH: expected 409 Conflict when recalculating LOCKED period, got %d. Body: %s", wRecalc.Code, wRecalc.Body.String())
+	}
+
+	// 11. Lock again MUST RETURN 409 CONFLICT!
+	reqRelock, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/lock", bytes.NewBuffer(lockJSON))
+	reqRelock.Header.Set("Authorization", "Bearer "+execToken)
+	reqRelock.Header.Set("Content-Type", "application/json")
+	wRelock := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRelock, reqRelock)
+
+	if wRelock.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict when locking already LOCKED period, got %d", wRelock.Code)
+	}
+}
+
 
 
 

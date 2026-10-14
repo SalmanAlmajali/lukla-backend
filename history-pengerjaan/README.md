@@ -1,0 +1,34 @@
+# History Pengerjaan Backend Lukla Operations Engine
+
+Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan pengembangan backend sesuai dengan roadmap pada `urutan pengerjaan.txt` dan diagram proses bisnis `Lukla_BPMN_v2.drawio`.
+
+---
+
+## Tabel Riwayat & Status Pengerjaan
+
+| Tahap | Modul & BPMN | Tanggal Selesai | DB Migration | Status | Dokumen Laporan |
+|---|---|---|---|---|---|
+| **Tahap 0** | Fondasi & Master Data (BPMN 10) | Sebelumnya | 000001 - 000018 | Selesai | [Lihat OpenApi Phase 0](../openapi-phase0-fondasi.yaml) |
+| **Tahap 1** | Produksi & Terminal Mandor (BPMN 04, 05) | Sebelumnya | 000019 - 000023 | Selesai | [Lihat OpenApi Phase 1](../openapi-phase1-produksi.yaml) |
+| **Tahap 2.1** | Payroll Core Engine & Uji Skenario 2 (BPMN 07) | 14 Okt 2026 | 000024 | Selesai | [Laporan Tahap 2.1](./tahap-2.1-payroll-periode-kalkulasi-skenario2.md) |
+| **Tahap 2.2** | Locking, Audit Adjustment, & Summary Report (BPMN 07) | 14 Okt 2026 | 000025 | Selesai | [Laporan Tahap 2.2](./tahap-2.2-payroll-locking-adjustment-summary.md) |
+| **Tahap 3** | Gudang & Blokade Salah-Keluar (BPMN 02) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 4** | QC & Pool Bonus (BPMN 06, 08) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 5** | Portal Klien & Notifikasi (BPMN 11, 01) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 6** | Sample & Time Study (BPMN 03) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 7** | Overhead & Uji End-to-End (BPMN 09, 01) | *Akan Datang* | - | Direncanakan | - |
+
+---
+
+## Standar Kelengkapan Setiap Laporan Tahap
+
+Setiap laporan tahap yang ditambahkan ke folder ini wajib mencakup:
+1. **Latar Belakang & Kebutuhan Bisnis**: Masalah operasional pabrik yang diselesaikan dan aturan bisnis (*business rules*) yang diakomodasi.
+2. **Perubahan Skema Database**: Detail migrasi PostgreSQL (DDL up/down, foreign key, index, dan constraint checks).
+3. **Arsitektur & Komponen Kode**: Rincian berkas yang dibuat/diubah pada layer model, repository, service, dan HTTP handler.
+4. **Spesifikasi & Contoh Request/Response Endpoint**: Payload JSON, HTTP status code, dan skenario error.
+5. **Bukti Pengujian Otomatis**:
+   - Hasil Unit Test modul.
+   - Hasil Acceptance Test Live Database (termasuk verifikasi skenario uji SRS).
+6. **Sinkronisasi Postman Collection**: Konfirmasi bahwa kumpulan endpoint pada file `Lukla_Articles_and_Components.postman_collection.json` telah diperbarui dengan test scripts otomatis (`pm.test`) dan contoh response riil.
+

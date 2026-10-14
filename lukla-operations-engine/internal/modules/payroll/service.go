@@ -188,3 +188,68 @@ func (s *Service) ListSlips(ctx context.Context, periodID string, filter ListSli
 func (s *Service) GetSlipDetail(ctx context.Context, slipID string) (*PayrollSlipDetail, error) {
 	return s.repo.FindSlipByID(ctx, slipID)
 }
+
+func (s *Service) LockPeriod(ctx context.Context, callerRole, callerUserID, periodID string, req LockPayrollPeriodRequest) (*PayrollPeriod, error) {
+	if !s.isAuthorized(callerRole) {
+		return nil, ErrForbiddenPayroll
+	}
+
+	var notes *string
+	if n := strings.TrimSpace(req.Notes); n != "" {
+		notes = &n
+	}
+
+	return s.repo.LockPeriod(ctx, periodID, callerUserID, notes)
+}
+
+func (s *Service) CreateAdjustment(ctx context.Context, callerRole, callerUserID, periodID string, req CreateAdjustmentRequest) (*PayrollAdjustment, error) {
+	if !s.isAuthorized(callerRole) {
+		return nil, ErrForbiddenPayroll
+	}
+
+	adjType := strings.ToUpper(strings.TrimSpace(req.AdjustmentType))
+	switch AdjustmentType(adjType) {
+	case AdjustmentTypeBonus, AdjustmentTypeDeduction, AdjustmentTypeCorrection, AdjustmentTypeReversal:
+		// valid
+	default:
+		return nil, ErrInvalidAdjustmentType
+	}
+
+	reason := strings.TrimSpace(req.Reason)
+	if reason == "" {
+		return nil, ErrAdjustmentReasonRequired
+	}
+
+	if req.Amount == 0 {
+		return nil, ErrAdjustmentZeroAmount
+	}
+
+	amount := req.Amount
+	if (adjType == string(AdjustmentTypeDeduction) || adjType == string(AdjustmentTypeReversal)) && amount > 0 {
+		amount = -amount
+	}
+
+	adj := &PayrollAdjustment{
+		PayrollPeriodID: periodID,
+		OperatorID:      req.OperatorID,
+		AdjustmentType:  adjType,
+		Amount:          amount,
+		Reason:          reason,
+		CreatedByUserID: callerUserID,
+	}
+
+	if err := s.repo.CreateAdjustment(ctx, periodID, adj); err != nil {
+		return nil, err
+	}
+
+	return adj, nil
+}
+
+func (s *Service) ListAdjustments(ctx context.Context, periodID string) ([]PayrollAdjustment, error) {
+	return s.repo.ListAdjustmentsByPeriod(ctx, periodID)
+}
+
+func (s *Service) GetPayrollSummary(ctx context.Context, periodID string) (*PayrollSummaryReport, error) {
+	return s.repo.GetPayrollSummaryReport(ctx, periodID)
+}
+
