@@ -2207,6 +2207,225 @@ func TestApp_ProductionOutputsLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_AssemblyAndProductionDashboardLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Executive Login
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+	if wExecLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login executive: %d", wExecLogin.Code)
+	}
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Client Login
+	loginClientBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqClientLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginClientBody))
+	reqClientLogin.Header.Set("Content-Type", "application/json")
+	wClientLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLogin, reqClientLogin)
+	if wClientLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login client: %d", wClientLogin.Code)
+	}
+	var clientLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientLogin.Body.Bytes(), &clientLoginResp)
+	clientToken := clientLoginResp.Data.Token
+
+	// 3. Query required entity IDs
+	var orderID, articleID, lineID string
+	err = application.db.QueryRow("SELECT id, article_id FROM orders WHERE order_number = 'PO-2026-10-001'").Scan(&orderID, &articleID)
+	if err != nil {
+		t.Fatalf("failed to query PO-2026-10-001: %v", err)
+	}
+	err = application.db.QueryRow("SELECT id FROM lines WHERE code = 'LINE-01'").Scan(&lineID)
+	if err != nil {
+		t.Fatalf("failed to query LINE-01: %v", err)
+	}
+
+	// Ensure there are enough component outputs recorded for orderID
+	var totalCompOutputs int
+	_ = application.db.QueryRow("SELECT COALESCE(SUM(quantity), 0) FROM production_outputs WHERE order_id = $1", orderID).Scan(&totalCompOutputs)
+	if totalCompOutputs < 20 {
+		var opID, compID string
+		_ = application.db.QueryRow("SELECT id FROM operators WHERE operator_code = 'JH-001'").Scan(&opID)
+		_ = application.db.QueryRow("SELECT id FROM components WHERE article_id = $1 LIMIT 1", articleID).Scan(&compID)
+		_, _ = application.db.Exec(`
+			INSERT INTO production_outputs (line_id, order_id, operator_id, component_id, quantity, time_slot, work_date, snapshot_sewing_rate)
+			VALUES ($1, $2, $3, $4, 50, '08:00-08:30', CURRENT_DATE, 4500.00)
+		`, lineID, orderID, opID, compID)
+	}
+
+	// 4. Test Step 1: POST /api/v1/assemblies -> 201 Created (Status MENUNGGU_QC)
+	assemblyBody, _ := json.Marshal(map[string]interface{}{
+		"orderId":           orderID,
+		"articleId":         articleID,
+		"quantityAssembled": 15,
+		"assembledDate":     "2026-10-14",
+		"notes":             "Batch 1 assembly selesai jahit siap QC",
+	})
+	reqAssembly, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(assemblyBody))
+	reqAssembly.Header.Set("Authorization", "Bearer "+execToken)
+	reqAssembly.Header.Set("Content-Type", "application/json")
+	wAssembly := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAssembly, reqAssembly)
+
+	if wAssembly.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created on POST /assemblies, got %d: %s", wAssembly.Code, wAssembly.Body.String())
+	}
+
+	var assemblyResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID                string `json:"id"`
+			OrderCode         string `json:"orderCode"`
+			ArticleTitle      string `json:"articleTitle"`
+			QuantityAssembled int    `json:"quantityAssembled"`
+			Status            string `json:"status"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wAssembly.Body.Bytes(), &assemblyResp); err != nil {
+		t.Fatalf("failed to parse assembly response: %v", err)
+	}
+	if !assemblyResp.Success || assemblyResp.Data.Status != "MENUNGGU_QC" {
+		t.Fatalf("expected status MENUNGGU_QC, got %+v", assemblyResp)
+	}
+
+	// 5. Test Step 2: GET /api/v1/assemblies -> 200 OK
+	reqListAsm, _ := http.NewRequest(http.MethodGet, "/api/v1/assemblies?order_id="+orderID, nil)
+	reqListAsm.Header.Set("Authorization", "Bearer "+execToken)
+	wListAsm := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListAsm, reqListAsm)
+
+	if wListAsm.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /assemblies, got %d: %s", wListAsm.Code, wListAsm.Body.String())
+	}
+
+	// 6. Test Step 3: GET /api/v1/assemblies/queue-qc -> 200 OK
+	reqQueue, _ := http.NewRequest(http.MethodGet, "/api/v1/assemblies/queue-qc", nil)
+	reqQueue.Header.Set("Authorization", "Bearer "+execToken)
+	wQueue := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wQueue, reqQueue)
+
+	if wQueue.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /assemblies/queue-qc, got %d: %s", wQueue.Code, wQueue.Body.String())
+	}
+	var queueResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			AssemblyID      string `json:"assemblyId"`
+			OrderCode       string `json:"orderCode"`
+			PendingQuantity int    `json:"pendingQuantity"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wQueue.Body.Bytes(), &queueResp); err != nil {
+		t.Fatalf("failed to parse queue response: %v", err)
+	}
+	if len(queueResp.Data) == 0 {
+		t.Fatalf("expected at least 1 item in QC queue")
+	}
+
+	// 7. Test Step 4: GET /api/v1/production-dashboard/realtime -> 200 OK
+	reqRealtime, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/realtime", nil)
+	reqRealtime.Header.Set("Authorization", "Bearer "+execToken)
+	wRealtime := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRealtime, reqRealtime)
+
+	if wRealtime.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /production-dashboard/realtime, got %d: %s", wRealtime.Code, wRealtime.Body.String())
+	}
+	var rtResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			FactoryMachineCapacity int `json:"factoryMachineCapacity"`
+			TotalTodayOutputPcs    int `json:"totalTodayOutputPcs"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wRealtime.Body.Bytes(), &rtResp); err != nil {
+		t.Fatalf("failed to parse realtime dashboard response: %v", err)
+	}
+	if rtResp.Data.FactoryMachineCapacity != 70 {
+		t.Fatalf("expected factoryMachineCapacity 70, got %d", rtResp.Data.FactoryMachineCapacity)
+	}
+
+	// 8. Test Step 5: GET /api/v1/production-dashboard/lines/:line_id -> 200 OK
+	reqLineProg, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/lines/"+lineID, nil)
+	reqLineProg.Header.Set("Authorization", "Bearer "+execToken)
+	wLineProg := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLineProg, reqLineProg)
+
+	if wLineProg.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /production-dashboard/lines/:line_id, got %d: %s", wLineProg.Code, wLineProg.Body.String())
+	}
+
+	// 9. Test Step 6: GET /api/v1/production-dashboard/orders/:order_id -> 200 OK
+	reqOrderProg, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/orders/"+orderID, nil)
+	reqOrderProg.Header.Set("Authorization", "Bearer "+execToken)
+	wOrderProg := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOrderProg, reqOrderProg)
+
+	if wOrderProg.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /production-dashboard/orders/:order_id, got %d: %s", wOrderProg.Code, wOrderProg.Body.String())
+	}
+	var ordProgResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OrderCode          string `json:"orderCode"`
+			TotalTargetPcs     int    `json:"totalTargetPcs"`
+			TotalAssembledPcs  int    `json:"totalAssembledPcs"`
+			ComponentsProgress []struct {
+				ComponentName string `json:"componentName"`
+				CompletedPcs  int    `json:"completedPcs"`
+			} `json:"componentsProgress"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wOrderProg.Body.Bytes(), &ordProgResp); err != nil {
+		t.Fatalf("failed to parse order progress response: %v", err)
+	}
+	if ordProgResp.Data.TotalTargetPcs != 1000 || len(ordProgResp.Data.ComponentsProgress) == 0 {
+		t.Fatalf("unexpected order progress data: %+v", ordProgResp)
+	}
+
+	// 10. Test Step 7: 403 Forbidden for client role
+	reqClientAsm, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(assemblyBody))
+	reqClientAsm.Header.Set("Authorization", "Bearer "+clientToken)
+	reqClientAsm.Header.Set("Content-Type", "application/json")
+	wClientAsm := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientAsm, reqClientAsm)
+
+	if wClientAsm.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client creating assembly, got %d", wClientAsm.Code)
+	}
+}
+
+
 
 
 

@@ -24,6 +24,12 @@ var (
 	ErrTimeSlotRequired         = errors.New("timeSlot wajib diisi")
 	ErrWorkDateRequired         = errors.New("workDate wajib diisi")
 	ErrEmptyBatchItems          = errors.New("items batch output tidak boleh kosong")
+	ErrAssemblyNotFound         = errors.New("data assembly tidak ditemukan")
+	ErrInsufficientComponents   = errors.New("akumulasi output komponen jahit belum mencukupi untuk assembly")
+	ErrArticleMismatch          = errors.New("articleId tidak sesuai dengan order")
+	ErrExceedsOrderTarget       = errors.New("jumlah assembly melebihi target order produksi")
+	ErrInvalidAssemblyQty       = errors.New("jumlah assembly harus lebih dari 0")
+	ErrAssembledDateRequired    = errors.New("assembledDate wajib diisi")
 )
 
 // ProductionLine represents a sewing assembly line on the factory floor.
@@ -199,5 +205,110 @@ type BatchOutputItem struct {
 	Quantity    int     `json:"quantity" binding:"required"`
 	Notes       *string `json:"notes"`
 }
+
+// AssemblyRecord represents an assembled garment unit batch ready for QC inspection (BPMN 05).
+type AssemblyRecord struct {
+	ID                string    `json:"id"`
+	OrderID           string    `json:"orderId"`
+	OrderCode         string    `json:"orderCode"`
+	ArticleID         string    `json:"articleId"`
+	ArticleTitle      string    `json:"articleTitle"`
+	QuantityAssembled int       `json:"quantityAssembled"`
+	Status            string    `json:"status"` // MENUNGGU_QC, INSPECTED, PARTIALLY_PASSED
+	AssembledDate     string    `json:"assembledDate"`
+	AssembledByName   string    `json:"assembledByName"`
+	Notes             *string   `json:"notes,omitempty"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+// CreateAssemblyRequest defines payload for recording assembled units.
+type CreateAssemblyRequest struct {
+	OrderID           string  `json:"orderId" binding:"required"`
+	ArticleID         string  `json:"articleId" binding:"required"`
+	QuantityAssembled int     `json:"quantityAssembled" binding:"required"`
+	AssembledDate     string  `json:"assembledDate" binding:"required"`
+	Notes             *string `json:"notes"`
+}
+
+// ListAssembliesFilter defines filter options for assembly listing.
+type ListAssembliesFilter struct {
+	OrderID   string `form:"order_id"`
+	ArticleID string `form:"article_id"`
+	Status    string `form:"status"`
+}
+
+// QCQueueItem represents an assembly batch awaiting QC inspection (BPMN 05 -> BPMN 06).
+type QCQueueItem struct {
+	AssemblyID      string    `json:"assemblyId"`
+	OrderID         string    `json:"orderId"`
+	OrderCode       string    `json:"orderCode"`
+	ClientID        string    `json:"clientId"`
+	ClientName      string    `json:"clientName"`
+	ArticleTitle    string    `json:"articleTitle"`
+	PendingQuantity int       `json:"pendingQuantity"`
+	WaitingSince    time.Time `json:"waitingSince"`
+}
+
+// ListQCQueueFilter defines filter options for QC queue inspection.
+type ListQCQueueFilter struct {
+	ClientID string `form:"client_id"`
+	OrderID  string `form:"order_id"`
+}
+
+// RealtimeProductionMetrics represents floor-wide metrics for the factory floor dashboard.
+type RealtimeProductionMetrics struct {
+	FactoryMachineCapacity int            `json:"factoryMachineCapacity"`
+	TotalActiveMachines    int            `json:"totalActiveMachines"`
+	TotalTodayOutputPcs    int            `json:"totalTodayOutputPcs"`
+	TargetTodayOutputPcs   int            `json:"targetTodayOutputPcs"`
+	EfficiencyPercentage   float64        `json:"efficiencyPercentage"`
+	LinesOverview          []LineOverview `json:"linesOverview"`
+}
+
+// LineOverview represents high-level metrics for a single production line.
+type LineOverview struct {
+	LineID            string `json:"lineId"`
+	LineCode          string `json:"lineCode"`
+	ActiveOperators   int    `json:"activeOperators"`
+	TodayOutputPcs    int    `json:"todayOutputPcs"`
+	CurrentSlotOutput int    `json:"currentSlotOutput"`
+}
+
+// LineDailyProgress represents detailed 30-minute progression on a line.
+type LineDailyProgress struct {
+	LineID         string         `json:"lineId"`
+	LineCode       string         `json:"lineCode"`
+	Date           string         `json:"date"`
+	TotalOutputPcs int            `json:"totalOutputPcs"`
+	TimeSlots      []TimeSlotStat `json:"timeSlots"`
+}
+
+// TimeSlotStat represents output breakdown for an individual time slot.
+type TimeSlotStat struct {
+	Slot                 string `json:"slot"`
+	OutputPcs            int    `json:"outputPcs"`
+	ActiveOperatorsCount int    `json:"activeOperatorsCount"`
+}
+
+// OrderProductionProgress represents end-to-end component completion & assembly progress for an order.
+type OrderProductionProgress struct {
+	OrderID            string              `json:"orderId"`
+	OrderCode          string              `json:"orderCode"`
+	ClientName         string              `json:"clientName"`
+	ArticleTitle       string              `json:"articleTitle"`
+	TotalTargetPcs     int                 `json:"totalTargetPcs"`
+	TotalAssembledPcs  int                 `json:"totalAssembledPcs"`
+	Status             string              `json:"status"`
+	ComponentsProgress []ComponentProgress `json:"componentsProgress"`
+}
+
+// ComponentProgress represents piece progress of a specific component in an order.
+type ComponentProgress struct {
+	ComponentID   string  `json:"componentId"`
+	ComponentName string  `json:"componentName"`
+	CompletedPcs  int     `json:"completedPcs"`
+	Percentage    float64 `json:"percentage"`
+}
+
 
 

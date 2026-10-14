@@ -908,3 +908,421 @@ func (r *postgresRepository) ListOutputs(ctx context.Context, filter ListOutputs
 	return outputs, rows.Err()
 }
 
+// ListAssemblies retrieves assembly batches matching filter.
+func (r *postgresRepository) ListAssemblies(ctx context.Context, filter ListAssembliesFilter) ([]AssemblyRecord, error) {
+	query := `
+		SELECT a.id, a.order_id, o.order_number, a.article_id, art.title,
+		       a.quantity_assembled, a.status, a.assembled_date::text,
+		       COALESCE(u.full_name, 'Mandor') AS assembled_by_name,
+		       a.notes, a.created_at
+		FROM assemblies a
+		JOIN orders o ON a.order_id = o.id
+		JOIN articles art ON a.article_id = art.id
+		LEFT JOIN users u ON a.assembled_by_user_id = u.id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argIdx := 1
+
+	if filter.OrderID != "" {
+		query += fmt.Sprintf(" AND a.order_id = $%d", argIdx)
+		args = append(args, filter.OrderID)
+		argIdx++
+	}
+	if filter.ArticleID != "" {
+		query += fmt.Sprintf(" AND a.article_id = $%d", argIdx)
+		args = append(args, filter.ArticleID)
+		argIdx++
+	}
+	if filter.Status != "" {
+		query += fmt.Sprintf(" AND a.status = $%d", argIdx)
+		args = append(args, filter.Status)
+		argIdx++
+	}
+
+	query += " ORDER BY a.created_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list assemblies: %w", err)
+	}
+	defer rows.Close()
+
+	var records []AssemblyRecord
+	for rows.Next() {
+		var rec AssemblyRecord
+		var notes sql.NullString
+		if err := rows.Scan(
+			&rec.ID,
+			&rec.OrderID,
+			&rec.OrderCode,
+			&rec.ArticleID,
+			&rec.ArticleTitle,
+			&rec.QuantityAssembled,
+			&rec.Status,
+			&rec.AssembledDate,
+			&rec.AssembledByName,
+			&notes,
+			&rec.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan assembly: %w", err)
+		}
+		if notes.Valid {
+			rec.Notes = &notes.String
+		}
+		records = append(records, rec)
+	}
+	if records == nil {
+		records = []AssemblyRecord{}
+	}
+	return records, rows.Err()
+}
+
+// FindAssemblyByID finds a single assembly record by ID.
+func (r *postgresRepository) FindAssemblyByID(ctx context.Context, id string) (*AssemblyRecord, error) {
+	query := `
+		SELECT a.id, a.order_id, o.order_number, a.article_id, art.title,
+		       a.quantity_assembled, a.status, a.assembled_date::text,
+		       COALESCE(u.full_name, 'Mandor') AS assembled_by_name,
+		       a.notes, a.created_at
+		FROM assemblies a
+		JOIN orders o ON a.order_id = o.id
+		JOIN articles art ON a.article_id = art.id
+		LEFT JOIN users u ON a.assembled_by_user_id = u.id
+		WHERE a.id = $1
+	`
+	var rec AssemblyRecord
+	var notes sql.NullString
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&rec.ID,
+		&rec.OrderID,
+		&rec.OrderCode,
+		&rec.ArticleID,
+		&rec.ArticleTitle,
+		&rec.QuantityAssembled,
+		&rec.Status,
+		&rec.AssembledDate,
+		&rec.AssembledByName,
+		&notes,
+		&rec.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAssemblyNotFound
+		}
+		return nil, fmt.Errorf("find assembly by id: %w", err)
+	}
+	if notes.Valid {
+		rec.Notes = &notes.String
+	}
+	return &rec, nil
+}
+
+// CreateAssembly inserts an assembled batch into the assemblies table.
+func (r *postgresRepository) CreateAssembly(ctx context.Context, assembly *AssemblyRecord, recordedByUserID *string) error {
+	query := `
+		INSERT INTO assemblies (order_id, article_id, quantity_assembled, status, assembled_date, assembled_by_user_id, notes)
+		VALUES ($1, $2, $3, $4, $5::date, $6, $7)
+		RETURNING id, created_at
+	`
+	return r.db.QueryRowContext(
+		ctx,
+		query,
+		assembly.OrderID,
+		assembly.ArticleID,
+		assembly.QuantityAssembled,
+		assembly.Status,
+		assembly.AssembledDate,
+		recordedByUserID,
+		assembly.Notes,
+	).Scan(&assembly.ID, &assembly.CreatedAt)
+}
+
+// GetTotalComponentOutputsForOrder sums all finished sewing piece outputs for an order.
+func (r *postgresRepository) GetTotalComponentOutputsForOrder(ctx context.Context, orderID string) (int, error) {
+	query := `SELECT COALESCE(SUM(quantity), 0) FROM production_outputs WHERE order_id = $1`
+	var total int
+	err := r.db.QueryRowContext(ctx, query, orderID).Scan(&total)
+	return total, err
+}
+
+// GetTotalAssembledForOrder sums all assembled units for an order so far.
+func (r *postgresRepository) GetTotalAssembledForOrder(ctx context.Context, orderID string) (int, error) {
+	query := `SELECT COALESCE(SUM(quantity_assembled), 0) FROM assemblies WHERE order_id = $1`
+	var total int
+	err := r.db.QueryRowContext(ctx, query, orderID).Scan(&total)
+	return total, err
+}
+
+// ListQCQueue retrieves assembly units with status 'MENUNGGU_QC' for QC inspection queue.
+func (r *postgresRepository) ListQCQueue(ctx context.Context, filter ListQCQueueFilter) ([]QCQueueItem, error) {
+	query := `
+		SELECT a.id, a.order_id, o.order_number, c.id, c.name,
+		       art.title, a.quantity_assembled, a.created_at
+		FROM assemblies a
+		JOIN orders o ON a.order_id = o.id
+		JOIN clients c ON o.client_id = c.id
+		JOIN articles art ON a.article_id = art.id
+		WHERE a.status = 'MENUNGGU_QC'
+	`
+	args := []interface{}{}
+	argIdx := 1
+
+	if filter.ClientID != "" {
+		query += fmt.Sprintf(" AND o.client_id = $%d", argIdx)
+		args = append(args, filter.ClientID)
+		argIdx++
+	}
+	if filter.OrderID != "" {
+		query += fmt.Sprintf(" AND a.order_id = $%d", argIdx)
+		args = append(args, filter.OrderID)
+		argIdx++
+	}
+
+	query += " ORDER BY a.created_at ASC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list qc queue: %w", err)
+	}
+	defer rows.Close()
+
+	var items []QCQueueItem
+	for rows.Next() {
+		var item QCQueueItem
+		if err := rows.Scan(
+			&item.AssemblyID,
+			&item.OrderID,
+			&item.OrderCode,
+			&item.ClientID,
+			&item.ClientName,
+			&item.ArticleTitle,
+			&item.PendingQuantity,
+			&item.WaitingSince,
+		); err != nil {
+			return nil, fmt.Errorf("scan qc queue item: %w", err)
+		}
+		items = append(items, item)
+	}
+	if items == nil {
+		items = []QCQueueItem{}
+	}
+	return items, rows.Err()
+}
+
+// GetRealtimeMetrics computes current factory floor metrics.
+func (r *postgresRepository) GetRealtimeMetrics(ctx context.Context) (*RealtimeProductionMetrics, error) {
+	// 1. Factory machine capacity (factory limit is ~70 machines)
+	var factoryCapacity int
+	err := r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(max_capacity), 70) FROM lines WHERE status = 'ACTIVE'").Scan(&factoryCapacity)
+	if err != nil || factoryCapacity == 0 {
+		factoryCapacity = 70
+	}
+
+	// 2. Total active machines (allocated operators)
+	var activeMachines int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT operator_id) FROM line_allocations WHERE status = 'ACTIVE'").Scan(&activeMachines)
+	if err != nil {
+		activeMachines = 0
+	}
+
+	// 3. Today's total output pcs
+	var todayOutput int
+	err = r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(quantity), 0) FROM production_outputs WHERE work_date = CURRENT_DATE").Scan(&todayOutput)
+	if err != nil {
+		todayOutput = 0
+	}
+
+	// 4. Target today output: calculate from active orders or standard capacity benchmark
+	var targetToday int
+	err = r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(target_quantity) / 30, 800) FROM orders WHERE status = 'IN_PRODUCTION'").Scan(&targetToday)
+	if err != nil || targetToday <= 0 {
+		targetToday = 800
+	}
+
+	efficiency := 0.0
+	if targetToday > 0 {
+		efficiency = (float64(todayOutput) / float64(targetToday)) * 100.0
+	}
+
+	// 5. Lines overview
+	linesQuery := `
+		SELECT l.id, l.code,
+		       COALESCE(alloc.active_count, 0) AS active_operators,
+		       COALESCE(outp.today_output, 0) AS today_output,
+		       COALESCE(latest_slot.slot_output, 0) AS current_slot_output
+		FROM lines l
+		LEFT JOIN (
+			SELECT line_id, COUNT(DISTINCT operator_id) AS active_count
+			FROM line_allocations
+			WHERE status = 'ACTIVE'
+			GROUP BY line_id
+		) alloc ON l.id = alloc.line_id
+		LEFT JOIN (
+			SELECT line_id, SUM(quantity) AS today_output
+			FROM production_outputs
+			WHERE work_date = CURRENT_DATE
+			GROUP BY line_id
+		) outp ON l.id = outp.line_id
+		LEFT JOIN (
+			SELECT line_id, SUM(quantity) AS slot_output
+			FROM production_outputs po1
+			WHERE work_date = CURRENT_DATE
+			  AND time_slot = (
+			      SELECT time_slot
+			      FROM production_outputs po2
+			      WHERE po2.line_id = po1.line_id AND po2.work_date = CURRENT_DATE
+			      ORDER BY created_at DESC
+			      LIMIT 1
+			  )
+			GROUP BY line_id
+		) latest_slot ON l.id = latest_slot.line_id
+		WHERE l.status = 'ACTIVE'
+		ORDER BY l.code ASC
+	`
+	rows, err := r.db.QueryContext(ctx, linesQuery)
+	if err != nil {
+		return nil, fmt.Errorf("query lines overview: %w", err)
+	}
+	defer rows.Close()
+
+	var overviews []LineOverview
+	for rows.Next() {
+		var o LineOverview
+		if err := rows.Scan(&o.LineID, &o.LineCode, &o.ActiveOperators, &o.TodayOutputPcs, &o.CurrentSlotOutput); err != nil {
+			return nil, fmt.Errorf("scan line overview: %w", err)
+		}
+		overviews = append(overviews, o)
+	}
+	if overviews == nil {
+		overviews = []LineOverview{}
+	}
+
+	return &RealtimeProductionMetrics{
+		FactoryMachineCapacity: factoryCapacity,
+		TotalActiveMachines:    activeMachines,
+		TotalTodayOutputPcs:    todayOutput,
+		TargetTodayOutputPcs:   targetToday,
+		EfficiencyPercentage:   efficiency,
+		LinesOverview:          overviews,
+	}, nil
+}
+
+// GetLineDailyProgress retrieves output breakdown per 30-minute interval for a line on a given date.
+func (r *postgresRepository) GetLineDailyProgress(ctx context.Context, lineID string, date string) (*LineDailyProgress, error) {
+	var lineCode string
+	err := r.db.QueryRowContext(ctx, "SELECT code FROM lines WHERE id = $1", lineID).Scan(&lineCode)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrLineNotFound
+		}
+		return nil, fmt.Errorf("find line by id: %w", err)
+	}
+
+	if date == "" {
+		date = time.Now().Format("2006-01-02")
+	}
+
+	var totalOutput int
+	_ = r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(quantity), 0) FROM production_outputs WHERE line_id = $1 AND work_date = $2::date", lineID, date).Scan(&totalOutput)
+
+	slotQuery := `
+		SELECT time_slot, COALESCE(SUM(quantity), 0) AS output_pcs,
+		       COUNT(DISTINCT operator_id) AS active_operators_count
+		FROM production_outputs
+		WHERE line_id = $1 AND work_date = $2::date
+		GROUP BY time_slot
+		ORDER BY time_slot ASC
+	`
+	rows, err := r.db.QueryContext(ctx, slotQuery, lineID, date)
+	if err != nil {
+		return nil, fmt.Errorf("query line time slots: %w", err)
+	}
+	defer rows.Close()
+
+	var timeSlots []TimeSlotStat
+	for rows.Next() {
+		var s TimeSlotStat
+		if err := rows.Scan(&s.Slot, &s.OutputPcs, &s.ActiveOperatorsCount); err != nil {
+			return nil, fmt.Errorf("scan time slot stat: %w", err)
+		}
+		timeSlots = append(timeSlots, s)
+	}
+	if timeSlots == nil {
+		timeSlots = []TimeSlotStat{}
+	}
+
+	return &LineDailyProgress{
+		LineID:         lineID,
+		LineCode:       lineCode,
+		Date:           date,
+		TotalOutputPcs: totalOutput,
+		TimeSlots:      timeSlots,
+	}, nil
+}
+
+// GetOrderProductionProgress tracks complete assembly and component progress for an order.
+func (r *postgresRepository) GetOrderProductionProgress(ctx context.Context, orderID string) (*OrderProductionProgress, error) {
+	orderQuery := `
+		SELECT o.id, o.order_number, c.name, a.title, o.target_quantity, o.status, o.article_id
+		FROM orders o
+		JOIN clients c ON o.client_id = c.id
+		JOIN articles a ON o.article_id = a.id
+		WHERE o.id = $1
+	`
+	var prog OrderProductionProgress
+	var articleID string
+	err := r.db.QueryRowContext(ctx, orderQuery, orderID).Scan(
+		&prog.OrderID,
+		&prog.OrderCode,
+		&prog.ClientName,
+		&prog.ArticleTitle,
+		&prog.TotalTargetPcs,
+		&prog.Status,
+		&articleID,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, fmt.Errorf("find order for progress: %w", err)
+	}
+
+	// Total assembled units
+	_ = r.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(quantity_assembled), 0) FROM assemblies WHERE order_id = $1", orderID).Scan(&prog.TotalAssembledPcs)
+
+	// Component outputs progress
+	compQuery := `
+		SELECT c.id, c.name, COALESCE(SUM(po.quantity), 0) AS completed_pcs
+		FROM components c
+		LEFT JOIN production_outputs po ON c.id = po.component_id AND po.order_id = $1
+		WHERE c.article_id = $2
+		GROUP BY c.id, c.name, c.sequence_number
+		ORDER BY c.sequence_number ASC
+	`
+	rows, err := r.db.QueryContext(ctx, compQuery, orderID, articleID)
+	if err != nil {
+		return nil, fmt.Errorf("query components progress: %w", err)
+	}
+	defer rows.Close()
+
+	var compProgress []ComponentProgress
+	for rows.Next() {
+		var cp ComponentProgress
+		if err := rows.Scan(&cp.ComponentID, &cp.ComponentName, &cp.CompletedPcs); err != nil {
+			return nil, fmt.Errorf("scan component progress: %w", err)
+		}
+		if prog.TotalTargetPcs > 0 {
+			cp.Percentage = (float64(cp.CompletedPcs) / float64(prog.TotalTargetPcs)) * 100.0
+		}
+		compProgress = append(compProgress, cp)
+	}
+	if compProgress == nil {
+		compProgress = []ComponentProgress{}
+	}
+	prog.ComponentsProgress = compProgress
+
+	return &prog, nil
+}
+
+

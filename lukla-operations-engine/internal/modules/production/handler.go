@@ -46,6 +46,22 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, authnMiddleware gin.Handle
 		outputs.POST("/batch", h.CreateOutputsBatch)
 		outputs.GET("/:id", h.GetOutputDetail)
 	}
+
+	assemblies := rg.Group("/assemblies")
+	assemblies.Use(authnMiddleware)
+	{
+		assemblies.GET("", h.ListAssemblies)
+		assemblies.POST("", h.CreateAssembly)
+		assemblies.GET("/queue-qc", h.GetQCQueue)
+	}
+
+	dashboard := rg.Group("/production-dashboard")
+	dashboard.Use(authnMiddleware)
+	{
+		dashboard.GET("/realtime", h.GetRealtimeMetrics)
+		dashboard.GET("/lines/:line_id", h.GetLineDailyProgress)
+		dashboard.GET("/orders/:order_id", h.GetOrderProductionProgress)
+	}
 }
 
 // ListLines handles GET /api/v1/lines.
@@ -327,6 +343,112 @@ func (h *Handler) CreateOutputsBatch(c *gin.Context) {
 	})
 }
 
+// ListAssemblies handles GET /api/v1/assemblies.
+func (h *Handler) ListAssemblies(c *gin.Context) {
+	var filter ListAssembliesFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{"code": "INVALID_QUERY_PARAMS", "message": err.Error()},
+		})
+		return
+	}
+	records, err := h.svc.ListAssemblies(c.Request.Context(), filter)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    records,
+	})
+}
+
+// CreateAssembly handles POST /api/v1/assemblies.
+func (h *Handler) CreateAssembly(c *gin.Context) {
+	actor := getActor(c)
+	var req CreateAssemblyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{"code": "INVALID_REQUEST_BODY", "message": err.Error()},
+		})
+		return
+	}
+	rec, err := h.svc.CreateAssembly(c.Request.Context(), actor, req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    rec,
+	})
+}
+
+// GetQCQueue handles GET /api/v1/assemblies/queue-qc.
+func (h *Handler) GetQCQueue(c *gin.Context) {
+	var filter ListQCQueueFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{"code": "INVALID_QUERY_PARAMS", "message": err.Error()},
+		})
+		return
+	}
+	items, err := h.svc.GetQCQueue(c.Request.Context(), filter)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    items,
+	})
+}
+
+// GetRealtimeMetrics handles GET /api/v1/production-dashboard/realtime.
+func (h *Handler) GetRealtimeMetrics(c *gin.Context) {
+	metrics, err := h.svc.GetRealtimeMetrics(c.Request.Context())
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    metrics,
+	})
+}
+
+// GetLineDailyProgress handles GET /api/v1/production-dashboard/lines/:line_id.
+func (h *Handler) GetLineDailyProgress(c *gin.Context) {
+	lineID := c.Param("line_id")
+	date := c.Query("date")
+	progress, err := h.svc.GetLineDailyProgress(c.Request.Context(), lineID, date)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    progress,
+	})
+}
+
+// GetOrderProductionProgress handles GET /api/v1/production-dashboard/orders/:order_id.
+func (h *Handler) GetOrderProductionProgress(c *gin.Context) {
+	orderID := c.Param("order_id")
+	progress, err := h.svc.GetOrderProductionProgress(c.Request.Context(), orderID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    progress,
+	})
+}
+
 func (h *Handler) handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrForbiddenProduction):
@@ -342,7 +464,8 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 		errors.Is(err, ErrOperatorNotFound),
 		errors.Is(err, ErrOrderNotFound),
 		errors.Is(err, ErrDestinationLineNotFound),
-		errors.Is(err, ErrOutputNotFound):
+		errors.Is(err, ErrOutputNotFound),
+		errors.Is(err, ErrAssemblyNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error": gin.H{
@@ -353,11 +476,37 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 	case errors.Is(err, ErrInvalidQuantity),
 		errors.Is(err, ErrTimeSlotRequired),
 		errors.Is(err, ErrWorkDateRequired),
-		errors.Is(err, ErrEmptyBatchItems):
+		errors.Is(err, ErrEmptyBatchItems),
+		errors.Is(err, ErrInvalidAssemblyQty),
+		errors.Is(err, ErrAssembledDateRequired):
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error": gin.H{
 				"code":    "VALIDATION_ERROR",
+				"message": err.Error(),
+			},
+		})
+	case errors.Is(err, ErrInsufficientComponents):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INSUFFICIENT_COMPONENTS",
+				"message": err.Error(),
+			},
+		})
+	case errors.Is(err, ErrArticleMismatch):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "ARTICLE_MISMATCH",
+				"message": err.Error(),
+			},
+		})
+	case errors.Is(err, ErrExceedsOrderTarget):
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "EXCEEDS_ORDER_TARGET",
 				"message": err.Error(),
 			},
 		})

@@ -485,4 +485,81 @@ func isAuthorizedLineManager(actor *authn.UserIdentity) bool {
 	return actor.RoleCode == "owner_executive" || actor.RoleCode == "production_head"
 }
 
+// ListAssemblies returns assembly records matching filter.
+func (s *Service) ListAssemblies(ctx context.Context, filter ListAssembliesFilter) ([]AssemblyRecord, error) {
+	return s.repo.ListAssemblies(ctx, filter)
+}
+
+// CreateAssembly records an assembled product batch ready for QC queue (BPMN 05).
+func (s *Service) CreateAssembly(ctx context.Context, actor *authn.UserIdentity, req CreateAssemblyRequest) (*AssemblyRecord, error) {
+	if !isAuthorizedLineManager(actor) {
+		return nil, ErrForbiddenProduction
+	}
+	if req.QuantityAssembled <= 0 {
+		return nil, ErrInvalidAssemblyQty
+	}
+	if strings.TrimSpace(req.AssembledDate) == "" {
+		return nil, ErrAssembledDateRequired
+	}
+
+	// 1. Validate order
+	_, _, articleID, err := s.repo.ValidateOrder(ctx, req.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	if articleID != req.ArticleID {
+		return nil, ErrArticleMismatch
+	}
+
+	// 2. Validate component outputs accumulation
+	totalOutputs, err := s.repo.GetTotalComponentOutputsForOrder(ctx, req.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	if totalOutputs == 0 || totalOutputs < req.QuantityAssembled {
+		return nil, ErrInsufficientComponents
+	}
+
+	var actorUserID *string
+	if actor != nil && actor.ID != "" {
+		actorUserID = &actor.ID
+	}
+
+	record := &AssemblyRecord{
+		OrderID:           req.OrderID,
+		ArticleID:         req.ArticleID,
+		QuantityAssembled: req.QuantityAssembled,
+		Status:            "MENUNGGU_QC",
+		AssembledDate:     strings.TrimSpace(req.AssembledDate),
+		Notes:             req.Notes,
+	}
+
+	if err := s.repo.CreateAssembly(ctx, record, actorUserID); err != nil {
+		return nil, err
+	}
+
+	return s.repo.FindAssemblyByID(ctx, record.ID)
+}
+
+// GetQCQueue retrieves the queue of assembled units awaiting QC inspection.
+func (s *Service) GetQCQueue(ctx context.Context, filter ListQCQueueFilter) ([]QCQueueItem, error) {
+	return s.repo.ListQCQueue(ctx, filter)
+}
+
+// GetRealtimeMetrics retrieves the current real-time floor metrics for dashboard.
+func (s *Service) GetRealtimeMetrics(ctx context.Context) (*RealtimeProductionMetrics, error) {
+	return s.repo.GetRealtimeMetrics(ctx)
+}
+
+// GetLineDailyProgress retrieves output progress per 30-minute interval for a line.
+func (s *Service) GetLineDailyProgress(ctx context.Context, lineID string, date string) (*LineDailyProgress, error) {
+	return s.repo.GetLineDailyProgress(ctx, lineID, date)
+}
+
+// GetOrderProductionProgress retrieves comprehensive progress for an order.
+func (s *Service) GetOrderProductionProgress(ctx context.Context, orderID string) (*OrderProductionProgress, error) {
+	return s.repo.GetOrderProductionProgress(ctx, orderID)
+}
+
+
 

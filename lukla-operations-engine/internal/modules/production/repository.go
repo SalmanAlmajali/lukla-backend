@@ -33,5 +33,18 @@ type Repository interface {
 	CreateOutput(ctx context.Context, output *ProductionOutput) error
 	CreateOutputsBatch(ctx context.Context, outputs []*ProductionOutput) error
 	GetActiveSewingRate(ctx context.Context, articleID string, componentID string) (float64, error)
+
+	// Assembly & QC Queue operations (BPMN 05)
+	ListAssemblies(ctx context.Context, filter ListAssembliesFilter) ([]AssemblyRecord, error)
+	FindAssemblyByID(ctx context.Context, id string) (*AssemblyRecord, error)
+	CreateAssembly(ctx context.Context, assembly *AssemblyRecord, recordedByUserID *string) error
+	GetTotalComponentOutputsForOrder(ctx context.Context, orderID string) (int, error)
+	GetTotalAssembledForOrder(ctx context.Context, orderID string) (int, error)
+	ListQCQueue(ctx context.Context, filter ListQCQueueFilter) ([]QCQueueItem, error)
+
+	// Dashboard operations (BPMN 05)
+	GetRealtimeMetrics(ctx context.Context) (*RealtimeProductionMetrics, error)
+	GetLineDailyProgress(ctx context.Context, lineID string, date string) (*LineDailyProgress, error)
+	GetOrderProductionProgress(ctx context.Context, orderID string) (*OrderProductionProgress, error)
 }
 

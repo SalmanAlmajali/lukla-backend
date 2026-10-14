@@ -27,6 +27,14 @@ type mockRepository struct {
 	outputErr         error
 	sewingRate        float64
 	activeAllocResult *LineAllocation
+	assemblies        []AssemblyRecord
+	assemblyErr       error
+	totalCompOutputs  int
+	totalAssembled    int
+	qcQueue           []QCQueueItem
+	realtimeMetrics   *RealtimeProductionMetrics
+	lineDailyProgress *LineDailyProgress
+	orderProgress     *OrderProductionProgress
 }
 
 func (m *mockRepository) ListLines(ctx context.Context) ([]ProductionLine, error) {
@@ -182,6 +190,133 @@ func (m *mockRepository) GetActiveSewingRate(ctx context.Context, articleID stri
 		return m.sewingRate, nil
 	}
 	return 2500.0, nil
+}
+
+func (m *mockRepository) ListAssemblies(ctx context.Context, filter ListAssembliesFilter) ([]AssemblyRecord, error) {
+	if m.assemblyErr != nil {
+		return nil, m.assemblyErr
+	}
+	return m.assemblies, nil
+}
+
+func (m *mockRepository) FindAssemblyByID(ctx context.Context, id string) (*AssemblyRecord, error) {
+	if m.assemblyErr != nil {
+		return nil, m.assemblyErr
+	}
+	for _, a := range m.assemblies {
+		if a.ID == id {
+			return &a, nil
+		}
+	}
+	return nil, ErrAssemblyNotFound
+}
+
+func (m *mockRepository) CreateAssembly(ctx context.Context, assembly *AssemblyRecord, recordedByUserID *string) error {
+	if m.assemblyErr != nil {
+		return m.assemblyErr
+	}
+	assembly.ID = "new-assembly-uuid-123"
+	assembly.OrderCode = "PO-2026-10-001"
+	assembly.ArticleTitle = "Snøhund Arctic Expedition Parka 2026"
+	assembly.CreatedAt = time.Now()
+	m.assemblies = append(m.assemblies, *assembly)
+	return nil
+}
+
+func (m *mockRepository) GetTotalComponentOutputsForOrder(ctx context.Context, orderID string) (int, error) {
+	if m.assemblyErr != nil {
+		return 0, m.assemblyErr
+	}
+	return m.totalCompOutputs, nil
+}
+
+func (m *mockRepository) GetTotalAssembledForOrder(ctx context.Context, orderID string) (int, error) {
+	return m.totalAssembled, nil
+}
+
+func (m *mockRepository) ListQCQueue(ctx context.Context, filter ListQCQueueFilter) ([]QCQueueItem, error) {
+	if m.assemblyErr != nil {
+		return nil, m.assemblyErr
+	}
+	if m.qcQueue != nil {
+		return m.qcQueue, nil
+	}
+	return []QCQueueItem{
+		{
+			AssemblyID:      "asm-1",
+			OrderID:         "order-1",
+			OrderCode:       "PO-2026-10-001",
+			ClientID:        "client-1",
+			ClientName:      "Snøhund",
+			ArticleTitle:    "Parka",
+			PendingQuantity: 25,
+			WaitingSince:    time.Now(),
+		},
+	}, nil
+}
+
+func (m *mockRepository) GetRealtimeMetrics(ctx context.Context) (*RealtimeProductionMetrics, error) {
+	if m.realtimeMetrics != nil {
+		return m.realtimeMetrics, nil
+	}
+	return &RealtimeProductionMetrics{
+		FactoryMachineCapacity: 70,
+		TotalActiveMachines:    50,
+		TotalTodayOutputPcs:    600,
+		TargetTodayOutputPcs:   800,
+		EfficiencyPercentage:   75.0,
+		LinesOverview: []LineOverview{
+			{
+				LineID:            "line-1",
+				LineCode:          "LINE-01",
+				ActiveOperators:   18,
+				TodayOutputPcs:    220,
+				CurrentSlotOutput: 28,
+			},
+		},
+	}, nil
+}
+
+func (m *mockRepository) GetLineDailyProgress(ctx context.Context, lineID string, date string) (*LineDailyProgress, error) {
+	if m.lineDailyProgress != nil {
+		return m.lineDailyProgress, nil
+	}
+	return &LineDailyProgress{
+		LineID:         lineID,
+		LineCode:       "LINE-01",
+		Date:           "2026-10-14",
+		TotalOutputPcs: 150,
+		TimeSlots: []TimeSlotStat{
+			{
+				Slot:                 "08:00-08:30",
+				OutputPcs:            18,
+				ActiveOperatorsCount: 18,
+			},
+		},
+	}, nil
+}
+
+func (m *mockRepository) GetOrderProductionProgress(ctx context.Context, orderID string) (*OrderProductionProgress, error) {
+	if m.orderProgress != nil {
+		return m.orderProgress, nil
+	}
+	return &OrderProductionProgress{
+		OrderID:           orderID,
+		OrderCode:         "PO-2026-10-001",
+		ClientName:        "Snøhund",
+		ArticleTitle:      "Parka",
+		TotalTargetPcs:    1000,
+		TotalAssembledPcs: 200,
+		Status:            "IN_PRODUCTION",
+		ComponentsProgress: []ComponentProgress{
+			{
+				ComponentID:   "comp-1",
+				ComponentName: "Saku Depan",
+				CompletedPcs:  320,
+				Percentage:    64.0,
+			},
+		},
+	}, nil
 }
 
 func setupTestRouter(repo Repository, role string) *gin.Engine {
@@ -625,4 +760,167 @@ func TestProductionOutputHandlers(t *testing.T) {
 		}
 	})
 }
+
+func TestAssemblyHandlers(t *testing.T) {
+	repo := &mockRepository{
+		totalCompOutputs: 150,
+		assemblies: []AssemblyRecord{
+			{
+				ID:                "asm-1",
+				OrderID:           "order-1",
+				OrderCode:         "PO-2026-10-001",
+				ArticleID:         "article-uuid",
+				ArticleTitle:      "Snøhund Arctic Parka",
+				QuantityAssembled: 25,
+				Status:            "MENUNGGU_QC",
+				AssembledDate:     "2026-10-14",
+				AssembledByName:   "Bambang",
+				CreatedAt:         time.Now(),
+			},
+		},
+	}
+
+	t.Run("200 OK list assemblies", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/assemblies", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", w.Code)
+		}
+	})
+
+	t.Run("201 Created assembly record with MENUNGGU_QC status", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		body, _ := json.Marshal(map[string]interface{}{
+			"orderId":           "order-1",
+			"articleId":         "article-uuid",
+			"quantityAssembled": 25,
+			"assembledDate":     "2026-10-14",
+			"notes":             "Selesai assembly batch siang",
+		})
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var resp map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &resp)
+		data := resp["data"].(map[string]interface{})
+		if data["status"] != "MENUNGGU_QC" {
+			t.Fatalf("expected status MENUNGGU_QC, got %v", data["status"])
+		}
+	})
+
+	t.Run("400 Bad Request on invalid assembly quantity <= 0", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		body, _ := json.Marshal(map[string]interface{}{
+			"orderId":           "order-1",
+			"articleId":         "article-uuid",
+			"quantityAssembled": 0,
+			"assembledDate":     "2026-10-14",
+		})
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 Bad Request, got %d", w.Code)
+		}
+	})
+
+	t.Run("400 Bad Request on insufficient components", func(t *testing.T) {
+		repoEmpty := &mockRepository{
+			totalCompOutputs: 0, // no finished components
+		}
+		r := setupTestRouter(repoEmpty, "production_head")
+		body, _ := json.Marshal(map[string]interface{}{
+			"orderId":           "order-1",
+			"articleId":         "article-uuid",
+			"quantityAssembled": 50,
+			"assembledDate":     "2026-10-14",
+		})
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 Bad Request on insufficient components, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("403 Forbidden for client role", func(t *testing.T) {
+		r := setupTestRouter(repo, "client")
+		body, _ := json.Marshal(map[string]interface{}{
+			"orderId":           "order-1",
+			"articleId":         "article-uuid",
+			"quantityAssembled": 10,
+			"assembledDate":     "2026-10-14",
+		})
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/assemblies", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 Forbidden, got %d", w.Code)
+		}
+	})
+
+	t.Run("200 OK get QC queue", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/assemblies/queue-qc", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK on QC queue, got %d", w.Code)
+		}
+	})
+}
+
+func TestProductionDashboardHandlers(t *testing.T) {
+	repo := &mockRepository{}
+
+	t.Run("200 OK get realtime metrics", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/realtime", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK on realtime metrics, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("200 OK get line daily progress", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/lines/line-1?date=2026-10-14", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK on line progress, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("200 OK get order production progress", func(t *testing.T) {
+		r := setupTestRouter(repo, "production_head")
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/production-dashboard/orders/order-1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK on order progress, got %d: %s", w.Code, w.Body.String())
+		}
+	})
+}
+
 

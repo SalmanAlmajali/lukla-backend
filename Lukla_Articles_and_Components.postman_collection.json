@@ -2988,6 +2988,373 @@
                 }
             ],
             "name": "05. Tahap 1: Production Outputs 30 Menit (BPMN 05)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Status is MENUNGGU_QC\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.status).to.eql(\"MENUNGGU_QC\");",
+                                    "    pm.collectionVariables.set(\"assembly_id\", jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "1. Catat Assembly Produk Utuh (Status MENUNGGU_QC)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"orderId\": \"{{order_id}}\",\n    \"articleId\": \"{{article_parka_id}}\",\n    \"quantityAssembled\": 25,\n    \"assembledDate\": \"2026-10-14\",\n    \"notes\": \"Selesai assembly batch 1 siang, siap inspeksi QC\"\n}"
+                        },
+                        "description": "Menggabungkan komponen jahit yang telah selesai menjadi unit produk utuh. Unit otomatis berstatus MENUNGGU_QC dan masuk ke antrean inspeksi QC (BPMN 06).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assemblies"
+                            ],
+                            "raw": "{{base_url}}/assemblies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"quantityAssembled\": 25,\n        \"status\": \"MENUNGGU_QC\",\n        \"assembledDate\": \"2026-10-14\",\n        \"assembledByName\": \"Bambang Supriyadi\",\n        \"notes\": \"Selesai assembly batch 1 siang, siap inspeksi QC\",\n        \"createdAt\": \"2026-10-14T11:45:00+07:00\"\n    },\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Assemblies list returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "2. Daftar Perakitan Assembly",
+                    "request": {
+                        "description": "Menampilkan daftar riwayat penggabungan komponen menjadi unit utuh untuk order tertentu.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assemblies"
+                            ],
+                            "query": [
+                                {
+                                    "key": "order_id",
+                                    "value": "{{order_id}}"
+                                }
+                            ],
+                            "raw": "{{base_url}}/assemblies?order_id={{order_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"quantityAssembled\": 25,\n            \"status\": \"MENUNGGU_QC\",\n            \"assembledDate\": \"2026-10-14\",\n            \"assembledByName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T11:45:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"QC queue items returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "3. Antrean Unit Assembly Siap Diperiksa QC",
+                    "request": {
+                        "description": "Menampilkan batch produk hasil assembly yang berstatus MENUNGGU_QC dan menunggu giliran inspeksi oleh Quality Control.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "assemblies",
+                                "queue-qc"
+                            ],
+                            "raw": "{{base_url}}/assemblies/queue-qc"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"assemblyId\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientId\": \"c0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"pendingQuantity\": 25,\n            \"waitingSince\": \"2026-10-14T11:45:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "06. Tahap 1: Assembly & Antrian QC (BPMN 05)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Factory machine capacity is 70\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.factoryMachineCapacity).to.eql(70);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "1. Real-time Floor Metrics",
+                    "request": {
+                        "description": "Menyajikan metrik lantai pabrik real-time: total mesin aktif vs kapasitas pabrik (maksimal 70 mesin), output aktual vs target hari ini, dan efisiensi.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-dashboard",
+                                "realtime"
+                            ],
+                            "raw": "{{base_url}}/production-dashboard/realtime"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"factoryMachineCapacity\": 70,\n        \"totalActiveMachines\": 54,\n        \"totalTodayOutputPcs\": 640,\n        \"targetTodayOutputPcs\": 800,\n        \"efficiencyPercentage\": 80.0,\n        \"linesOverview\": [\n            {\n                \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n                \"lineCode\": \"LINE-01\",\n                \"activeOperators\": 18,\n                \"todayOutputPcs\": 220,\n                \"currentSlotOutput\": 28\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Line daily progress returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.lineCode).to.be.a('string');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "2. Tracking Progres Line per 30 Menit",
+                    "request": {
+                        "description": "Menampilkan rincian progres output per slot 30 menit untuk line tertentu beserta operator aktif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-dashboard",
+                                "lines",
+                                "{{line_id}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "date",
+                                    "value": "2026-10-14"
+                                }
+                            ],
+                            "raw": "{{base_url}}/production-dashboard/lines/{{line_id}}?date=2026-10-14"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"date\": \"2026-10-14\",\n        \"totalOutputPcs\": 220,\n        \"timeSlots\": [\n            {\n                \"slot\": \"08:00-08:30\",\n                \"outputPcs\": 18,\n                \"activeOperatorsCount\": 18\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Order production progress returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.totalTargetPcs).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "3. Tracking Progres Komponen & Assembly per SPK",
+                    "request": {
+                        "description": "Menampilkan status penyelesaian tiap komponen dan perakitan produk untuk suatu Production Order.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "production-dashboard",
+                                "orders",
+                                "{{order_id}}"
+                            ],
+                            "raw": "{{base_url}}/production-dashboard/orders/{{order_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"totalTargetPcs\": 1000,\n        \"totalAssembledPcs\": 240,\n        \"status\": \"IN_PRODUCTION\",\n        \"componentsProgress\": [\n            {\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"completedPcs\": 320,\n                \"percentage\": 32.0\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "07. Tahap 1: Real-Time Floor Dashboard (BPMN 05)"
         }
     ],
     "variable": [
@@ -3068,6 +3435,11 @@
         },
         {
             "key": "component_id",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "assembly_id",
             "type": "string",
             "value": ""
         }
