@@ -607,6 +607,147 @@ func TestApp_ListClientsForbiddenClientRoleLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_GetClientDetail_LiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login Executive (Internal)
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Login Client 1 (Snøhund)
+	loginSnohundBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqSnohundLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginSnohundBody))
+	reqSnohundLogin.Header.Set("Content-Type", "application/json")
+	wSnohundLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundLogin, reqSnohundLogin)
+
+	var snohundLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSnohundLogin.Body.Bytes(), &snohundLoginResp)
+	snohundToken := snohundLoginResp.Data.Token
+
+	// Get Snøhund client ID via auth/me
+	reqMe, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqMe.Header.Set("Authorization", "Bearer "+snohundToken)
+	wMe := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMe, reqMe)
+
+	var meResp struct {
+		Data struct {
+			ClientID *string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wMe.Body.Bytes(), &meResp)
+	if meResp.Data.ClientID == nil {
+		t.Fatalf("expected non-nil ClientID for Snohund client user")
+	}
+	snohundClientID := *meResp.Data.ClientID
+
+	// 3. Login Client 2 (Aventura)
+	loginAventuraBody, _ := json.Marshal(map[string]string{
+		"username": "client.aventura@lukla.local",
+		"password": "password",
+	})
+	reqAventuraLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginAventuraBody))
+	reqAventuraLogin.Header.Set("Content-Type", "application/json")
+	wAventuraLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAventuraLogin, reqAventuraLogin)
+
+	var aventuraLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAventuraLogin.Body.Bytes(), &aventuraLoginResp)
+	aventuraToken := aventuraLoginResp.Data.Token
+
+	reqAventuraMe, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqAventuraMe.Header.Set("Authorization", "Bearer "+aventuraToken)
+	wAventuraMe := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAventuraMe, reqAventuraMe)
+
+	var aventuraMeResp struct {
+		Data struct {
+			ClientID *string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAventuraMe.Body.Bytes(), &aventuraMeResp)
+	if aventuraMeResp.Data.ClientID == nil {
+		t.Fatalf("expected non-nil ClientID for Aventura client user")
+	}
+	aventuraClientID := *aventuraMeResp.Data.ClientID
+
+	// Test A: Internal Executive can view Snøhund
+	reqGetSnohundByExec, _ := http.NewRequest(http.MethodGet, "/api/v1/clients/"+snohundClientID, nil)
+	reqGetSnohundByExec.Header.Set("Authorization", "Bearer "+execToken)
+	wGetSnohundByExec := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetSnohundByExec, reqGetSnohundByExec)
+
+	if wGetSnohundByExec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for exec viewing snohund, got %d. Body: %s", wGetSnohundByExec.Code, wGetSnohundByExec.Body.String())
+	}
+
+	// Test B: Snøhund can view own data
+	reqGetSnohundBySnohund, _ := http.NewRequest(http.MethodGet, "/api/v1/clients/"+snohundClientID, nil)
+	reqGetSnohundBySnohund.Header.Set("Authorization", "Bearer "+snohundToken)
+	wGetSnohundBySnohund := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetSnohundBySnohund, reqGetSnohundBySnohund)
+
+	if wGetSnohundBySnohund.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for snohund viewing own data, got %d. Body: %s", wGetSnohundBySnohund.Code, wGetSnohundBySnohund.Body.String())
+	}
+
+	// Test C: Snøhund tries to view Aventura data -> 403 Forbidden!
+	reqGetAventuraBySnohund, _ := http.NewRequest(http.MethodGet, "/api/v1/clients/"+aventuraClientID, nil)
+	reqGetAventuraBySnohund.Header.Set("Authorization", "Bearer "+snohundToken)
+	wGetAventuraBySnohund := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetAventuraBySnohund, reqGetAventuraBySnohund)
+
+	if wGetAventuraBySnohund.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client viewing other client data, got %d. Body: %s", wGetAventuraBySnohund.Code, wGetAventuraBySnohund.Body.String())
+	}
+
+	// Test D: Non-existent UUID -> 404 Not Found
+	reqNotFound, _ := http.NewRequest(http.MethodGet, "/api/v1/clients/00000000-0000-0000-0000-000000000000", nil)
+	reqNotFound.Header.Set("Authorization", "Bearer "+execToken)
+	wNotFound := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNotFound, reqNotFound)
+
+	if wNotFound.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found for non-existent client, got %d. Body: %s", wNotFound.Code, wNotFound.Body.String())
+	}
+}
+
+
 
 
 

@@ -55,6 +55,19 @@ func (m *mockRepository) ListClients(ctx context.Context, filter ListClientsFilt
 	return matched[offset:end], total, nil
 }
 
+func (m *mockRepository) FindClientByID(ctx context.Context, id string) (*ClientDetail, error) {
+	for _, c := range m.clients {
+		if c.ID == id || strings.EqualFold(c.Code, id) {
+			return &ClientDetail{
+				Client:            c,
+				ArticlesCount:     2,
+				ActiveOrdersCount: 1,
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
 const testJWTSecret = "test-secret-key-1234567890123456"
 
 func createTestToken(userID string) string {
@@ -96,12 +109,20 @@ func setupTestRouter() *gin.Engine {
 
 	userLoader := func(ctx context.Context, userID string) (*authn.UserIdentity, error) {
 		role := "owner_executive"
-		if userID == "user-client-id" {
+		var clientID *string
+		if userID == "user-client-1" || userID == "user-client-id" {
 			role = "client"
+			cid := "mock-id-01"
+			clientID = &cid
+		} else if userID == "user-client-2" {
+			role = "client"
+			cid := "mock-id-02"
+			clientID = &cid
 		}
 		return &authn.UserIdentity{
 			ID:       userID,
 			RoleCode: role,
+			ClientID: clientID,
 			IsActive: true,
 		}, nil
 	}
@@ -317,3 +338,118 @@ func TestListClients_Forbidden_ClientRole(t *testing.T) {
 		t.Errorf("expected code FORBIDDEN, got %s", resp.Error.Code)
 	}
 }
+
+func TestGetClientDetail_InternalStaff_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/clients/mock-id-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool         `json:"success"`
+		Data    ClientDetail `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Errorf("expected success true")
+	}
+	if resp.Data.ID != "mock-id-01" {
+		t.Errorf("expected client id mock-id-01, got %s", resp.Data.ID)
+	}
+	if resp.Data.Code != "SNOHUND" {
+		t.Errorf("expected code SNOHUND, got %s", resp.Data.Code)
+	}
+}
+
+func TestGetClientDetail_ClientOwnData_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1")
+
+	// user-client-1 is linked to mock-id-01
+	req, _ := http.NewRequest(http.MethodGet, "/clients/mock-id-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client accessing own data, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool         `json:"success"`
+		Data    ClientDetail `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data.ID != "mock-id-01" {
+		t.Errorf("expected id mock-id-01, got %s", resp.Data.ID)
+	}
+}
+
+func TestGetClientDetail_ClientOtherData_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1")
+
+	// user-client-1 is linked to mock-id-01, trying to access mock-id-02
+	req, _ := http.NewRequest(http.MethodGet, "/clients/mock-id-02", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client accessing another client's data, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Error.Code != "FORBIDDEN" {
+		t.Errorf("expected error code FORBIDDEN, got %s", resp.Error.Code)
+	}
+}
+
+func TestGetClientDetail_NotFound(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/clients/non-existent-uuid", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetClientDetail_Unauthorized(t *testing.T) {
+	r := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/clients/mock-id-01", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for missing token, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+

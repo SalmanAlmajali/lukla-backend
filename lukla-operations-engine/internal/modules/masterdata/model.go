@@ -24,3 +24,11 @@ type ListClientsFilter struct {
 	Limit  int    `form:"limit"`
 }
 
+// ClientDetail represents detailed client information including summary counts.
+type ClientDetail struct {
+	Client
+	ArticlesCount     int `json:"articlesCount"`
+	ActiveOrdersCount int `json:"activeOrdersCount"`
+}
+
+

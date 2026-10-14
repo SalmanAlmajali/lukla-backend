@@ -3,6 +3,7 @@ package masterdata
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -120,4 +121,47 @@ func (r *PostgresRepository) ListClients(ctx context.Context, filter ListClients
 
 	return clients, total, nil
 }
+
+// FindClientByID retrieves client details by ID or unique code.
+func (r *PostgresRepository) FindClientByID(ctx context.Context, id string) (*ClientDetail, error) {
+	query := `
+		SELECT
+			id::text,
+			code,
+			name,
+			contact,
+			address,
+			client_type,
+			created_at,
+			updated_at
+		FROM clients
+		WHERE (id::text = $1 OR LOWER(code) = LOWER($1)) AND deleted_at IS NULL
+		LIMIT 1;
+	`
+
+	var detail ClientDetail
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&detail.ID,
+		&detail.Code,
+		&detail.Name,
+		&detail.Contact,
+		&detail.Address,
+		&detail.ClientType,
+		&detail.CreatedAt,
+		&detail.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find client by id: %w", err)
+	}
+
+	detail.ArticlesCount = 0
+	detail.ActiveOrdersCount = 0
+
+	return &detail, nil
+}
+
 

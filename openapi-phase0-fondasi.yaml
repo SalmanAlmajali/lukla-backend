@@ -214,6 +214,8 @@ paths:
           required: true
           schema:
             type: string
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Detail klien
@@ -230,6 +232,18 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/ClientDetail'
+        '401':
+          description: Tidak terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk data klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Klien tidak ditemukan
           content:

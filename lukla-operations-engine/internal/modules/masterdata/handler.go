@@ -1,7 +1,10 @@
 package masterdata
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
+	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/httpx"
 )
 
@@ -34,7 +37,43 @@ func (h *Handler) ListClients(c *gin.Context) {
 	httpx.Paginated(c, clients, meta)
 }
 
+// GetClientDetail handles GET /clients/:id.
+func (h *Handler) GetClientDetail(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		httpx.BadRequest(c, "INVALID_PARAMETER", "ID klien diperlukan.")
+		return
+	}
+
+	role, _ := authn.RoleFrom(c)
+	var requesterClientID *string
+	if cid, ok := authn.ClientIDFrom(c); ok && cid != "" {
+		requesterClientID = &cid
+	}
+
+	detail, err := h.svc.GetClientDetail(c.Request.Context(), id, role, requesterClientID)
+	if err != nil {
+		if errors.Is(err, ErrClientNotFound) {
+			httpx.NotFound(c, "NOT_FOUND", "Klien tidak ditemukan.")
+			return
+		}
+		if errors.Is(err, ErrForbiddenClientAccess) {
+			httpx.Forbidden(c, "FORBIDDEN", err.Error())
+			return
+		}
+
+		requestID, _ := c.Get("request_id")
+		rid, _ := requestID.(string)
+		httpx.InternalServerError(c, rid)
+		return
+	}
+
+	httpx.OK(c, detail)
+}
+
 // RegisterRoutes registers masterdata routes on the given router group.
 func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerFunc, authzMiddleware gin.HandlerFunc) {
 	r.GET("/clients", authnMiddleware, authzMiddleware, h.ListClients)
+	r.GET("/clients/:id", authnMiddleware, h.GetClientDetail)
 }
+
