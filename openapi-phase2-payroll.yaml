@@ -1,0 +1,1131 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 2: Payroll Mingguan)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 2 (Payroll Mingguan: Borongan, Uang Makan & Penguncian)** Lukla Operations Engine (Fasilitas Ciwidey).
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 07), dan SRS Skenario Uji 2:
+    - **BPMN 07**: Payroll Mingguan: Borongan + Uang Makan (FR-10.1, FR-10.2).
+    - **Upah Borongan Penjahit**: Dihitung dari akumulasi `production_outputs` terverifikasi mandor (pcs × `snapshot_sewing_rate`).
+    - **Keputusan Bisnis Kunci**: Reject QC **tidak memotong upah** penjahit.
+    - **Uang Makan Fleksibel (10–15%)**: Persentase uang makan ditetapkan oleh Owner/Finance per periode mingguan (dihitung dari total borongan penjahit).
+    - **Skenario Uji 2**: Penjahit baru bergabung di tengah minggu hanya menerima upah borongan dan uang makan dari output riil sejak tanggal bergabung (tanpa upah semu).
+    - **Penguncian Periode (Locking)**: Periode mingguan yang dikunci (`LOCKED`) bersifat immutable dan tidak dapat diubah tanpa penyesuaian ter-audit (`adjustments`).
+    - **Pembayaran di Luar Sistem**: Sistem menghasilkan rekapitulasi angka dan rincian slip upah resmi; pembayaran kas/transfer dilakukan di luar sistem.
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local API Server (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Payroll Periods (BPMN 07)
+    description: Siklus periode payroll mingguan (Senin–Minggu), konfigurasi uang makan, dan peninjauan status
+  - name: Payroll Calculation (BPMN 07)
+    description: Mesin kalkulasi upah borongan penjahit dari output terverifikasi dan uang makan
+  - name: Payroll Slips (BPMN 07)
+    description: Rincian slip upah per penjahit lengkap dengan rincian komponen, order, kuantitas, dan tarif
+  - name: Payroll Locking & Adjustments (BPMN 07)
+    description: Penguncian periode payroll final dan pencatatan koreksi/penyesuaian resmi ter-audit
+  - name: Payroll Reports (BPMN 07)
+    description: Rekapitulasi siap bayar dan laporan eksekutif payroll mingguan
+
+paths:
+  # ==========================================
+  # 1. PAYROLL PERIODS (BPMN 07)
+  # ==========================================
+  /payroll/periods:
+    get:
+      tags:
+        - Payroll Periods (BPMN 07)
+      summary: Daftar periode payroll mingguan
+      description: |
+        Mengambil daftar seluruh periode payroll mingguan dengan filter status dan rentang tanggal.
+        - **Akses**: `owner_executive`, `finance`, `production_head`.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, CALCULATED, LOCKED]
+          description: Filter berdasarkan status periode
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Batas jumlah data
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+          description: Offset pagination
+      responses:
+        '200':
+          description: Daftar periode payroll berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - total
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 12
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PayrollPeriod'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    post:
+      tags:
+        - Payroll Periods (BPMN 07)
+      summary: Buat periode payroll mingguan baru
+      description: |
+        Membuka periode payroll mingguan baru dan menetapkan persentase uang makan (10–15%).
+        Periode dibuat dengan status awal `DRAFT`.
+        - **Akses**: `owner_executive`, `finance`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePayrollPeriodRequest'
+      responses:
+        '201':
+          description: Periode payroll baru berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PayrollPeriod'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          description: Periode tanggal tumpang tindih dengan periode yang sudah ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payroll/periods/{id}:
+    get:
+      tags:
+        - Payroll Periods (BPMN 07)
+      summary: Detail periode payroll
+      description: |
+        Mengambil rincian informasi dan status periode payroll tertentu beserta ringkasan finansial total.
+        - **Akses**: `owner_executive`, `finance`, `production_head`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      responses:
+        '200':
+          description: Detail periode payroll berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PayrollPeriod'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 2. PAYROLL CALCULATION (BPMN 07)
+  # ==========================================
+  /payroll/periods/{id}/calculate:
+    post:
+      tags:
+        - Payroll Calculation (BPMN 07)
+      summary: Eksekusi kalkulasi payroll mingguan
+      description: |
+        Menjalankan kalkulasi payroll borongan dan uang makan untuk seluruh penjahit aktif dalam periode:
+        1. Mengagregasi `production_outputs` terverifikasi mandor dalam rentang `start_date` sampai `end_date`.
+        2. Menghitung Upah Borongan = $\sum (\text{kuantitas} \times \text{snapshot\_sewing\_rate})$.
+        3. Menghitung Uang Makan = $\text{persentase} \times \text{upah borongan penjahit}$.
+        4. Mengakomodasi **Skenario Uji 2**: Penjahit yang bergabung di tengah minggu hanya dihitung outputnya sejak tanggal mulai bekerja.
+        5. Menyimpan snapshot rincian slip dan memperbarui status periode menjadi `CALCULATED`.
+        - **Aturan**: Ditolak jika periode sudah berstatus `LOCKED`.
+        - **Akses**: `owner_executive`, `finance`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculatePayrollRequest'
+      responses:
+        '200':
+          description: Kalkulasi payroll berhasil dijalankan
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Payroll period PAY-2026-W42 calculated successfully for 24 operators."
+                  data:
+                    $ref: '#/components/schemas/PayrollPeriod'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Periode payroll sudah berstatus LOCKED dan tidak dapat dihitung ulang
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================
+  # 3. PAYROLL SLIPS & DETAILS (BPMN 07)
+  # ==========================================
+  /payroll/periods/{id}/slips:
+    get:
+      tags:
+        - Payroll Slips (BPMN 07)
+      summary: Daftar slip gaji penjahit pada periode tertentu
+      description: |
+        Mengambil rekapitulasi slip upah seluruh penjahit dalam suatu periode payroll.
+        - **Akses**: `owner_executive`, `finance`, `production_head`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+        - name: operatorId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan operator tertentu
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan nama atau kode operator
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Daftar slip upah berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                  - total
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 24
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PayrollSlipSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /payroll/slips/{id}:
+    get:
+      tags:
+        - Payroll Slips (BPMN 07)
+      summary: Detail slip gaji penjahit (Item Breakdown)
+      description: |
+        Mengambil rincian lengkap satu slip upah penjahit, termasuk:
+        - Rincian item pengerjaan komponen: tanggal, order, nama komponen, kuantitas pcs, snapshot tarif jahit, dan subtotal.
+        - Perhitungan uang makan dan penyesuaian (adjustments).
+        - Total nominal bersih yang siap dibayarkan.
+        - **Akses**: `owner_executive`, `finance`, atau operator yang bersangkutan jika akun terhubung.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID slip payroll
+      responses:
+        '200':
+          description: Rincian slip gaji berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PayrollSlipDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 4. LOCKING & ADJUSTMENTS (BPMN 07)
+  # ==========================================
+  /payroll/periods/{id}/lock:
+    post:
+      tags:
+        - Payroll Locking & Adjustments (BPMN 07)
+      summary: Kunci periode payroll (Finalisasi)
+      description: |
+        Mengunci periode payroll secara permanen (`LOCKED`) setelah ditinjau oleh Owner dan Finance.
+        - Setelah dikunci, data slip menjadi **immutable** dan tidak dapat dihitung ulang oleh kalkulator.
+        - Segala perubahan data setelah penguncian hanya boleh dilakukan melalui mekanisme formal adjustments.
+        - **Akses**: `owner_executive`, `finance`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockPayrollPeriodRequest'
+      responses:
+        '200':
+          description: Periode payroll berhasil dikunci
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Payroll period PAY-2026-W42 locked successfully. Data is now finalized."
+                  data:
+                    $ref: '#/components/schemas/PayrollPeriod'
+        '400':
+          description: Periode belum dihitung (masih DRAFT) sehingga tidak dapat dikunci
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: Periode payroll sudah dalam keadaan LOCKED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payroll/periods/{id}/adjustments:
+    get:
+      tags:
+        - Payroll Locking & Adjustments (BPMN 07)
+      summary: Daftar penyesuaian (adjustments) periode payroll
+      description: |
+        Mengambil seluruh catatan koreksi, penambahan bonus, atau pemotongan ter-audit yang dicatat untuk periode ini.
+        - **Akses**: `owner_executive`, `finance`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      responses:
+        '200':
+          description: Daftar penyesuaian berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PayrollAdjustment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      tags:
+        - Payroll Locking & Adjustments (BPMN 07)
+      summary: Tambah penyesuaian (adjustment) gaji operator
+      description: |
+        Mencatat penyesuaian manual (bonus tambahan, koreksi salah hitung, atau insentif khusus) ke slip upah operator:
+        - Setiap adjustment wajib menyertakan alasan resmi (`reason`) untuk audit trail.
+        - Mengupdate total akumulasi pada slip penjahit bersangkutan dan total periode.
+        - **Akses**: `owner_executive`, `finance`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdjustmentRequest'
+      responses:
+        '201':
+          description: Penyesuaian payroll berhasil dicatat
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PayrollAdjustment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # 5. PAYROLL REPORTS & SUMMARY (BPMN 07)
+  # ==========================================
+  /payroll/periods/{id}/summary:
+    get:
+      tags:
+        - Payroll Reports (BPMN 07)
+      summary: Rekapitulasi payroll mingguan siap bayar
+      description: |
+        Menghasilkan rekapitulasi ringkasan eksekutif payroll mingguan:
+        - Total nominal borongan seluruh penjahit
+        - Total uang makan dialokasikan
+        - Total penyesuaian / adjustments
+        - Grand total kas/transfer yang harus disiapkan finance
+        - Breakdown per line produksi dan per penjahit
+        - **Akses**: `owner_executive`, `finance`, `production_head`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID periode payroll
+      responses:
+        '200':
+          description: Rekapitulasi payroll berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/PayrollSummaryReport'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ==========================================
+# COMPONENTS & SCHEMAS
+# ==========================================
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token autentikasi (format `Bearer <token>`)
+
+  responses:
+    ValidationError:
+      description: Validasi input gagal
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: "mealAllowancePercentage must be between 10.00 and 15.00"
+
+    UnauthorizedError:
+      description: Token otentikasi tidak valid atau hilang
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: "Missing or invalid authentication token"
+
+    ForbiddenError:
+      description: Pengguna tidak memiliki hak akses yang cukup
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: FORBIDDEN
+              message: "Only owner_executive or finance can perform this action"
+
+    NotFoundError:
+      description: Sumber daya tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: NOT_FOUND
+              message: "Payroll period with ID not found"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: PAYROLL_PERIOD_LOCKED
+            message:
+              type: string
+              example: "Cannot recalculate or modify a finalized locked payroll period"
+            details:
+              type: array
+              items:
+                type: string
+              example: []
+
+    PayrollPeriod:
+      type: object
+      required:
+        - id
+        - periodCode
+        - startDate
+        - endDate
+        - mealAllowancePercentage
+        - status
+        - totalOperatorsCount
+        - totalGrossPieceRate
+        - totalMealAllowance
+        - totalAdjustments
+        - totalNetPayable
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10"
+        periodCode:
+          type: string
+          example: "PAY-2026-W42"
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-12"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-18"
+        mealAllowancePercentage:
+          type: number
+          format: float
+          example: 12.50
+          description: "Persentase uang makan (10.00% s/d 15.00%)"
+        status:
+          type: string
+          enum: [DRAFT, CALCULATED, LOCKED]
+          example: "CALCULATED"
+        totalOperatorsCount:
+          type: integer
+          example: 24
+        totalGrossPieceRate:
+          type: number
+          format: float
+          example: 18500000.00
+        totalMealAllowance:
+          type: number
+          format: float
+          example: 2312500.00
+        totalAdjustments:
+          type: number
+          format: float
+          example: 0.00
+        totalNetPayable:
+          type: number
+          format: float
+          example: 20812500.00
+        lockedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-18T18:00:00Z"
+        lockedByUserId:
+          type: string
+          format: uuid
+          nullable: true
+          example: "00000000-0000-0000-0000-000000000001"
+        notes:
+          type: string
+          nullable: true
+          example: "Periode payroll minggu ke-42 Oktober 2026"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-14T08:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-14T17:30:00Z"
+
+    CreatePayrollPeriodRequest:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - mealAllowancePercentage
+      properties:
+        periodCode:
+          type: string
+          example: "PAY-2026-W42"
+          description: Kode unik periode (opsional, digenerate otomatis jika kosong)
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-12"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-18"
+        mealAllowancePercentage:
+          type: number
+          format: float
+          minimum: 10.0
+          maximum: 15.0
+          example: 12.50
+          description: Persentase uang makan yang ditetapkan Owner (antara 10.00% - 15.00%)
+        notes:
+          type: string
+          example: "Payroll reguler fasilitas Ciwidey minggu ke-42"
+
+    CalculatePayrollRequest:
+      type: object
+      properties:
+        operatorIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Daftar operator spesifik yang akan dihitung (jika kosong, kalkulasi semua operator aktif yang memiliki output pada periode tersebut)
+        recalculate:
+          type: boolean
+          default: false
+          description: Jika true, kalkulasi ulang slip yang sebelumnya sudah berstatus CALCULATED
+
+    PayrollSlipSummary:
+      type: object
+      required:
+        - id
+        - payrollPeriodId
+        - operatorId
+        - operatorCode
+        - operatorName
+        - joinDate
+        - totalPieces
+        - grossPieceRateTotal
+        - mealAllowanceAmount
+        - adjustmentsTotal
+        - netPayableTotal
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "7e91f034-31da-42ea-a41d-cb092a6b2191"
+        payrollPeriodId:
+          type: string
+          format: uuid
+        operatorId:
+          type: string
+          format: uuid
+        operatorCode:
+          type: string
+          example: "OP-001"
+        operatorName:
+          type: string
+          example: "Siti Rahmawati"
+        joinDate:
+          type: string
+          format: date
+          example: "2026-08-01"
+        totalPieces:
+          type: integer
+          example: 380
+        grossPieceRateTotal:
+          type: number
+          format: float
+          example: 950000.00
+        mealAllowanceAmount:
+          type: number
+          format: float
+          example: 118750.00
+        adjustmentsTotal:
+          type: number
+          format: float
+          example: 0.00
+        netPayableTotal:
+          type: number
+          format: float
+          example: 1068750.00
+        status:
+          type: string
+          enum: [CALCULATED, LOCKED, PAID]
+          example: "CALCULATED"
+
+    PayrollSlipDetail:
+      type: object
+      required:
+        - id
+        - payrollPeriodId
+        - periodCode
+        - operatorId
+        - operatorCode
+        - operatorName
+        - joinDate
+        - totalPieces
+        - grossPieceRateTotal
+        - mealAllowancePercentage
+        - mealAllowanceAmount
+        - adjustmentsTotal
+        - netPayableTotal
+        - status
+        - items
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "7e91f034-31da-42ea-a41d-cb092a6b2191"
+        payrollPeriodId:
+          type: string
+          format: uuid
+        periodCode:
+          type: string
+          example: "PAY-2026-W42"
+        operatorId:
+          type: string
+          format: uuid
+        operatorCode:
+          type: string
+          example: "OP-001"
+        operatorName:
+          type: string
+          example: "Siti Rahmawati"
+        joinDate:
+          type: string
+          format: date
+          example: "2026-08-01"
+        totalPieces:
+          type: integer
+          example: 380
+        grossPieceRateTotal:
+          type: number
+          format: float
+          example: 950000.00
+        mealAllowancePercentage:
+          type: number
+          format: float
+          example: 12.50
+        mealAllowanceAmount:
+          type: number
+          format: float
+          example: 118750.00
+        adjustmentsTotal:
+          type: number
+          format: float
+          example: 50000.00
+        netPayableTotal:
+          type: number
+          format: float
+          example: 1118750.00
+        status:
+          type: string
+          enum: [CALCULATED, LOCKED, PAID]
+          example: "CALCULATED"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollSlipItem'
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayrollAdjustment'
+
+    PayrollSlipItem:
+      type: object
+      required:
+        - id
+        - orderId
+        - orderCode
+        - clientName
+        - componentId
+        - componentName
+        - workDate
+        - quantity
+        - snapshotSewingRate
+        - subtotal
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        componentId:
+          type: string
+          format: uuid
+        componentName:
+          type: string
+          example: "Jahit Saku Parka"
+        workDate:
+          type: string
+          format: date
+          example: "2026-10-14"
+        quantity:
+          type: integer
+          example: 120
+        snapshotSewingRate:
+          type: number
+          format: float
+          example: 2500.00
+        subtotal:
+          type: number
+          format: float
+          example: 300000.00
+
+    PayrollAdjustment:
+      type: object
+      required:
+        - id
+        - payrollPeriodId
+        - operatorId
+        - operatorName
+        - adjustmentType
+        - amount
+        - reason
+        - createdByUserId
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "31c0de94-281b-4f01-92be-89e410bca001"
+        payrollPeriodId:
+          type: string
+          format: uuid
+        operatorId:
+          type: string
+          format: uuid
+        operatorName:
+          type: string
+          example: "Budi Santoso"
+        adjustmentType:
+          type: string
+          enum: [BONUS, DEDUCTION, CORRECTION, REVERSAL]
+          example: "CORRECTION"
+        amount:
+          type: number
+          format: float
+          example: 50000.00
+          description: "Positif menambah upah, negatif memotong upah"
+        reason:
+          type: string
+          example: "Koreksi selisih pencatatan lembur darurat hari Kamis"
+        createdByUserId:
+          type: string
+          format: uuid
+        createdByName:
+          type: string
+          example: "Dewi Finance"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-17T15:20:00Z"
+
+    CreateAdjustmentRequest:
+      type: object
+      required:
+        - operatorId
+        - adjustmentType
+        - amount
+        - reason
+      properties:
+        operatorId:
+          type: string
+          format: uuid
+          example: "6c7e145f-149b-430c-b26a-d46777bc3db5"
+        adjustmentType:
+          type: string
+          enum: [BONUS, DEDUCTION, CORRECTION, REVERSAL]
+          example: "BONUS"
+        amount:
+          type: number
+          format: float
+          example: 75000.00
+        reason:
+          type: string
+          example: "Insentif ketepatan target jahitan batch kilat"
+
+    LockPayrollPeriodRequest:
+      type: object
+      properties:
+        notes:
+          type: string
+          example: "Disetujui oleh Owner dan Finance untuk pembayaran kas Sabtu"
+
+    PayrollSummaryReport:
+      type: object
+      required:
+        - periodId
+        - periodCode
+        - startDate
+        - endDate
+        - mealAllowancePercentage
+        - status
+        - totalOperators
+        - totalPiecesProduced
+        - totalGrossPieceRate
+        - totalMealAllowance
+        - totalAdjustments
+        - grandTotalPayable
+        - linesSummary
+      properties:
+        periodId:
+          type: string
+          format: uuid
+        periodCode:
+          type: string
+          example: "PAY-2026-W42"
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-12"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-18"
+        mealAllowancePercentage:
+          type: number
+          format: float
+          example: 12.50
+        status:
+          type: string
+          example: "LOCKED"
+        totalOperators:
+          type: integer
+          example: 24
+        totalPiecesProduced:
+          type: integer
+          example: 7420
+        totalGrossPieceRate:
+          type: number
+          format: float
+          example: 18500000.00
+        totalMealAllowance:
+          type: number
+          format: float
+          example: 2312500.00
+        totalAdjustments:
+          type: number
+          format: float
+          example: 125000.00
+        grandTotalPayable:
+          type: number
+          format: float
+          example: 20937500.00
+        linesSummary:
+          type: array
+          items:
+            type: object
+            properties:
+              lineId:
+                type: string
+                format: uuid
+              lineCode:
+                type: string
+                example: "LINE-01"
+              lineName:
+                type: string
+                example: "Line Jahit Alpha"
+              operatorsCount:
+                type: integer
+                example: 12
+              piecesProduced:
+                type: integer
+                example: 3820
+              grossAmount:
+                type: number
+                format: float
+                example: 9550000.00
+
