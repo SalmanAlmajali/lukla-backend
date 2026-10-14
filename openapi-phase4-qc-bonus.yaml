@@ -1,0 +1,1288 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 4: QC & Pool Bonus)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 4 (Quality Control & Pool Bonus QC 3-Arah)** Lukla Operations Engine (Fasilitas Produksi Ciwidey).
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 06 & BPMN 08), dan SRS Skenario Uji 3:
+    - **BPMN 06 (Inspeksi QC)**:
+      - Mengambil antrean assembly yang selesai dari lantai jahit (`WAITING_QC`).
+      - Pemeriksaan fisik produk dengan status akhir: `LOLOS` (Passed / Barang Jadi), `REPAIR` (Perbaikan), atau `REJECT` (Cacat Permanen).
+      - Pencatatan kategori defect (Jahitan Lepas, Kerutan, Noda Kain, Ukuran Meleset, Aksesoris Cacat).
+      - Produk yang dinyatakan `LOLOS` otomatis menambah progres barang jadi dan menjadi basis perhitungan pool bonus.
+      - Reject / cacat **tidak mempengaruhi upah penjahit** (upah dihitung dari output terverifikasi mandor di lantai produksi).
+    - **BPMN 08 & Skenario Uji 3 (Pool Bonus QC 3-Arah)**:
+      - Nilai rate bonus per pcs produk yang lolos QC ditentukan secara eksklusif oleh `OWNER`.
+      - Pool bonus terakumulasi dari perkalian: `jumlah pcs lolos QC * rate bonus per pcs` (lintas order & klien).
+      - Pada akhir periode, total pool bonus dibagi rata secara proporsional kepada tim penerima (default: 2 Mandor + 1 Kepala Operasional / pembagian ÷ 3).
+      - **Skenario Uji 3**: Verifikasi 3.000 pcs lolos QC menghasilkan total pool bonus yang terbagi rata tepat sepertiga (÷ 3) untuk masing-masing penerima tanpa sisa pembulatan yang hilang.
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Engine (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: QC Defect Categories (BPMN 06)
+    description: Master katalog kategori dan jenis cacat produk garmen untuk inspeksi QC
+  - name: QC Inspection Queue & Operations (BPMN 06)
+    description: Antrean produk assembly, pelaksanaan inspeksi fisik (Lolos/Repair/Reject), dan logging defect
+  - name: QC Summary & Quality Analytics (BPMN 06)
+    description: Rekapitulasi metrik kualitas produk, pass rate, defect rate per order dan line
+  - name: QC Bonus Configuration (BPMN 08)
+    description: Konfigurasi tarif bonus per pcs lolos dan daftar penerima bonus oleh Owner
+  - name: QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+    description: Akumulasi pool bonus dari produk lolos QC dan kalkulasi pembagian rata (÷3) untuk tim pengawas
+
+paths:
+  # ==========================================
+  # 1. QC DEFECT CATEGORIES MASTER (BPMN 06)
+  # ==========================================
+  /qc/defect-categories:
+    get:
+      tags:
+        - QC Defect Categories (BPMN 06)
+      summary: Daftar kategori cacat produk (Defect Categories)
+      description: Mengambil seluruh master kategori defect yang digunakan inspector saat menandai produk REPAIR atau REJECT.
+      parameters:
+        - name: isActive
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter status aktif
+      responses:
+        "200":
+          description: Daftar kategori defect berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DefectCategory"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    post:
+      tags:
+        - QC Defect Categories (BPMN 06)
+      summary: Tambah kategori defect baru
+      description: Menambahkan jenis cacat baru ke dalam master data. Hanya dapat dilakukan oleh role HEAD_OF_PRODUCTION, QC_INSPECTOR, atau OWNER.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDefectCategoryRequest"
+      responses:
+        "201":
+          description: Kategori defect berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/DefectCategory"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  # ==========================================
+  # 2. QC INSPECTION QUEUE & OPERATIONS (BPMN 06)
+  # ==========================================
+  /qc/queue:
+    get:
+      tags:
+        - QC Inspection Queue & Operations (BPMN 06)
+      summary: Antrean produk assembly yang siap diperiksa QC
+      description: Mengambil daftar batch produk assembly dari lantai jahit yang berstatus `WAITING_QC` (hasil dari BPMN 05 / Tahap 1).
+      parameters:
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan Order ID
+        - name: lineId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter berdasarkan Line Produksi asal
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Antrean QC berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 12
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QCQueueItem"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /qc/inspections:
+    get:
+      tags:
+        - QC Inspection Queue & Operations (BPMN 06)
+      summary: Riwayat pemeriksaan QC
+      description: Mengambil daftar riwayat inspeksi produk yang telah dilakukan inspector.
+      parameters:
+        - name: orderId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [LOLOS, REPAIR, REJECT]
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Riwayat inspeksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  total:
+                    type: integer
+                    example: 145
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QCInspectionSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    post:
+      tags:
+        - QC Inspection Queue & Operations (BPMN 06)
+      summary: Catat hasil pemeriksaan QC produk (Submit Inspection)
+      description: |
+        Mencatat hasil inspeksi satu unit atau batch produk assembly.
+        - Status **`LOLOS`**: Mengubah status assembly menjadi `PASSED` (Barang Jadi), menambah akumulasi pool bonus QC secara real-time, dan memperbarui progres penyelesaian order.
+        - Status **`REPAIR`**: Menandai produk perlu diperbaiki, mencatat kategori defect & komponen yang cacat.
+        - Status **`REJECT`**: Menandai produk cacat permanen, mencatat kategori defect. Sesuai keputusan client, reject **tidak memotong upah borongan penjahit**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQCInspectionRequest"
+      responses:
+        "201":
+          description: Hasil pemeriksaan QC berhasil dicatat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Pemeriksaan QC berhasil dicatat: 10 pcs LOLOS (masuk pool bonus), 1 pcs REPAIR"
+                  data:
+                    $ref: "#/components/schemas/QCInspectionDetail"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /qc/inspections/{id}:
+    get:
+      tags:
+        - QC Inspection Queue & Operations (BPMN 06)
+      summary: Detail hasil inspeksi QC
+      description: Mengambil detail lengkap hasil inspeksi produk termasuk daftar defect dan PIC inspector.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail inspeksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/QCInspectionDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================
+  # 3. QC SUMMARY & QUALITY ANALYTICS (BPMN 06)
+  # ==========================================
+  /qc/orders/{orderId}/summary:
+    get:
+      tags:
+        - QC Summary & Quality Analytics (BPMN 06)
+      summary: Ringkasan kualitas dan progress QC per Order
+      description: Mengambil rekapitulasi kuantitas lolos, repair, reject, persentase kelulusan (Pass Rate), dan daftar defect paling sering muncul pada order tertentu.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Ringkasan QC order berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/QCOrderSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================
+  # 4. QC BONUS CONFIGURATION (BPMN 08)
+  # ==========================================
+  /qc-bonus/config:
+    get:
+      tags:
+        - QC Bonus Configuration (BPMN 08)
+      summary: Ambil konfigurasi tarif bonus QC aktif
+      description: Mengambil tarif nominal bonus QC per pcs produk yang lolos QC saat ini beserta riwayat perubahannya.
+      responses:
+        "200":
+          description: Konfigurasi tarif bonus berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/QCBonusConfig"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    put:
+      tags:
+        - QC Bonus Configuration (BPMN 08)
+      summary: Update tarif nominal bonus QC (Khusus Owner)
+      description: |
+        Menetapkan atau memperbarui rate bonus per pcs produk lolos QC.
+        Sesuai aturan bisnis, tarif ini **hanya dapat diatur dan diubah oleh role OWNER**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQCBonusRateRequest"
+      responses:
+        "200":
+          description: Tarif bonus QC berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Tarif bonus QC berhasil diperbarui menjadi Rp 1.500 per pcs"
+                  data:
+                    $ref: "#/components/schemas/QCBonusConfig"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /qc-bonus/recipients:
+    get:
+      tags:
+        - QC Bonus Configuration (BPMN 08)
+      summary: Daftar penerima pool bonus QC
+      description: Mengambil daftar personel pengawas lini yang ditetapkan sebagai penerima pool bonus QC (default: 2 Mandor + 1 Kepala Operasional / PIC Line).
+      responses:
+        "200":
+          description: Daftar penerima bonus berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QCBonusRecipient"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    put:
+      tags:
+        - QC Bonus Configuration (BPMN 08)
+      summary: Atur daftar personel penerima pool bonus QC (Khusus Owner)
+      description: Menentukan daftar user/pegawai yang berhak menerima pembagian rata pool bonus QC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQCBonusRecipientsRequest"
+      responses:
+        "200":
+          description: Daftar penerima pool bonus berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QCBonusRecipient"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  # ==========================================
+  # 5. QC POOL BONUS & DISTRIBUTION (BPMN 08 / SKENARIO UJI 3)
+  # ==========================================
+  /qc-bonus/periods:
+    get:
+      tags:
+        - QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+      summary: Daftar periode akumulasi pool bonus QC
+      description: Mengambil daftar periode rekapitulasi bonus QC dengan status kalkulasi (DRAFT, CALCULATED, LOCKED/PAID).
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, CALCULATED, LOCKED]
+      responses:
+        "200":
+          description: Daftar periode bonus berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QCBonusPeriodSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    post:
+      tags:
+        - QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+      summary: Buat periode bonus QC baru
+      description: Membuka periode perhitungan bonus QC untuk rentang tanggal tertentu (dapat diselaraskan dengan periode payroll mingguan).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQCBonusPeriodRequest"
+      responses:
+        "201":
+          description: Periode bonus QC berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/QCBonusPeriodDetail"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /qc-bonus/periods/{id}:
+    get:
+      tags:
+        - QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+      summary: Detail perhitungan & pembagian pool bonus QC (Skenario Uji 3)
+      description: |
+        Mengambil rincian akumulasi pool bonus pada periode tertentu:
+        - Total pcs lolos QC lintas order & klien.
+        - Tarif bonus per pcs yang berlaku.
+        - Total dana pool bonus (`total_pcs_lolos * bonus_rate`).
+        - Rincian pembagian rata kepada masing-masing penerima (`total_pool / 3`).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail pembagian pool bonus berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/QCBonusPeriodDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /qc-bonus/periods/{id}/calculate:
+    post:
+      tags:
+        - QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+      summary: Hitung akumulasi & bagi rata pool bonus QC (Trigger Skenario Uji 3)
+      description: |
+        Menjalankan kalkulasi agregasi produk lolos QC pada rentang tanggal periode, menghitung total dana pool, dan membaginya rata kepada daftar penerima aktif (÷3).
+        Operasi ini bersifat idempoten sebelum periode dikunci (`LOCKED`).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Kalkulasi pool bonus berhasil dihitung
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Kalkulasi pool bonus berhasil: 3.000 pcs lolos x Rp 1.500 = Rp 4.500.000, dibagi rata ke 3 orang (Rp 1.500.000/orang)"
+                  data:
+                    $ref: "#/components/schemas/QCBonusPeriodDetail"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "409":
+          description: Periode sudah dikunci (LOCKED) dan tidak boleh dihitung ulang
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qc-bonus/periods/{id}/lock:
+    post:
+      tags:
+        - QC Pool Bonus & Distribution (BPMN 08 / Skenario Uji 3)
+      summary: Kunci periode bonus QC (Finalize & Ready to Disburse)
+      description: Mengunci angka pembagian bonus QC agar tidak dapat diubah kembali dan siap diserahkan ke bagian Finance/Payroll untuk pencairan.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: "Disetujui oleh Owner untuk dibayarkan bersama payroll minggu ke-41"
+      responses:
+        "200":
+          description: Periode bonus QC berhasil dikunci
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Periode bonus QC berhasil dikunci"
+                  data:
+                    $ref: "#/components/schemas/QCBonusPeriodDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "409":
+          description: Periode sudah dalam status terkunci sebelumnya
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequestError:
+      description: Parameter request tidak valid atau data melanggar constraint logika bisnis
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "VALIDATION_FAILED"
+              message: "Kuantitas produk lolos melebihi kuantitas antrean assembly"
+
+    UnauthorizedError:
+      description: Token otentikasi tidak ada atau tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "UNAUTHORIZED"
+              message: "Token otentikasi tidak valid atau telah kedaluwarsa"
+
+    ForbiddenError:
+      description: Pengguna tidak memiliki hak akses role untuk operasi ini
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "FORBIDDEN"
+              message: "Akses ditolak: Operasi ini hanya boleh dilakukan oleh Owner"
+
+    NotFoundError:
+      description: Entitas yang diminta tidak ditemukan di database
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            success: false
+            error:
+              code: "NOT_FOUND"
+              message: "Data inspeksi atau order tidak ditemukan"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              example: "Penjelasan detail pesan kesalahan"
+
+    DefectCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          example: "DEF-SEW-01"
+        name:
+          type: string
+          example: "Jahitan Loncat / Lepas"
+        severity:
+          type: string
+          enum: [MINOR, MAJOR, CRITICAL]
+          example: "MAJOR"
+        description:
+          type: string
+          example: "Jahitan rantai atau obras melompat lebih dari 3 tusukan"
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateDefectCategoryRequest:
+      type: object
+      required:
+        - code
+        - name
+        - severity
+      properties:
+        code:
+          type: string
+          example: "DEF-STN-01"
+        name:
+          type: string
+          example: "Noda Minyak Mesin Jahit"
+        severity:
+          type: string
+          enum: [MINOR, MAJOR, CRITICAL]
+          example: "MAJOR"
+        description:
+          type: string
+          example: "Terciprat pelumas mesin pada panel depan jaket"
+
+    QCQueueItem:
+      type: object
+      properties:
+        assemblyId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        articleName:
+          type: string
+          example: "Heavy Winter Parka Arctic V1"
+        lineId:
+          type: string
+          format: uuid
+        lineCode:
+          type: string
+          example: "LINE-01"
+        completedQuantity:
+          type: integer
+          example: 50
+        status:
+          type: string
+          example: "WAITING_QC"
+        completedAt:
+          type: string
+          format: date-time
+
+    CreateQCInspectionRequest:
+      type: object
+      required:
+        - assemblyId
+        - orderId
+        - passedQuantity
+        - repairQuantity
+        - rejectQuantity
+      properties:
+        assemblyId:
+          type: string
+          format: uuid
+          example: "6c2b1a8d-4e9f-4321-ba98-76543210fedc"
+        orderId:
+          type: string
+          format: uuid
+          example: "fad2530f-90d9-4a76-af96-d9f7db451a98"
+        inspectionDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        passedQuantity:
+          type: integer
+          example: 48
+          description: Jumlah pcs yang lulus standar dan langsung masuk inventaris barang jadi & pool bonus
+        repairQuantity:
+          type: integer
+          example: 2
+          description: Jumlah pcs yang perlu diperbaiki (re-work)
+        rejectQuantity:
+          type: integer
+          example: 0
+          description: Jumlah pcs yang rusak permanen
+        notes:
+          type: string
+          example: "Pemeriksaan batch jahit siang, jahitan obras kerah rapi"
+        defects:
+          type: array
+          description: Daftar rincian cacat (wajib diisi jika repairQuantity atau rejectQuantity > 0)
+          items:
+            type: object
+            required:
+              - defectCategoryId
+              - quantity
+              - disposition
+            properties:
+              defectCategoryId:
+                type: string
+                format: uuid
+                example: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"
+              quantity:
+                type: integer
+                example: 2
+              disposition:
+                type: string
+                enum: [REPAIR, REJECT]
+                example: "REPAIR"
+              componentId:
+                type: string
+                format: uuid
+                nullable: true
+                example: "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f"
+                description: Komponen spesifik yang cacat (misal lengan atau saku)
+              notes:
+                type: string
+                example: "Tusukan jahitan ketiak loncat 1 cm"
+
+    QCInspectionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inspectionNumber:
+          type: string
+          example: "QC-20261015-0001"
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        inspectorName:
+          type: string
+          example: "Dewi Lestari"
+        inspectionDate:
+          type: string
+          format: date
+        passedQuantity:
+          type: integer
+          example: 48
+        repairQuantity:
+          type: integer
+          example: 2
+        rejectQuantity:
+          type: integer
+          example: 0
+        totalChecked:
+          type: integer
+          example: 50
+        createdAt:
+          type: string
+          format: date-time
+
+    QCInspectionDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inspectionNumber:
+          type: string
+          example: "QC-20261015-0001"
+        assemblyId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        articleName:
+          type: string
+          example: "Heavy Winter Parka Arctic V1"
+        inspectorId:
+          type: string
+          format: uuid
+        inspectorName:
+          type: string
+          example: "Dewi Lestari"
+        inspectionDate:
+          type: string
+          format: date
+        passedQuantity:
+          type: integer
+          example: 48
+        repairQuantity:
+          type: integer
+          example: 2
+        rejectQuantity:
+          type: integer
+          example: 0
+        totalChecked:
+          type: integer
+          example: 50
+        notes:
+          type: string
+          example: "Pemeriksaan batch jahit siang"
+        createdAt:
+          type: string
+          format: date-time
+        defects:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              defectCategoryCode:
+                type: string
+                example: "DEF-SEW-01"
+              defectCategoryName:
+                type: string
+                example: "Jahitan Loncat / Lepas"
+              severity:
+                type: string
+                example: "MAJOR"
+              componentName:
+                type: string
+                example: "Lengan Kiri"
+              quantity:
+                type: integer
+                example: 2
+              disposition:
+                type: string
+                example: "REPAIR"
+              notes:
+                type: string
+                example: "Perbaiki obrasan sambungan ketiak"
+
+    QCOrderSummary:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderCode:
+          type: string
+          example: "PO-2026-10-001"
+        targetQuantity:
+          type: integer
+          example: 3000
+        totalChecked:
+          type: integer
+          example: 3000
+        totalPassed:
+          type: integer
+          example: 3000
+        totalRepair:
+          type: integer
+          example: 25
+        totalReject:
+          type: integer
+          example: 5
+        passRatePercentage:
+          type: number
+          format: float
+          example: 99.0
+        isOrderCompleted:
+          type: boolean
+          example: true
+        topDefects:
+          type: array
+          items:
+            type: object
+            properties:
+              categoryName:
+                type: string
+                example: "Jahitan Loncat"
+              count:
+                type: integer
+                example: 18
+
+    QCBonusConfig:
+      type: object
+      properties:
+        currentRatePerPcs:
+          type: number
+          format: double
+          example: 1500.0
+        currency:
+          type: string
+          example: "IDR"
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          example: "Budi Santoso (Owner)"
+        rateHistory:
+          type: array
+          items:
+            type: object
+            properties:
+              ratePerPcs:
+                type: number
+                format: double
+                example: 1500.0
+              effectiveFrom:
+                type: string
+                format: date-time
+              changedBy:
+                type: string
+                example: "Budi Santoso"
+              notes:
+                type: string
+                example: "Penyesuaian tarif bonus musim dingin"
+
+    UpdateQCBonusRateRequest:
+      type: object
+      required:
+        - ratePerPcs
+      properties:
+        ratePerPcs:
+          type: number
+          format: double
+          example: 1500.0
+          description: Nominal bonus rupiah untuk setiap pcs produk yang lolos QC
+        notes:
+          type: string
+          example: "Tarif bonus QC standar Rp 1.500 per pcs lolos"
+
+    QCBonusRecipient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          example: "Bambang Supriyadi"
+        role:
+          type: string
+          example: "SUPERVISOR"
+        title:
+          type: string
+          example: "Mandor Line 1"
+        isActive:
+          type: boolean
+          example: true
+        shareRatio:
+          type: number
+          format: float
+          example: 0.333333
+          description: Proporsi pembagian rata (1 / N)
+
+    UpdateQCBonusRecipientsRequest:
+      type: object
+      required:
+        - recipientUserIds
+      properties:
+        recipientUserIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example:
+            - "e6447b6c-7ffc-462f-a0d6-a2ef6a387634"
+            - "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+            - "f5e4d3c2-b1a0-9f8e-7d6c-5b4a3a2b1c0d"
+          description: Daftar User ID yang berhak menerima bonus pool (biasanya 2 Mandor + 1 Kepala Operasional)
+
+    CreateQCBonusPeriodRequest:
+      type: object
+      required:
+        - name
+        - startDate
+        - endDate
+      properties:
+        name:
+          type: string
+          example: "Pool Bonus QC - Minggu ke-41 (Oktober 2026)"
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-09"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        notes:
+          type: string
+          example: "Periode bonus QC serentak untuk fasilitas Ciwidey"
+
+    QCBonusPeriodSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Pool Bonus QC - Minggu ke-41 (Oktober 2026)"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [DRAFT, CALCULATED, LOCKED]
+          example: "CALCULATED"
+        totalPassedPcs:
+          type: integer
+          example: 3000
+        ratePerPcs:
+          type: number
+          format: double
+          example: 1500.0
+        totalPoolAmount:
+          type: number
+          format: double
+          example: 4500000.0
+        recipientCount:
+          type: integer
+          example: 3
+        amountPerRecipient:
+          type: number
+          format: double
+          example: 1500000.0
+        createdAt:
+          type: string
+          format: date-time
+
+    QCBonusPeriodDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Pool Bonus QC - Minggu ke-41 (Oktober 2026)"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [DRAFT, CALCULATED, LOCKED]
+          example: "CALCULATED"
+        ratePerPcsApplied:
+          type: number
+          format: double
+          example: 1500.0
+        totalPassedPcs:
+          type: integer
+          example: 3000
+          description: Total produk lolos QC yang diakumulasi pada periode ini
+        totalPoolAmount:
+          type: number
+          format: double
+          example: 4500000.0
+          description: Total nominal dana pool bonus (3.000 pcs x Rp 1.500)
+        recipientCount:
+          type: integer
+          example: 3
+        amountPerRecipient:
+          type: number
+          format: double
+          example: 1500000.0
+          description: Bagian bonus per orang hasil bagi rata total pool dibagi 3 (Rp 4.500.000 / 3)
+        distributions:
+          type: array
+          description: Rincian penerimaan bonus untuk masing-masing personel pengawas
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+                format: uuid
+              fullName:
+                type: string
+                example: "Bambang Supriyadi"
+              role:
+                type: string
+                example: "SUPERVISOR"
+              shareAmount:
+                type: number
+                format: double
+                example: 1500000.0
+              payoutStatus:
+                type: string
+                example: "PENDING_DISBURSEMENT"
+        contributingOrders:
+          type: array
+          description: Rincian kontribusi pcs lolos QC per order pada periode ini
+          items:
+            type: object
+            properties:
+              orderId:
+                type: string
+                format: uuid
+              orderCode:
+                type: string
+                example: "PO-2026-10-001"
+              clientName:
+                type: string
+                example: "Snøhund Brand"
+              passedPcs:
+                type: integer
+                example: 3000
+              subtotalBonus:
+                type: number
+                format: double
+                example: 4500000.0
+        createdAt:
+          type: string
+          format: date-time
+        calculatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lockedBy:
+          type: string
+          nullable: true
+          example: "Budi Santoso (Owner)"
+
