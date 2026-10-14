@@ -3999,6 +3999,559 @@
                 }
             ],
             "name": "08. Tahap 2: Payroll Mingguan - Borongan \u0026 Uang Makan (BPMN 07)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Login warehouse successful\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.token).to.not.be.empty;",
+                                    "    pm.collectionVariables.set(\"warehouse_token\", res.data.token);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "1. Login Warehouse (Petugas Gudang)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"warehouse@lukla.local\",\n    \"password\": \"password\"\n}"
+                        },
+                        "description": "Login sebagai Petugas Gudang (Agus Pratama / EMP-WRH-001) untuk mengelola penerimaan bahan baku bertagging, inspeksi lot kain, dan stok material.",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ],
+                            "raw": "{{base_url}}/auth/login"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"email\": \"warehouse@lukla.local\",\n        \"id\": \"7c2b3a4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"name\": \"Agus Pratama\",\n        \"role\": \"WAREHOUSE\",\n        \"roleDescription\": \"Petugas Gudang \u0026 Logistik Bahan Baku\",\n        \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YzJiM2E0ZC01ZTZmLTdhOGItOWMwZC0xZTJmM2E0YjVjNmQiLCJyb2xlIjoid2FyZWhvdXNlIn0.preview\",\n        \"username\": \"warehouse@lukla.local\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Materials array returned\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    if (res.data.length \u003e 0) {",
+                                    "        pm.collectionVariables.set(\"material_id\", res.data[0].id);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "2. List Materials (Katalog Bahan Baku)",
+                    "request": {
+                        "description": "Mengambil master katalog bahan baku (kain, aksesoris, benang) yang aktif di sistem gudang.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "materials"
+                            ],
+                            "raw": "{{base_url}}/inventory/materials"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"category\": \"THREAD\",\n            \"code\": \"MAT-THD-SPUN-BLK\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"CONE\",\n            \"description\": \"Benang jahit konveksi berkekuatan tinggi\",\n            \"id\": \"3b2c18fe-a328-4f34-ac64-a314a1997636\",\n            \"name\": \"Benang Jahit Spun Polyester 40/2 Hitam\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        },\n        {\n            \"category\": \"FABRIC\",\n            \"code\": \"MAT-CTN-30S-BLK\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"KG\",\n            \"description\": \"Kain katun combed rajut knits gramasi 140-150 gsm\",\n            \"id\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"name\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        },\n        {\n            \"category\": \"FABRIC\",\n            \"code\": \"MAT-CTN-30S-WHT\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"KG\",\n            \"description\": \"Kain katun combed rajut knits putih solid\",\n            \"id\": \"29790a2f-bce1-48f2-98e9-842dac211f30\",\n            \"name\": \"Cotton Combed 30s Reaktif - Putih Solid\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 7\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Material created with correct fields\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.code).to.eql(\"MAT-FAB-CORDURA-01\");",
+                                    "    pm.collectionVariables.set(\"material_id\", res.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "3. Create Material (Bahan Baku Baru)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"MAT-FAB-CORDURA-01\",\n    \"name\": \"Kain Cordura 500D Waterproof\",\n    \"category\": \"FABRIC\",\n    \"defaultUnit\": \"METER\",\n    \"description\": \"Bahan luar tas dan jaket outdoor tahan gesekan tinggi\"\n}"
+                        },
+                        "description": "Menambahkan katalog bahan baku baru ke sistem inventaris gudang.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "materials"
+                            ],
+                            "raw": "{{base_url}}/inventory/materials"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"category\": \"FABRIC\",\n        \"code\": \"MAT-FAB-CORDURA-01\",\n        \"createdAt\": \"2026-10-14T22:28:07.830747+07:00\",\n        \"defaultUnit\": \"METER\",\n        \"description\": \"Bahan luar tas dan jaket outdoor tahan gesekan tinggi\",\n        \"id\": \"b145edef-249a-4930-b118-fa809e369f81\",\n        \"name\": \"Kain Cordura 500D Waterproof\",\n        \"updatedAt\": \"2026-10-14T22:28:07.830747+07:00\"\n    },\n    \"message\": \"Material created successfully\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Material detail returned\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get(\"material_id\"));",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "4. Get Material Detail",
+                    "request": {
+                        "description": "Mengambil rincian spesifikasi satu bahan baku berdasarkan ID.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "materials",
+                                "{{material_id}}"
+                            ],
+                            "raw": "{{base_url}}/inventory/materials/{{material_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"category\": \"FABRIC\",\n        \"code\": \"MAT-CTN-30S-BLK\",\n        \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n        \"defaultUnit\": \"KG\",\n        \"description\": \"Kain katun combed rajut knits gramasi 140-150 gsm\",\n        \"id\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"name\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Receipt created and tagged with client \u0026 order\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.receiptNumber).to.not.be.empty;",
+                                    "    pm.expect(res.data.items).to.have.lengthOf(2);",
+                                    "    pm.collectionVariables.set(\"receipt_id\", res.data.id);",
+                                    "    if (res.data.items.length \u003e 0 \u0026\u0026 res.data.items[0].lotId) {",
+                                    "        pm.collectionVariables.set(\"lot_id\", res.data.items[0].lotId);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "5. Create Inbound Receipt (Penerimaan Bertagging Client \u0026 Order)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"receiptNumber\": \"RCV-20261014-9999\",\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"orderId\": \"{{order_id}}\",\n    \"deliveryNoteNumber\": \"SJ-ITB-2026-9999\",\n    \"receivedDate\": \"2026-10-14\",\n    \"supplierName\": \"PT Indo Tekstil Bandung\",\n    \"notes\": \"Penerimaan tambahan bahan kain untuk PO Snohund\",\n    \"items\": [\n        {\n            \"materialId\": \"{{material_id}}\",\n            \"lotNumber\": \"LOT-SNO-TEST-01\",\n            \"quantity\": 120.00,\n            \"unit\": \"KG\",\n            \"warehouseLocation\": \"GUDANG-A-03\",\n            \"notes\": \"Roll tambahan kondisi prima\"\n        },\n        {\n            \"materialId\": \"{{material_id}}\",\n            \"lotNumber\": \"LOT-SNO-TEST-02\",\n            \"quantity\": 130.00,\n            \"unit\": \"KG\",\n            \"warehouseLocation\": \"GUDANG-A-04\",\n            \"notes\": \"Roll tambahan kondisi prima\"\n        }\n    ]\n}"
+                        },
+                        "description": "FR-6.1 Mandatory Tagging: Mencatat penerimaan surat jalan supplier dan membuat Lot Bahan dengan tagging wajib Client ID dan Order ID. Jika orderId bukan milik clientId, sistem menolak dengan 400 Bad Request.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "receipts"
+                            ],
+                            "raw": "{{base_url}}/inventory/receipts"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"deliveryNoteNumber\": \"SJ-ITB-2026-9999\",\n        \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"items\": [\n            {\n                \"id\": \"aa11bb22-cc33-44dd-55ee-66ff77889900\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-TEST-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll tambahan kondisi prima\",\n                \"quantity\": 120,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-03\"\n            },\n            {\n                \"id\": \"aa11bb22-cc33-44dd-55ee-66ff77889901\",\n                \"lotId\": \"1378a140-97b3-4dd6-a128-868fd7dced3a\",\n                \"lotNumber\": \"LOT-SNO-TEST-02\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll tambahan kondisi prima\",\n                \"quantity\": 130,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-04\"\n            }\n        ],\n        \"notes\": \"Penerimaan tambahan bahan kain untuk PO Snohund\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptNumber\": \"RCV-20261014-9999\",\n        \"receivedByName\": \"Agus Pratama\",\n        \"receivedDate\": \"2026-10-14\",\n        \"supplierName\": \"PT Indo Tekstil Bandung\",\n        \"totalItemsCount\": 2\n    },\n    \"message\": \"Inbound receipt created and inventory lots tagged successfully\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Receipts array returned\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    if (res.data.length \u003e 0) {",
+                                    "        pm.collectionVariables.set(\"receipt_id\", res.data[0].id);",
+                                    "    }",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "6. List Inbound Receipts",
+                    "request": {
+                        "description": "Mengambil seluruh riwayat surat jalan / penerimaan barang gudang. Jika diakses oleh klien (CLIENT_PORTAL), otomatis terisolasi multi-tenant.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "receipts"
+                            ],
+                            "raw": "{{base_url}}/inventory/receipts"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n            \"id\": \"4978f454-c67a-4bb9-94a3-12dd9fd8e63c\",\n            \"orderCode\": \"PO-2026-10-002\",\n            \"orderId\": \"a9142b01-3c14-4d2d-bb1f-7c9b1ac64fa5\",\n            \"receiptNumber\": \"RCV-20261014-0002\",\n            \"receivedDate\": \"2026-10-14T00:00:00Z\",\n            \"supplierName\": \"CV Rajut Makmur Cimahi\",\n            \"totalItemsCount\": 1\n        },\n        {\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n            \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"receiptNumber\": \"RCV-20261014-0001\",\n            \"receivedDate\": \"2026-10-14T00:00:00Z\",\n            \"supplierName\": \"PT Indo Tekstil Bandung\",\n            \"totalItemsCount\": 2\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Receipt detail matches receipt_id\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get(\"receipt_id\"));",
+                                    "    pm.expect(res.data.items).to.be.an(\"array\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "7. Get Inbound Receipt Detail",
+                    "request": {
+                        "description": "Mengambil rincian surat penerimaan barang dan daftar lot yang digenerate.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "receipts",
+                                "{{receipt_id}}"
+                            ],
+                            "raw": "{{base_url}}/inventory/receipts/{{receipt_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"deliveryNoteNumber\": \"SJ-ITB-2026-8801\",\n        \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"items\": [\n            {\n                \"id\": \"11223344-5566-7788-9900-aabbccddeeff\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll 1 kondisi prima\",\n                \"quantity\": 150.5,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-01\"\n            },\n            {\n                \"id\": \"11223344-5566-7788-9900-aabbccddee00\",\n                \"lotId\": \"1378a140-97b3-4dd6-a128-868fd7dced3a\",\n                \"lotNumber\": \"LOT-SNO-20261014-02\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll 2 kondisi prima\",\n                \"quantity\": 149.5,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-02\"\n            }\n        ],\n        \"notes\": \"Penerimaan bahan kain utama Cotton Combed 30s Hitam untuk PO Snøhund\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptNumber\": \"RCV-20261014-0001\",\n        \"receivedByName\": \"Agus Pratama\",\n        \"receivedDate\": \"2026-10-14\",\n        \"supplierName\": \"PT Indo Tekstil Bandung\",\n        \"totalItemsCount\": 2\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Stock balances returned with real data and correct struct fields\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.length).to.be.at.least(1);",
+                                    "    pm.expect(res.data[0]).to.have.property(\"materialCode\");",
+                                    "    pm.expect(res.data[0]).to.have.property(\"totalQuantity\");",
+                                    "    pm.expect(res.data[0]).to.have.property(\"availableLotsCount\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "8. List Stock Balances (Saldo Stok Lot \u0026 Bahan)",
+                    "request": {
+                        "description": "Mengambil saldo stok bahan aktif beserta rincian lot dan tagging kepemilikannya. Mendukung filter material_id, client_id, dan order_id.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "stocks"
+                            ],
+                            "raw": "{{base_url}}/inventory/stocks"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"availableLotsCount\": 2,\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"materialCode\": \"MAT-CTN-30S-BLK\",\n            \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"totalQuantity\": 300,\n            \"unit\": \"KG\"\n        },\n        {\n            \"availableLotsCount\": 1,\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"materialCode\": \"MAT-CTN-30S-WHT\",\n            \"materialId\": \"29790a2f-bce1-48f2-98e9-842dac211f30\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Putih Solid\",\n            \"orderCode\": \"PO-2026-10-002\",\n            \"orderId\": \"a9142b01-3c14-4d2d-bb1f-7c9b1ac64fa5\",\n            \"totalQuantity\": 100,\n            \"unit\": \"KG\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Lot detail returned with client \u0026 order tagging\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get(\"lot_id\"));",
+                                    "    pm.expect(res.data.clientId).to.not.be.empty;",
+                                    "    pm.expect(res.data.orderId).to.not.be.empty;",
+                                    "    pm.expect(res.data.status).to.eql(\"AVAILABLE\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "9. Get Inventory Lot Detail (Traceability \u0026 Tagging Audit)",
+                    "request": {
+                        "description": "Menginspeksi identitas lot tunggal, barcode/lot number, saldo sisa, serta tagging kepemilikan Client ID dan Order ID.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "lots",
+                                "{{lot_id}}"
+                            ],
+                            "raw": "{{base_url}}/inventory/lots/{{lot_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"availableQuantity\": 150.5,\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"currentQuantity\": 150.5,\n        \"id\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n        \"initialQuantity\": 150.5,\n        \"lotNumber\": \"LOT-SNO-20261014-01\",\n        \"materialCode\": \"MAT-CTN-30S-BLK\",\n        \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"notes\": \"Roll 1 kain Cotton Combed 30s Hitam kondisi prima\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptId\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"rollCount\": 1,\n        \"status\": \"AVAILABLE\",\n        \"unit\": \"KG\",\n        \"updatedAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"warehouseLocation\": \"GUDANG-A-01\"\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "09. Tahap 3: Gudang \u0026 Inventaris - Penerimaan \u0026 Stok Lot (BPMN 02)"
         }
     ],
     "variable": [
@@ -4020,7 +4573,7 @@
         {
             "key": "client_snohund_id",
             "type": "string",
-            "value": ""
+            "value": "f310f933-4b79-40c4-849d-f0334716d43c"
         },
         {
             "key": "client_aventura_id",
@@ -4075,7 +4628,7 @@
         {
             "key": "order_id",
             "type": "string",
-            "value": ""
+            "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
         },
         {
             "key": "component_id",
@@ -4096,6 +4649,26 @@
             "key": "payroll_slip_id",
             "type": "string",
             "value": ""
+        },
+        {
+            "key": "warehouse_token",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "key": "material_id",
+            "type": "string",
+            "value": "a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d"
+        },
+        {
+            "key": "receipt_id",
+            "type": "string",
+            "value": "add67642-069f-4780-ab96-030bf0cc2200"
+        },
+        {
+            "key": "lot_id",
+            "type": "string",
+            "value": "4c2591b6-a60b-4f97-b50e-f8c936e1fd57"
         }
     ]
 }

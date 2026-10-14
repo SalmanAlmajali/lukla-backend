@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/modules/identity"
+	"github.com/lukla/operations-engine/internal/modules/inventory"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
 	"github.com/lukla/operations-engine/internal/modules/payroll"
 	"github.com/lukla/operations-engine/internal/modules/production"
@@ -83,9 +84,13 @@ func New(ctx context.Context) (*App, error) {
 	payrollSvc := payroll.NewService(payrollRepo)
 	payrollHandler := payroll.NewHandler(payrollSvc)
 
+	inventoryRepo := inventory.NewPostgresRepository(db)
+	inventorySvc := inventory.NewService(inventoryRepo)
+	inventoryHandler := inventory.NewHandler(inventorySvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, authnMiddleware, internalAuthz)
+	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -128,6 +133,7 @@ func registerRoutes(
 	ratecardHandler *ratecard.Handler,
 	productionHandler *production.Handler,
 	payrollHandler *payroll.Handler,
+	inventoryHandler *inventory.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -142,5 +148,6 @@ func registerRoutes(
 	ratecardHandler.RegisterRoutes(v1, authnMiddleware)
 	productionHandler.RegisterRoutes(v1, authnMiddleware)
 	payroll.RegisterRoutes(v1, payrollHandler, authnMiddleware)
+	inventory.RegisterRoutes(v1, inventoryHandler, authnMiddleware)
 }
 

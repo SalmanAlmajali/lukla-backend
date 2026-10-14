@@ -2929,16 +2929,280 @@ func TestApp_PayrollLockingAndAdjustmentLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_InventoryInboundLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
 
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
 
+	wrhToken := getAuthToken(t, application, "warehouse@lukla.local", "password")
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+	snohundToken := getAuthToken(t, application, "client@lukla.local", "password")
 
+	// 1. Fetch first order and its client
+	var snoClientID, snoOrderID string
+	err = application.db.QueryRow(`SELECT id, client_id FROM orders LIMIT 1`).Scan(&snoOrderID, &snoClientID)
+	if err != nil {
+		t.Fatalf("failed to find seeded order: %v", err)
+	}
 
+	// 2. Fetch another client and its order (or create a temporary test client & order if only 1 client exists)
+	var otherClientID, otherOrderID string
+	err = application.db.QueryRow(`SELECT id, client_id FROM orders WHERE client_id != $1 LIMIT 1`, snoClientID).Scan(&otherOrderID, &otherClientID)
+	if err != nil {
+		// Insert temporary other client and order for testing mismatch rejection
+		_ = application.db.QueryRow(`INSERT INTO clients (code, name, client_type) VALUES ('CLIENT-OTHER-TEST', 'Urban Culture Test', 'EXTERNAL') ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name RETURNING id`).Scan(&otherClientID)
+		_ = application.db.QueryRow(`INSERT INTO orders (client_id, order_number, total_quantity) VALUES ($1, 'PO-TEST-OTHER-001', 50) ON CONFLICT (order_number) DO UPDATE SET total_quantity = EXCLUDED.total_quantity RETURNING id`, otherClientID).Scan(&otherOrderID)
+	}
 
+	// 3. Create test material via POST /api/v1/inventory/materials by Warehouse
+	matCode := fmt.Sprintf("MAT-TEST-%d", time.Now().UnixNano())
+	matBody := map[string]interface{}{
+		"code":        matCode,
+		"name":        "Kain Katun Bambu Premium 30s",
+		"category":    "FABRIC",
+		"defaultUnit": "KG",
+		"description": "Material uji integrasi live DB inbound",
+	}
+	matJSON, _ := json.Marshal(matBody)
 
+	reqMat, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/materials", bytes.NewBuffer(matJSON))
+	reqMat.Header.Set("Authorization", "Bearer "+wrhToken)
+	reqMat.Header.Set("Content-Type", "application/json")
+	wMat := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMat, reqMat)
 
+	if wMat.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for material, got %d. Body: %s", wMat.Code, wMat.Body.String())
+	}
 
+	var matResp struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wMat.Body.Bytes(), &matResp)
+	matID := matResp.Data.ID
 
+	rcvNum := fmt.Sprintf("RCV-TEST-%d", time.Now().UnixNano())
+	lot1Num := fmt.Sprintf("LOT-A-%d", time.Now().UnixNano())
+	lot2Num := fmt.Sprintf("LOT-B-%d", time.Now().UnixNano())
 
+	t.Cleanup(func() {
+		_, _ = application.db.Exec(`DELETE FROM inventory_receipts WHERE receipt_number = $1`, rcvNum)
+		_, _ = application.db.Exec(`DELETE FROM materials WHERE id = $1`, matID)
+	})
 
+	// 4. Test FR-6.1 Mandatory Tagging: Attempt receipt with Mismatched Client and Order
+	mismatchBody := map[string]interface{}{
+		"receiptNumber": rcvNum + "-ERR",
+		"clientId":      snoClientID,  // Snøhund
+		"orderId":       otherOrderID, // Order of Urban Culture!
+		"receivedDate":  "2026-10-15",
+		"items": []map[string]interface{}{
+			{
+				"materialId":        matID,
+				"lotNumber":         lot1Num + "-ERR",
+				"quantity":          100.0,
+				"unit":              "KG",
+				"warehouseLocation": "RAK-TEST-1",
+			},
+		},
+	}
+	mismatchJSON, _ := json.Marshal(mismatchBody)
+	reqMismatch, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/receipts", bytes.NewBuffer(mismatchJSON))
+	reqMismatch.Header.Set("Authorization", "Bearer "+wrhToken)
+	reqMismatch.Header.Set("Content-Type", "application/json")
+	wMismatch := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMismatch, reqMismatch)
 
+	if wMismatch.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for mismatched client/order tagging, got %d. Body: %s", wMismatch.Code, wMismatch.Body.String())
+	}
 
+	// 5. Create Valid Inbound Receipt with 2 Lots
+	validReceiptBody := map[string]interface{}{
+		"receiptNumber":      rcvNum,
+		"clientId":           snoClientID,
+		"orderId":            snoOrderID,
+		"receivedDate":       "2026-10-15",
+		"supplierName":       "PT Grand Textile Bandung",
+		"deliveryNoteNumber": "SJ-TEST-999",
+		"notes":              "Bahan titipan uji FR-6.1",
+		"items": []map[string]interface{}{
+			{
+				"materialId":        matID,
+				"lotNumber":         lot1Num,
+				"quantity":          120.50,
+				"unit":              "KG",
+				"rollCount":         4,
+				"warehouseLocation": "RAK-A1-01",
+			},
+			{
+				"materialId":        matID,
+				"lotNumber":         lot2Num,
+				"quantity":          79.50,
+				"unit":              "KG",
+				"rollCount":         2,
+				"warehouseLocation": "RAK-A1-02",
+			},
+		},
+	}
+	validJSON, _ := json.Marshal(validReceiptBody)
+	reqValid, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/receipts", bytes.NewBuffer(validJSON))
+	reqValid.Header.Set("Authorization", "Bearer "+wrhToken)
+	reqValid.Header.Set("Content-Type", "application/json")
+	wValid := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wValid, reqValid)
+
+	if wValid.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for receipt, got %d. Body: %s", wValid.Code, wValid.Body.String())
+	}
+
+	var rcvResp struct {
+		Data struct {
+			ID    string `json:"id"`
+			Items []struct {
+				LotID string `json:"lotId"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wValid.Body.Bytes(), &rcvResp)
+	receiptID := rcvResp.Data.ID
+	if receiptID == "" || len(rcvResp.Data.Items) != 2 {
+		t.Fatalf("unexpected receipt response structure: %+v", rcvResp)
+	}
+	lot1ID := rcvResp.Data.Items[0].LotID
+
+	// 6. Verify Receipt Detail via GET /api/v1/inventory/receipts/{id}
+	reqGetRcv, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/receipts/"+receiptID, nil)
+	reqGetRcv.Header.Set("Authorization", "Bearer "+execToken)
+	wGetRcv := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetRcv, reqGetRcv)
+
+	if wGetRcv.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get receipt, got %d", wGetRcv.Code)
+	}
+
+	// 7. Verify Lot Detail via GET /api/v1/inventory/lots/{id}
+	reqLot, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/lots/"+lot1ID, nil)
+	reqLot.Header.Set("Authorization", "Bearer "+wrhToken)
+	wLot := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLot, reqLot)
+
+	if wLot.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get lot, got %d", wLot.Code)
+	}
+	var lotResp struct {
+		Data struct {
+			LotNumber       string  `json:"lotNumber"`
+			InitialQuantity float64 `json:"initialQuantity"`
+			CurrentQuantity float64 `json:"currentQuantity"`
+			Status          string  `json:"status"`
+			ClientID        string  `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLot.Body.Bytes(), &lotResp)
+	if lotResp.Data.InitialQuantity != 120.50 || lotResp.Data.CurrentQuantity != 120.50 {
+		t.Errorf("expected 120.50 quantity, got initial=%f, current=%f", lotResp.Data.InitialQuantity, lotResp.Data.CurrentQuantity)
+	}
+	if lotResp.Data.ClientID != snoClientID {
+		t.Errorf("expected lot to be tagged with Snøhund client ID %s, got %s", snoClientID, lotResp.Data.ClientID)
+	}
+
+	// 8. Verify Stock Balances via GET /api/v1/inventory/stocks
+	reqStocks, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/stocks?clientId="+snoClientID+"&materialId="+matID, nil)
+	reqStocks.Header.Set("Authorization", "Bearer "+wrhToken)
+	wStocks := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wStocks, reqStocks)
+
+	if wStocks.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for stocks, got %d", wStocks.Code)
+	}
+	var stocksResp struct {
+		Data []struct {
+			TotalQuantity      float64 `json:"totalQuantity"`
+			AvailableLotsCount int     `json:"availableLotsCount"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wStocks.Body.Bytes(), &stocksResp)
+	if len(stocksResp.Data) == 0 {
+		t.Fatalf("expected stock balance for created material")
+	}
+	// 120.50 + 79.50 = 200.00
+	if stocksResp.Data[0].TotalQuantity != 200.00 {
+		t.Errorf("expected total quantity 200.00, got %f", stocksResp.Data[0].TotalQuantity)
+	}
+	if stocksResp.Data[0].AvailableLotsCount != 2 {
+		t.Errorf("expected 2 available lots, got %d", stocksResp.Data[0].AvailableLotsCount)
+	}
+
+	// 9. Test Multi-Tenant Isolation: Snøhund client views /stocks
+	reqClientStocks, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/stocks", nil)
+	reqClientStocks.Header.Set("Authorization", "Bearer "+snohundToken)
+	wClientStocks := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientStocks, reqClientStocks)
+
+	if wClientStocks.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client stocks, got %d", wClientStocks.Code)
+	}
+	var clientStocksResp struct {
+		Data []struct {
+			ClientID string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientStocks.Body.Bytes(), &clientStocksResp)
+	for _, b := range clientStocksResp.Data {
+		if b.ClientID != snoClientID {
+			t.Fatalf("SECURITY VIOLATION: Client Snøhund can see materials of client %s", b.ClientID)
+		}
+	}
+}
+
+func TestApp_PrintInventoryActualResponses(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to init app: %v", err)
+	}
+
+	wrhToken := getAuthToken(t, application, "warehouse@lukla.local", "password")
+
+	// 1. GET /api/v1/inventory/stocks
+	reqStocks, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/stocks", nil)
+	reqStocks.Header.Set("Authorization", "Bearer "+wrhToken)
+	wStocks := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wStocks, reqStocks)
+	var prettyStocks bytes.Buffer
+	_ = json.Indent(&prettyStocks, wStocks.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/stocks ===\n%s\n", prettyStocks.String())
+
+	// 2. GET /api/v1/inventory/receipts
+	reqReceipts, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/receipts", nil)
+	reqReceipts.Header.Set("Authorization", "Bearer "+wrhToken)
+	wReceipts := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wReceipts, reqReceipts)
+	var prettyReceipts bytes.Buffer
+	_ = json.Indent(&prettyReceipts, wReceipts.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/receipts ===\n%s\n", prettyReceipts.String())
+
+	// 3. GET /api/v1/inventory/materials
+	reqMaterials, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/materials", nil)
+	reqMaterials.Header.Set("Authorization", "Bearer "+wrhToken)
+	wMaterials := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMaterials, reqMaterials)
+	var prettyMaterials bytes.Buffer
+	_ = json.Indent(&prettyMaterials, wMaterials.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/materials ===\n%s\n", prettyMaterials.String())
+}
