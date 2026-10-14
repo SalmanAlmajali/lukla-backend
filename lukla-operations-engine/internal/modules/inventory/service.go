@@ -144,3 +144,66 @@ func (s *Service) ListStocks(ctx context.Context, callerRole string, callerClien
 	return s.repo.ListStockBalances(ctx, filter)
 }
 
+// ==========================================
+// TAHAP 3.2: OUTBOUND, ISSUES & BLOCKED ATTEMPTS
+// ==========================================
+
+func (s *Service) isWarehouseOrOwnerOrProd(role string) bool {
+	r := strings.ToLower(role)
+	return r == "warehouse" || r == "owner_executive" || r == "production_head"
+}
+
+func (s *Service) CreateIssue(ctx context.Context, callerRole, callerUserID string, req CreateIssueRequest) (*IssueDetail, error) {
+	if !s.isWarehouseOrOwner(callerRole) {
+		return nil, ErrForbiddenInventory
+	}
+	if strings.TrimSpace(req.TargetOrderID) == "" || strings.TrimSpace(req.IssuedDate) == "" {
+		return nil, ErrMissingRequiredField
+	}
+	if len(req.Items) == 0 {
+		return nil, ErrIssueItemsEmpty
+	}
+	for _, it := range req.Items {
+		if strings.TrimSpace(it.LotID) == "" || it.Quantity <= 0 {
+			return nil, ErrInvalidQuantity
+		}
+	}
+	return s.repo.CreateIssue(ctx, callerUserID, req)
+}
+
+func (s *Service) GetIssue(ctx context.Context, id string) (*IssueDetail, error) {
+	return s.repo.FindIssueByID(ctx, id)
+}
+
+func (s *Service) ListIssues(ctx context.Context, filter ListIssuesFilter) ([]IssueSummary, int, error) {
+	return s.repo.ListIssues(ctx, filter)
+}
+
+func (s *Service) ListBlockedAttempts(ctx context.Context, callerRole string, filter ListBlockedAttemptsFilter) ([]BlockedAttemptRecord, int, error) {
+	if !s.isWarehouseOrOwner(callerRole) {
+		return nil, 0, ErrForbiddenInventory
+	}
+	return s.repo.ListBlockedAttempts(ctx, filter)
+}
+
+// ==========================================
+// TAHAP 3.2: CUTTING SCRAPS & WASTE (FR-6.3)
+// ==========================================
+
+func (s *Service) CreateScrap(ctx context.Context, callerRole, callerUserID string, req CreateScrapRequest) (*CuttingScrapRecord, error) {
+	if !s.isWarehouseOrOwnerOrProd(callerRole) {
+		return nil, ErrForbiddenInventory
+	}
+	if strings.TrimSpace(req.OrderID) == "" || strings.TrimSpace(req.MaterialID) == "" || strings.TrimSpace(req.ScrapCategory) == "" || strings.TrimSpace(req.Unit) == "" || strings.TrimSpace(req.Disposition) == "" {
+		return nil, ErrMissingRequiredField
+	}
+	if req.Quantity <= 0 {
+		return nil, ErrInvalidQuantity
+	}
+	return s.repo.CreateScrap(ctx, callerUserID, req)
+}
+
+func (s *Service) ListScraps(ctx context.Context, filter ListScrapsFilter) ([]CuttingScrapRecord, int, error) {
+	return s.repo.ListScraps(ctx, filter)
+}
+

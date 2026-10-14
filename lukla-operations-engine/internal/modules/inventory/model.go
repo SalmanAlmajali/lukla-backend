@@ -14,9 +14,16 @@ var (
 	ErrClientNotFound       = errors.New("klien pemilik bahan tidak ditemukan")
 	ErrOrderNotFound        = errors.New("order alokasi tidak ditemukan")
 	ErrClientOrderMismatch  = errors.New("alokasi order yang dituju bukan milik klien yang bersangkutan")
-	ErrReceiptItemsEmpty    = errors.New("penerimaan bahan harus menyertakan minimal 1 item lot bahan")
-	ErrInvalidQuantity      = errors.New("kuantitas material harus bernilai lebih besar dari 0")
-	ErrMissingRequiredField = errors.New("seluruh field wajib (kode, nama, klien, order, satuan) harus diisi")
+	ErrReceiptItemsEmpty         = errors.New("penerimaan bahan harus menyertakan minimal 1 item lot bahan")
+	ErrInvalidQuantity           = errors.New("kuantitas material harus bernilai lebih besar dari 0")
+	ErrMissingRequiredField      = errors.New("seluruh field wajib (kode, nama, klien, order, satuan) harus diisi")
+	ErrCrossContaminationBlocked = errors.New("BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan")
+	ErrInsufficientStock         = errors.New("sisa kuantitas pada lot tidak mencukupi untuk jumlah yang diminta")
+	ErrLotNotAvailable           = errors.New("lot bahan tidak berstatus AVAILABLE atau stok sudah habis")
+	ErrIssueNotFound             = errors.New("dokumen pengeluaran bahan tidak ditemukan")
+	ErrIssueItemsEmpty           = errors.New("pengeluaran bahan harus menyertakan minimal 1 item lot bahan")
+	ErrScrapCategoryInvalid      = errors.New("kategori scrap tidak valid (harus PERCA_KECIL, CACAT_KAIN_ROLL, UJUNG_GULUNGAN, atau KESALAHAN_POTONG)")
+	ErrScrapDispositionInvalid   = errors.New("disposisi scrap tidak valid (harus SIMPAN_GUDANG_SISA, KEMBALIKAN_KLIEN, JUAL_LIMBAH, atau BUANG)")
 )
 
 type MaterialCategory string
@@ -197,5 +204,138 @@ type ListStocksFilter struct {
 	ClientID   string
 	MaterialID string
 	OrderID    string
+}
+
+// ==========================================
+// TAHAP 3.2: OUTBOUND, ISSUES & BLOCKED ATTEMPTS
+// ==========================================
+
+type CreateIssueRequest struct {
+	IssueNumber        string            `json:"issueNumber"`
+	TargetOrderID      string            `json:"targetOrderId" binding:"required"`
+	CuttingTableNumber string            `json:"cuttingTableNumber"`
+	IssuedDate         string            `json:"issuedDate" binding:"required"`
+	Notes              string            `json:"notes"`
+	Items              []CreateIssueItem `json:"items" binding:"required,dive"`
+}
+
+type CreateIssueItem struct {
+	LotID    string  `json:"lotId" binding:"required"`
+	Quantity float64 `json:"quantity" binding:"required,gt=0"`
+	Notes    string  `json:"notes"`
+}
+
+type IssueSummary struct {
+	ID                 string    `json:"id"`
+	IssueNumber        string    `json:"issueNumber"`
+	TargetOrderID      string    `json:"targetOrderId"`
+	TargetOrderCode    string    `json:"targetOrderCode"`
+	TargetClientName   string    `json:"targetClientName"`
+	CuttingTableNumber string    `json:"cuttingTableNumber,omitempty"`
+	IssuedDate         string    `json:"issuedDate"`
+	TotalItemsCount    int       `json:"totalItemsCount"`
+	CreatedAt          time.Time `json:"createdAt"`
+}
+
+type IssueDetail struct {
+	IssueSummary
+	IssuedByName string             `json:"issuedByName"`
+	Notes        string             `json:"notes,omitempty"`
+	Items        []IssueItemPayload `json:"items"`
+}
+
+type IssueItemPayload struct {
+	ID                   string  `json:"id"`
+	LotID                string  `json:"lotId"`
+	LotNumber            string  `json:"lotNumber"`
+	MaterialCode         string  `json:"materialCode"`
+	MaterialName         string  `json:"materialName"`
+	ClientName           string  `json:"clientName"`
+	Quantity             float64 `json:"quantity"`
+	Unit                 string  `json:"unit"`
+	RemainingLotQuantity float64 `json:"remainingLotQuantity"`
+	Notes                string  `json:"notes,omitempty"`
+}
+
+type ListIssuesFilter struct {
+	OrderID string
+	Limit   int
+	Offset  int
+}
+
+type BlockedAttemptRecord struct {
+	ID                string    `json:"id"`
+	AttemptedAt       time.Time `json:"attemptedAt"`
+	AttemptedByUserID string    `json:"attemptedByUserId"`
+	AttemptedByName   string    `json:"attemptedByName"`
+	LotID             string    `json:"lotId"`
+	LotNumber         string    `json:"lotNumber"`
+	LotClientID       string    `json:"lotClientId"`
+	LotClientName     string    `json:"lotClientName"`
+	TargetOrderID     string    `json:"targetOrderId"`
+	TargetOrderCode   string    `json:"targetOrderCode"`
+	TargetClientID    string    `json:"targetClientId"`
+	TargetClientName  string    `json:"targetClientName"`
+	RequestedQuantity float64   `json:"requestedQuantity"`
+	Reason            string    `json:"reason"`
+}
+
+type ListBlockedAttemptsFilter struct {
+	Limit  int
+	Offset int
+}
+
+// ==========================================
+// TAHAP 3.2: CUTTING SCRAPS & WASTE
+// ==========================================
+
+type ScrapCategory string
+
+const (
+	ScrapCategoryPercaKecil       ScrapCategory = "PERCA_KECIL"
+	ScrapCategoryCacatKainRoll    ScrapCategory = "CACAT_KAIN_ROLL"
+	ScrapCategoryUjungGulungan    ScrapCategory = "UJUNG_GULUNGAN"
+	ScrapCategoryKesalahanPotong  ScrapCategory = "KESALAHAN_POTONG"
+)
+
+type ScrapDisposition string
+
+const (
+	ScrapDispositionSimpanGudangSisa ScrapDisposition = "SIMPAN_GUDANG_SISA"
+	ScrapDispositionKembalikanKlien  ScrapDisposition = "KEMBALIKAN_KLIEN"
+	ScrapDispositionJualLimbah       ScrapDisposition = "JUAL_LIMBAH"
+	ScrapDispositionBuang            ScrapDisposition = "BUANG"
+)
+
+type CreateScrapRequest struct {
+	OrderID       string  `json:"orderId" binding:"required"`
+	MaterialID    string  `json:"materialId" binding:"required"`
+	ScrapCategory string  `json:"scrapCategory" binding:"required"`
+	Quantity      float64 `json:"quantity" binding:"required,gt=0"`
+	Unit          string  `json:"unit" binding:"required"`
+	Disposition   string  `json:"disposition" binding:"required"`
+	Notes         string  `json:"notes"`
+}
+
+type CuttingScrapRecord struct {
+	ID             string    `json:"id"`
+	OrderID        string    `json:"orderId"`
+	OrderCode      string    `json:"orderCode"`
+	MaterialID     string    `json:"materialId"`
+	MaterialName   string    `json:"materialName"`
+	ScrapCategory  string    `json:"scrapCategory"`
+	Quantity       float64   `json:"quantity"`
+	Unit           string    `json:"unit"`
+	Disposition    string    `json:"disposition"`
+	Notes          string    `json:"notes,omitempty"`
+	RecordedByName string    `json:"recordedByName"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
+
+type ListScrapsFilter struct {
+	OrderID       string
+	ScrapCategory string
+	Limit         int
+	Offset        int
 }
 

@@ -14,11 +14,15 @@ import (
 )
 
 type mockInventoryRepository struct {
-	materials map[string]*Material
-	receipts  map[string]*ReceiptDetail
-	lots      map[string]*InventoryLot
-	// For client & order validation
+	materials         map[string]*Material
+	receipts          map[string]*ReceiptDetail
+	lots              map[string]*InventoryLot
+	issues            map[string]*IssueDetail
+	blockedAttempts   []*BlockedAttemptRecord
+	scraps            []*CuttingScrapRecord
 	validClientOrders map[string]string // orderID -> clientID
+	orderNumbers      map[string]string // orderID -> orderNumber
+	clientNames       map[string]string // clientID -> clientName
 }
 
 func newMockRepository() *mockInventoryRepository {
@@ -26,7 +30,12 @@ func newMockRepository() *mockInventoryRepository {
 		materials:         make(map[string]*Material),
 		receipts:          make(map[string]*ReceiptDetail),
 		lots:              make(map[string]*InventoryLot),
+		issues:            make(map[string]*IssueDetail),
+		blockedAttempts:   make([]*BlockedAttemptRecord, 0),
+		scraps:            make([]*CuttingScrapRecord, 0),
 		validClientOrders: make(map[string]string),
+		orderNumbers:      make(map[string]string),
+		clientNames:       make(map[string]string),
 	}
 }
 
@@ -221,6 +230,152 @@ func (m *mockInventoryRepository) ListStockBalances(ctx context.Context, filter 
 		res = append(res, *b)
 	}
 	return res, nil
+}
+
+func (m *mockInventoryRepository) CreateIssue(ctx context.Context, userID string, req CreateIssueRequest) (*IssueDetail, error) {
+	targetClientID, ok := m.validClientOrders[req.TargetOrderID]
+	if !ok {
+		return nil, ErrOrderNotFound
+	}
+
+	targetOrderCode := m.orderNumbers[req.TargetOrderID]
+	targetClientName := m.clientNames[targetClientID]
+
+	var itemsPayload []IssueItemPayload
+	for _, it := range req.Items {
+		lot, ok := m.lots[it.LotID]
+		if !ok {
+			return nil, ErrLotNotFound
+		}
+
+		if lot.ClientID != targetClientID {
+			reason := "BLOKIR KEAMANAN: Bahan milik klien " + lot.ClientName + " tidak dapat dikeluarkan untuk order " + targetOrderCode + " milik klien " + targetClientName
+			_ = m.RecordBlockedAttempt(ctx, &BlockedAttemptRecord{
+				AttemptedAt:       time.Now(),
+				AttemptedByUserID: userID,
+				LotID:             it.LotID,
+				LotNumber:         lot.LotNumber,
+				LotClientID:       lot.ClientID,
+				TargetOrderID:     req.TargetOrderID,
+				TargetOrderCode:   targetOrderCode,
+				TargetClientID:    targetClientID,
+				RequestedQuantity: it.Quantity,
+				Reason:            reason,
+			})
+			return nil, ErrCrossContaminationBlocked
+		}
+
+		if lot.Status != "AVAILABLE" {
+			return nil, ErrLotNotAvailable
+		}
+
+		if lot.CurrentQuantity < it.Quantity {
+			return nil, ErrInsufficientStock
+		}
+
+		lot.CurrentQuantity -= it.Quantity
+		if lot.CurrentQuantity <= 0 {
+			lot.Status = "DEPLETED"
+		}
+
+		itemsPayload = append(itemsPayload, IssueItemPayload{
+			ID:                   "issue-item-" + it.LotID,
+			LotID:                lot.ID,
+			LotNumber:            lot.LotNumber,
+			MaterialCode:         lot.MaterialCode,
+			MaterialName:         lot.MaterialName,
+			ClientName:           lot.ClientName,
+			Quantity:             it.Quantity,
+			Unit:                 lot.Unit,
+			RemainingLotQuantity: lot.CurrentQuantity,
+			Notes:                it.Notes,
+		})
+	}
+
+	issueID := "iss-test-01"
+	detail := &IssueDetail{
+		IssueSummary: IssueSummary{
+			ID:                 issueID,
+			IssueNumber:        req.IssueNumber,
+			TargetOrderID:      req.TargetOrderID,
+			TargetOrderCode:    targetOrderCode,
+			TargetClientName:   targetClientName,
+			CuttingTableNumber: req.CuttingTableNumber,
+			IssuedDate:         req.IssuedDate,
+			TotalItemsCount:    len(itemsPayload),
+			CreatedAt:          time.Now(),
+		},
+		IssuedByName: "Warehouse Staff",
+		Notes:        req.Notes,
+		Items:        itemsPayload,
+	}
+	m.issues[issueID] = detail
+	return detail, nil
+}
+
+func (m *mockInventoryRepository) FindIssueByID(ctx context.Context, id string) (*IssueDetail, error) {
+	if iss, ok := m.issues[id]; ok {
+		return iss, nil
+	}
+	return nil, ErrIssueNotFound
+}
+
+func (m *mockInventoryRepository) ListIssues(ctx context.Context, filter ListIssuesFilter) ([]IssueSummary, int, error) {
+	var list []IssueSummary
+	for _, iss := range m.issues {
+		if filter.OrderID != "" && iss.TargetOrderID != filter.OrderID {
+			continue
+		}
+		list = append(list, iss.IssueSummary)
+	}
+	return list, len(list), nil
+}
+
+func (m *mockInventoryRepository) RecordBlockedAttempt(ctx context.Context, record *BlockedAttemptRecord) error {
+	record.ID = "blk-01"
+	m.blockedAttempts = append(m.blockedAttempts, record)
+	return nil
+}
+
+func (m *mockInventoryRepository) ListBlockedAttempts(ctx context.Context, filter ListBlockedAttemptsFilter) ([]BlockedAttemptRecord, int, error) {
+	var list []BlockedAttemptRecord
+	for _, r := range m.blockedAttempts {
+		list = append(list, *r)
+	}
+	return list, len(list), nil
+}
+
+func (m *mockInventoryRepository) CreateScrap(ctx context.Context, userID string, req CreateScrapRequest) (*CuttingScrapRecord, error) {
+	scrap := &CuttingScrapRecord{
+		ID:             "scrap-001",
+		OrderID:        req.OrderID,
+		OrderCode:      m.orderNumbers[req.OrderID],
+		MaterialID:     req.MaterialID,
+		MaterialName:   "Cotton Combed 30s",
+		ScrapCategory:  req.ScrapCategory,
+		Quantity:       req.Quantity,
+		Unit:           req.Unit,
+		Disposition:    req.Disposition,
+		Notes:          req.Notes,
+		RecordedByName: "Warehouse Operator",
+		CreatedAt:      time.Now(),
+	}
+	m.scraps = append(m.scraps, scrap)
+	return scrap, nil
+}
+
+func (m *mockInventoryRepository) ListScraps(ctx context.Context, filter ListScrapsFilter) ([]CuttingScrapRecord, int, error) {
+	var list []CuttingScrapRecord
+	for _, s := range m.scraps {
+		if filter.OrderID != "" && s.OrderID != filter.OrderID {
+			continue
+		}
+		if filter.ScrapCategory != "" && s.ScrapCategory != filter.ScrapCategory {
+			continue
+		}
+		list = append(list, *s)
+	}
+	return list, len(list), nil
 }
 
 func setupTestRouter(repo Repository, role string, clientID *string) *gin.Engine {
@@ -667,4 +822,285 @@ func TestGetLot_NotFound(t *testing.T) {
 		t.Fatalf("expected 404 Not Found, got %d", w.Code)
 	}
 }
+
+// ==========================================
+// TAHAP 3.2: OUTBOUND & BLOKADE UNIT TESTS
+// ==========================================
+
+func TestCreateIssue_Success_ByWarehouse(t *testing.T) {
+	repo := newMockRepository()
+	repo.validClientOrders["order-sno-1"] = "client-sno"
+	repo.orderNumbers["order-sno-1"] = "PO-SNO-01"
+	repo.clientNames["client-sno"] = "Snøhund Brand"
+
+	repo.lots["lot-sno-1"] = &InventoryLot{
+		ID:              "lot-sno-1",
+		LotNumber:       "LOT-SNO-001",
+		MaterialID:      "mat-ctn-blk",
+		MaterialCode:    "MAT-CTN-BLK",
+		MaterialName:    "Cotton Combed 30s Hitam",
+		ClientID:        "client-sno",
+		ClientName:      "Snøhund Brand",
+		CurrentQuantity: 100.0,
+		Unit:            "KG",
+		Status:          "AVAILABLE",
+	}
+
+	r := setupTestRouter(repo, "warehouse", nil)
+
+	body := `{
+		"targetOrderId": "order-sno-1",
+		"cuttingTableNumber": "MEJA-01",
+		"issuedDate": "2026-10-15",
+		"notes": "Pengeluaran bahan uji sukses",
+		"items": [
+			{"lotId": "lot-sno-1", "quantity": 40.0, "notes": "Ambil 40kg"}
+		]
+	}`
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/issues", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool        `json:"success"`
+		Data    IssueDetail `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if !resp.Success {
+		t.Errorf("expected success true")
+	}
+	if resp.Data.TargetOrderCode != "PO-SNO-01" {
+		t.Errorf("expected order code PO-SNO-01, got %s", resp.Data.TargetOrderCode)
+	}
+	if len(resp.Data.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Data.Items))
+	}
+	if resp.Data.Items[0].RemainingLotQuantity != 60.0 {
+		t.Errorf("expected remaining quantity 60.0, got %.2f", resp.Data.Items[0].RemainingLotQuantity)
+	}
+}
+
+// SKENARIO UJI 1: BLOKADE KONTAMINASI SILANG
+func TestCreateIssue_CrossContaminationBlocked(t *testing.T) {
+	repo := newMockRepository()
+	// Target order is for Snøhund
+	repo.validClientOrders["order-sno-1"] = "client-sno"
+	repo.orderNumbers["order-sno-1"] = "PO-SNO-01"
+	repo.clientNames["client-sno"] = "Snøhund Brand"
+
+	// But Lot belongs to Aventura!
+	repo.clientNames["client-ave"] = "Aventura Outdoor"
+	repo.lots["lot-ave-1"] = &InventoryLot{
+		ID:              "lot-ave-1",
+		LotNumber:       "LOT-AVE-001",
+		MaterialID:      "mat-ctn-wht",
+		MaterialCode:    "MAT-CTN-WHT",
+		MaterialName:    "Cotton Combed 30s Putih",
+		ClientID:        "client-ave",
+		ClientName:      "Aventura Outdoor",
+		CurrentQuantity: 100.0,
+		Unit:            "KG",
+		Status:          "AVAILABLE",
+	}
+
+	r := setupTestRouter(repo, "warehouse", nil)
+
+	body := `{
+		"targetOrderId": "order-sno-1",
+		"cuttingTableNumber": "MEJA-01",
+		"issuedDate": "2026-10-15",
+		"notes": "Uji kontaminasi silang",
+		"items": [
+			{"lotId": "lot-ave-1", "quantity": 30.0}
+		]
+	}`
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/issues", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	// Must be rejected with 400 Bad Request
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var errResp struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &errResp)
+
+	if errResp.Error.Code != "INVENTORY_CLIENT_ORDER_MISMATCH" {
+		t.Errorf("expected INVENTORY_CLIENT_ORDER_MISMATCH, got %s", errResp.Error.Code)
+	}
+
+	// Verify lot current quantity was NOT deducted
+	if repo.lots["lot-ave-1"].CurrentQuantity != 100.0 {
+		t.Errorf("SECURITY FLAW: Lot quantity was deducted despite cross contamination blockade! Got %.2f", repo.lots["lot-ave-1"].CurrentQuantity)
+	}
+
+	// Verify audit log recorded the blocked attempt
+	if len(repo.blockedAttempts) != 1 {
+		t.Fatalf("expected 1 blocked attempt in audit log, got %d", len(repo.blockedAttempts))
+	}
+	if repo.blockedAttempts[0].LotNumber != "LOT-AVE-001" {
+		t.Errorf("expected lot LOT-AVE-001 in audit, got %s", repo.blockedAttempts[0].LotNumber)
+	}
+}
+
+func TestCreateIssue_InsufficientStock(t *testing.T) {
+	repo := newMockRepository()
+	repo.validClientOrders["order-sno-1"] = "client-sno"
+	repo.orderNumbers["order-sno-1"] = "PO-SNO-01"
+	repo.clientNames["client-sno"] = "Snøhund Brand"
+
+	repo.lots["lot-sno-1"] = &InventoryLot{
+		ID:              "lot-sno-1",
+		LotNumber:       "LOT-SNO-001",
+		ClientID:        "client-sno",
+		CurrentQuantity: 25.0,
+		Unit:            "KG",
+		Status:          "AVAILABLE",
+	}
+
+	r := setupTestRouter(repo, "warehouse", nil)
+
+	body := `{
+		"targetOrderId": "order-sno-1",
+		"issuedDate": "2026-10-15",
+		"items": [
+			{"lotId": "lot-sno-1", "quantity": 50.0}
+		]
+	}`
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/issues", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for insufficient stock, got %d", w.Code)
+	}
+}
+
+func TestListIssues_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.issues["iss-1"] = &IssueDetail{
+		IssueSummary: IssueSummary{
+			ID:               "iss-1",
+			IssueNumber:      "ISS-20261014-0001",
+			TargetOrderID:    "order-1",
+			TargetOrderCode:  "PO-001",
+			TargetClientName: "Snøhund",
+			IssuedDate:       "2026-10-14",
+			TotalItemsCount:  1,
+		},
+	}
+
+	r := setupTestRouter(repo, "warehouse", nil)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/issues", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool           `json:"success"`
+		Total   int            `json:"total"`
+		Data    []IssueSummary `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if resp.Total != 1 || len(resp.Data) != 1 {
+		t.Fatalf("expected 1 issue, got %d", resp.Total)
+	}
+}
+
+func TestListBlockedAttempts_AuditTrail(t *testing.T) {
+	repo := newMockRepository()
+	repo.blockedAttempts = append(repo.blockedAttempts, &BlockedAttemptRecord{
+		ID:                "blk-1",
+		LotNumber:         "LOT-X",
+		LotClientName:     "Brand X",
+		TargetOrderCode:   "PO-Y",
+		TargetClientName:  "Brand Y",
+		RequestedQuantity: 20.0,
+		Reason:            "Blokir uji coba",
+	})
+
+	r := setupTestRouter(repo, "warehouse", nil)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/blocked-attempts", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool                   `json:"success"`
+		Total   int                    `json:"total"`
+		Data    []BlockedAttemptRecord `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if resp.Total != 1 || len(resp.Data) != 1 {
+		t.Fatalf("expected 1 blocked attempt, got %d", resp.Total)
+	}
+}
+
+func TestCreateScrap_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.orderNumbers["order-1"] = "PO-SNO-01"
+
+	r := setupTestRouter(repo, "production_head", nil)
+
+	body := `{
+		"orderId": "order-1",
+		"materialId": "mat-1",
+		"scrapCategory": "PERCA_KECIL",
+		"quantity": 3.5,
+		"unit": "KG",
+		"disposition": "SIMPAN_GUDANG_SISA",
+		"notes": "Sisa pola lengan"
+	}`
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/scraps", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool               `json:"success"`
+		Data    CuttingScrapRecord `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if !resp.Success {
+		t.Errorf("expected success true")
+	}
+	if resp.Data.Quantity != 3.5 {
+		t.Errorf("expected quantity 3.5, got %.2f", resp.Data.Quantity)
+	}
+}
+
 

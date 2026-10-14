@@ -18,5 +18,18 @@ type Repository interface {
 	// Lots & Stocks
 	FindLotByID(ctx context.Context, id string) (*InventoryLot, error)
 	ListStockBalances(ctx context.Context, filter ListStocksFilter) ([]StockBalance, error)
+
+	// Issues & Outbound (BPMN 02 / Skenario Uji 1)
+	CreateIssue(ctx context.Context, userID string, req CreateIssueRequest) (*IssueDetail, error)
+	FindIssueByID(ctx context.Context, id string) (*IssueDetail, error)
+	ListIssues(ctx context.Context, filter ListIssuesFilter) ([]IssueSummary, int, error)
+
+	// Blocked Attempts Audit Trail
+	RecordBlockedAttempt(ctx context.Context, record *BlockedAttemptRecord) error
+	ListBlockedAttempts(ctx context.Context, filter ListBlockedAttemptsFilter) ([]BlockedAttemptRecord, int, error)
+
+	// Cutting Scraps & Waste (FR-6.3)
+	CreateScrap(ctx context.Context, userID string, req CreateScrapRequest) (*CuttingScrapRecord, error)
+	ListScraps(ctx context.Context, filter ListScrapsFilter) ([]CuttingScrapRecord, int, error)
 }
 

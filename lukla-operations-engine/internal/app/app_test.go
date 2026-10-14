@@ -3206,3 +3206,236 @@ func TestApp_PrintInventoryActualResponses(t *testing.T) {
 	_ = json.Indent(&prettyMaterials, wMaterials.Body.Bytes(), "", "    ")
 	t.Logf("\n=== ACTUAL GET /api/v1/inventory/materials ===\n%s\n", prettyMaterials.String())
 }
+
+// ==========================================
+// TAHAP 3.2: LIVE DB ACCEPTANCE TEST (SKENARIO UJI 1)
+// ==========================================
+
+func TestApp_InventoryOutboundAndBlockadeLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to init app: %v", err)
+	}
+
+	wrhToken := getAuthToken(t, application, "warehouse@lukla.local", "password")
+	prodToken := getAuthToken(t, application, "production@lukla.local", "password")
+
+	// 1. Query required entities from live database
+	var snoOrderID, aveOrderID, snoLotID, aveLotID, snoMatID string
+	err = application.db.QueryRow(`SELECT id FROM orders WHERE order_number = 'PO-2026-10-001'`).Scan(&snoOrderID)
+	if err != nil {
+		t.Fatalf("failed to find PO-2026-10-001: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM orders WHERE order_number = 'PO-2026-10-002'`).Scan(&aveOrderID)
+	if err != nil {
+		t.Fatalf("failed to find PO-2026-10-002: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM inventory_lots WHERE lot_number = 'LOT-SNO-20261014-01'`).Scan(&snoLotID)
+	if err != nil {
+		t.Fatalf("failed to find LOT-SNO-20261014-01: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM inventory_lots WHERE lot_number = 'LOT-AVE-20261014-01'`).Scan(&aveLotID)
+	if err != nil {
+		t.Fatalf("failed to find LOT-AVE-20261014-01: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM materials WHERE code = 'MAT-CTN-30S-BLK'`).Scan(&snoMatID)
+	if err != nil {
+		t.Fatalf("failed to find MAT-CTN-30S-BLK: %v", err)
+	}
+
+	// 2. SKENARIO UJI 1: BLOKADE KONTAMINASI SILANG (Cross-Contamination Blockade)
+	// Petugas gudang mencoba mengeluarkan kain milik Aventura (LOT-AVE) untuk SPK Snøhund (PO-2026-10-001)
+	mismatchBody, _ := json.Marshal(map[string]interface{}{
+		"targetOrderId":      snoOrderID,
+		"cuttingTableNumber": "MEJA-CUTTING-01",
+		"issuedDate":         "2026-10-15",
+		"notes":              "Percobaan salah ambil kain - harus diblokir oleh sistem",
+		"items": []map[string]interface{}{
+			{"lotId": aveLotID, "quantity": 25.0, "notes": "Salah tarik roll Aventura"},
+		},
+	})
+	reqBlocked, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/issues", bytes.NewBuffer(mismatchBody))
+	reqBlocked.Header.Set("Authorization", "Bearer "+wrhToken)
+	reqBlocked.Header.Set("Content-Type", "application/json")
+	wBlocked := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wBlocked, reqBlocked)
+
+	// Verifikasi mutlak: status harus 400 Bad Request
+	if wBlocked.Code != http.StatusBadRequest {
+		t.Fatalf("SKENARIO UJI 1 FAILED: expected 400 Bad Request for cross contamination, got %d. Body: %s", wBlocked.Code, wBlocked.Body.String())
+	}
+	var blockedResp struct {
+		Success bool `json:"success"`
+		Error   struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(wBlocked.Body.Bytes(), &blockedResp)
+	if blockedResp.Error.Code != "INVENTORY_CLIENT_ORDER_MISMATCH" {
+		t.Errorf("expected error code INVENTORY_CLIENT_ORDER_MISMATCH, got %s", blockedResp.Error.Code)
+	}
+
+	var prettyBlocked bytes.Buffer
+	_ = json.Indent(&prettyBlocked, wBlocked.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/inventory/issues (BLOCKED) ===\n%s\n", prettyBlocked.String())
+
+	// Verifikasi saldo lot Aventura TIDAK BERKURANG
+	var aveQtyAfter float64
+	_ = application.db.QueryRow(`SELECT current_quantity FROM inventory_lots WHERE id = $1`, aveLotID).Scan(&aveQtyAfter)
+	if aveQtyAfter != 100.0 {
+		t.Fatalf("SECURITY FLAW: Lot quantity was deducted despite blockade! Expected 100.0, got %.2f", aveQtyAfter)
+	}
+
+	// Verifikasi log audit mencatat insiden pemblokiran
+	reqAudit, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/blocked-attempts", nil)
+	reqAudit.Header.Set("Authorization", "Bearer "+wrhToken)
+	wAudit := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAudit, reqAudit)
+	if wAudit.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for blocked-attempts, got %d", wAudit.Code)
+	}
+	var prettyAudit bytes.Buffer
+	_ = json.Indent(&prettyAudit, wAudit.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/blocked-attempts ===\n%s\n", prettyAudit.String())
+
+	var auditResp struct {
+		Success bool `json:"success"`
+		Total   int  `json:"total"`
+		Data    []struct {
+			LotNumber       string `json:"lotNumber"`
+			TargetOrderCode string `json:"targetOrderCode"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAudit.Body.Bytes(), &auditResp)
+	if auditResp.Total < 1 {
+		t.Fatalf("expected at least 1 record in blocked attempts audit trail, got %d", auditResp.Total)
+	}
+
+	var snoQtyBefore float64
+	_ = application.db.QueryRow(`SELECT current_quantity FROM inventory_lots WHERE id = $1`, snoLotID).Scan(&snoQtyBefore)
+
+	// 3. SKENARIO SUKSES PENGELUARAN BAHAN (Valid Issue ke Meja Potong)
+	// Keluarkan 50.0 KG dari roll Snøhund (LOT-SNO-20261014-01) untuk SPK Snøhund (PO-2026-10-001)
+	validBody, _ := json.Marshal(map[string]interface{}{
+		"targetOrderId":      snoOrderID,
+		"cuttingTableNumber": "MEJA-CUTTING-01",
+		"issuedDate":         "2026-10-15",
+		"notes":              "Pengeluaran bahan kain badan Snøhund sesuai SPK",
+		"items": []map[string]interface{}{
+			{"lotId": snoLotID, "quantity": 50.0, "notes": "Ambil 50kg"},
+		},
+	})
+	reqValid, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/issues", bytes.NewBuffer(validBody))
+	reqValid.Header.Set("Authorization", "Bearer "+wrhToken)
+	reqValid.Header.Set("Content-Type", "application/json")
+	wValid := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wValid, reqValid)
+
+	if wValid.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for valid issue, got %d. Body: %s", wValid.Code, wValid.Body.String())
+	}
+	var prettyValid bytes.Buffer
+	_ = json.Indent(&prettyValid, wValid.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/inventory/issues (VALID) ===\n%s\n", prettyValid.String())
+
+	var issueResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID          string `json:"id"`
+			IssueNumber string `json:"issueNumber"`
+			Items       []struct {
+				RemainingLotQuantity float64 `json:"remainingLotQuantity"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wValid.Body.Bytes(), &issueResp)
+	createdIssueID := issueResp.Data.ID
+
+	t.Cleanup(func() {
+		_, _ = application.db.Exec(`UPDATE inventory_lots SET current_quantity = 150.50, status = 'AVAILABLE' WHERE id = $1`, snoLotID)
+		if createdIssueID != "" {
+			_, _ = application.db.Exec(`DELETE FROM inventory_issues WHERE id = $1`, createdIssueID)
+		}
+	})
+
+	expectedRemaining := snoQtyBefore - 50.0
+	if len(issueResp.Data.Items) > 0 && issueResp.Data.Items[0].RemainingLotQuantity != expectedRemaining {
+		t.Errorf("expected remaining lot quantity %.2f, got %.2f", expectedRemaining, issueResp.Data.Items[0].RemainingLotQuantity)
+	}
+
+	// 4. Verifikasi Detail Pengeluaran (GET /api/v1/inventory/issues/:id)
+	reqGetIssue, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/issues/"+createdIssueID, nil)
+	reqGetIssue.Header.Set("Authorization", "Bearer "+wrhToken)
+	wGetIssue := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGetIssue, reqGetIssue)
+	if wGetIssue.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get issue detail, got %d", wGetIssue.Code)
+	}
+	var prettyGetIssue bytes.Buffer
+	_ = json.Indent(&prettyGetIssue, wGetIssue.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/issues/:id ===\n%s\n", prettyGetIssue.String())
+
+	// Verifikasi List Pengeluaran (GET /api/v1/inventory/issues)
+	reqListIssues, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/issues", nil)
+	reqListIssues.Header.Set("Authorization", "Bearer "+wrhToken)
+	wListIssues := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListIssues, reqListIssues)
+	if wListIssues.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list issues, got %d", wListIssues.Code)
+	}
+	var prettyListIssues bytes.Buffer
+	_ = json.Indent(&prettyListIssues, wListIssues.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/issues ===\n%s\n", prettyListIssues.String())
+
+	// 5. SKENARIO PENCATATAN SCRAP CUTTING (FR-6.3)
+	scrapBody, _ := json.Marshal(map[string]interface{}{
+		"orderId":       snoOrderID,
+		"materialId":    snoMatID,
+		"scrapCategory": "PERCA_KECIL",
+		"quantity":      4.25,
+		"unit":          "KG",
+		"disposition":   "SIMPAN_GUDANG_SISA",
+		"notes":         "Sisa pemotongan pola badan dan kerah batch 1",
+	})
+	reqScrap, _ := http.NewRequest(http.MethodPost, "/api/v1/inventory/scraps", bytes.NewBuffer(scrapBody))
+	reqScrap.Header.Set("Authorization", "Bearer "+prodToken)
+	reqScrap.Header.Set("Content-Type", "application/json")
+	wScrap := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wScrap, reqScrap)
+
+	if wScrap.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for create scrap, got %d. Body: %s", wScrap.Code, wScrap.Body.String())
+	}
+	var prettyScrap bytes.Buffer
+	_ = json.Indent(&prettyScrap, wScrap.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/inventory/scraps ===\n%s\n", prettyScrap.String())
+
+	// Verifikasi daftar scrap (GET /api/v1/inventory/scraps)
+	reqListScrap, _ := http.NewRequest(http.MethodGet, "/api/v1/inventory/scraps?orderId="+snoOrderID, nil)
+	reqListScrap.Header.Set("Authorization", "Bearer "+wrhToken)
+	wListScrap := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wListScrap, reqListScrap)
+	if wListScrap.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list scraps, got %d", wListScrap.Code)
+	}
+	var prettyListScrap bytes.Buffer
+	_ = json.Indent(&prettyListScrap, wListScrap.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/inventory/scraps ===\n%s\n", prettyListScrap.String())
+
+	var scrapsListResp struct {
+		Success bool `json:"success"`
+		Total   int  `json:"total"`
+	}
+	_ = json.Unmarshal(wListScrap.Body.Bytes(), &scrapsListResp)
+	if scrapsListResp.Total < 1 {
+		t.Fatalf("expected at least 1 scrap record, got %d", scrapsListResp.Total)
+	}
+}
+

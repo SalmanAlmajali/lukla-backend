@@ -4549,9 +4549,448 @@
                             "status": "OK"
                         }
                     ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 400 Bad Request\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "pm.test(\"SKENARIO UJI 1 BLOKADE: cross contamination blocked immediately with code INVENTORY_CLIENT_ORDER_MISMATCH\", function () {",
+                                    "    pm.expect(res.success).to.eql(false);",
+                                    "    pm.expect(res.error.code).to.eql(\"INVENTORY_CLIENT_ORDER_MISMATCH\");",
+                                    "    pm.expect(res.error.message).to.include(\"BLOKIR KEAMANAN\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "10. POST /inventory/issues - Blokade Kontaminasi Silang (Skenario Uji 1 / 400 Bad Request)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n    \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n    \"issuedDate\": \"2026-10-15\",\n    \"notes\": \"Percobaan salah ambil kain milik Aventura untuk SPK Snøhund - sistem wajib memblokir\",\n    \"items\": [\n        {\n            \"lotId\": \"{{lot_aventura_id}}\",\n            \"quantity\": 25.0,\n            \"notes\": \"Salah ambil roll kain milik brand klien lain\"\n        }\n    ]\n}"
+                        },
+                        "description": "SKENARIO UJI 1 (FR-6.2): Pengeluaran bahan ke meja potong dengan Lot kepemilikan Aventura untuk Order Snøhund. Sistem WAJIB menolak (400 Bad Request) dengan kode INVENTORY_CLIENT_ORDER_MISMATCH, saldo tidak terpotong, dan insiden otomatis tercatat di audit log.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"INVENTORY_CLIENT_ORDER_MISMATCH\",\n        \"message\": \"BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan: BLOKIR KEAMANAN: Bahan pada lot 'LOT-AVE-20261014-01' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-2026-10-001' milik klien 'Snøhund Brand'.\"\n    },\n    \"success\": false\n}",
+                            "code": 400,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "400 Bad Request (Blokade Kontaminasi Silang Terverifikasi)",
+                            "status": "Bad Request"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Audit trail contains recorded security blockade attempts\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    pm.expect(res.total).to.be.at.least(1);",
+                                    "    pm.expect(res.data[0]).to.have.property(\"lotNumber\");",
+                                    "    pm.expect(res.data[0]).to.have.property(\"targetOrderCode\");",
+                                    "    pm.expect(res.data[0]).to.have.property(\"reason\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "11. GET /inventory/blocked-attempts - Audit Trail Percobaan Salah-Keluar (200 OK)",
+                    "request": {
+                        "description": "Menginspeksi log audit percobaan pengeluaran bahan yang diblokir oleh sistem (FR-6.3 & Skenario Uji 1). Menyajikan rincian user PIC, lot number, target order, target client, dan kronologi alasan pemblokiran.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "blocked-attempts"
+                            ],
+                            "raw": "{{base_url}}/inventory/blocked-attempts"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"attemptedAt\": \"2026-10-14T23:09:18.050193+07:00\",\n            \"attemptedByName\": \"Agus Pratama\",\n            \"attemptedByUserId\": \"bfe9c52d-769d-4645-b621-06ad7aa0c716\",\n            \"id\": \"86c76d10-ae5e-40b6-a21e-fd3f2737b908\",\n            \"lotClientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"lotClientName\": \"Aventura Outdoor Gear\",\n            \"lotId\": \"f075a84d-ac2a-4b7d-a688-7328c4c03927\",\n            \"lotNumber\": \"LOT-AVE-20261014-01\",\n            \"reason\": \"BLOKIR KEAMANAN: Bahan pada lot 'LOT-AVE-20261014-01' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-2026-10-001' milik klien 'Snøhund Brand'.\",\n            \"requestedQuantity\": 25,\n            \"targetClientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"targetClientName\": \"Snøhund Brand\",\n            \"targetOrderCode\": \"PO-2026-10-001\",\n            \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Material issued successfully and remaining lot quantity updated\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.not.be.empty;",
+                                    "    pm.expect(res.data.items).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.items[0].remainingLotQuantity).to.eql(100.5);",
+                                    "    pm.collectionVariables.set(\"issue_id\", res.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "12. POST /inventory/issues - Pengeluaran Bahan Valid ke Cutting (201 Created)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n    \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n    \"issuedDate\": \"2026-10-15\",\n    \"notes\": \"Pengeluaran bahan kain badan Snøhund sesuai SPK\",\n    \"items\": [\n        {\n            \"lotId\": \"{{lot_id}}\",\n            \"quantity\": 50.0,\n            \"notes\": \"Ambil 50kg\"\n        }\n    ]\n}"
+                        },
+                        "description": "Mengeluarkan kain dari gudang ke lantai cutting dengan validasi kepemilikan client match (Snøhund lot ke Snøhund order). Mengurangi saldo stok lot secara real-time.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n        \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n        \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n        \"issueNumber\": \"ISS-20261014-0003\",\n        \"issuedByName\": \"Agus Pratama\",\n        \"issuedDate\": \"2026-10-15\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"id\": \"2310bb2a-1fba-4bf3-a74c-a018ab53e8b0\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Ambil 50kg\",\n                \"quantity\": 50,\n                \"remainingLotQuantity\": 100.5,\n                \"unit\": \"KG\"\n            }\n        ],\n        \"notes\": \"Pengeluaran bahan kain badan Snøhund sesuai SPK\",\n        \"targetClientName\": \"Snøhund Brand\",\n        \"targetOrderCode\": \"PO-2026-10-001\",\n        \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"totalItemsCount\": 1\n    },\n    \"message\": \"Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-2026-10-001\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"List issues returned successfully\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.length).to.be.at.least(1);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "13. GET /inventory/issues - Daftar Surat Pengeluaran Bahan (200 OK)",
+                    "request": {
+                        "description": "Mengambil daftar dokumen pengeluaran bahan kain/komponen ke cutting table.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n            \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n            \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n            \"issueNumber\": \"ISS-20261014-0003\",\n            \"issuedDate\": \"2026-10-15T00:00:00Z\",\n            \"targetClientName\": \"Snøhund Brand\",\n            \"targetOrderCode\": \"PO-2026-10-001\",\n            \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"totalItemsCount\": 1\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Issue detail returned with correct structure\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.eql(pm.collectionVariables.get(\"issue_id\"));",
+                                    "    pm.expect(res.data.items).to.be.an(\"array\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14. GET /inventory/issues/:id - Detail Surat Pengeluaran Bahan (200 OK)",
+                    "request": {
+                        "description": "Mengambil detail surat pengeluaran bahan ke lantai cutting beserta rincian lot dan sisa saldo lot setelah dipotong.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues",
+                                "{{issue_id}}"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues/{{issue_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n        \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n        \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n        \"issueNumber\": \"ISS-20261014-0003\",\n        \"issuedByName\": \"Agus Pratama\",\n        \"issuedDate\": \"2026-10-15T00:00:00Z\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"id\": \"2310bb2a-1fba-4bf3-a74c-a018ab53e8b0\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Ambil 50kg\",\n                \"quantity\": 50,\n                \"remainingLotQuantity\": 100.5,\n                \"unit\": \"KG\"\n            }\n        ],\n        \"notes\": \"Pengeluaran bahan kain badan Snøhund sesuai SPK\",\n        \"targetClientName\": \"Snøhund Brand\",\n        \"targetOrderCode\": \"PO-2026-10-001\",\n        \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"totalItemsCount\": 1\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Cutting scrap recorded successfully\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data.id).to.not.be.empty;",
+                                    "    pm.expect(res.data.scrapCategory).to.eql(\"PERCA_KECIL\");",
+                                    "    pm.expect(res.data.disposition).to.eql(\"SIMPAN_GUDANG_SISA\");",
+                                    "    pm.collectionVariables.set(\"scrap_id\", res.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15. POST /inventory/scraps - Pencatatan Limbah Cutting / Scrap (201 Created)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n    \"materialId\": \"{{material_id}}\",\n    \"scrapCategory\": \"PERCA_KECIL\",\n    \"quantity\": 4.25,\n    \"unit\": \"KG\",\n    \"disposition\": \"SIMPAN_GUDANG_SISA\",\n    \"notes\": \"Sisa pemotongan pola badan dan kerah batch 1\"\n}"
+                        },
+                        "description": "Mencatat limbah / sisa potongan cutting kain (FR-6.4) dengan klasifikasi kategori ('PERCA_KECIL', 'CACAT_KAIN_ROLL', 'UJUNG_GULUNGAN', 'KESALAHAN_POTONG') dan disposisi ('SIMPAN_GUDANG_SISA', 'KEMBALIKAN_KLIEN', 'JUAL_LIMBAH', 'BUANG').",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{production_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "scraps"
+                            ],
+                            "raw": "{{base_url}}/inventory/scraps"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.139211+07:00\",\n        \"disposition\": \"SIMPAN_GUDANG_SISA\",\n        \"id\": \"bc4eba1e-b2a3-41a9-8f39-4ea026932f66\",\n        \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"notes\": \"Sisa pemotongan pola badan dan kerah batch 1\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"quantity\": 4.25,\n        \"recordedByName\": \"Bambang Supriyadi\",\n        \"scrapCategory\": \"PERCA_KECIL\",\n        \"unit\": \"KG\"\n    },\n    \"message\": \"Data sisa potongan cutting berhasil dicatat\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"List scraps returned successfully\", function () {",
+                                    "    pm.expect(res.success).to.eql(true);",
+                                    "    pm.expect(res.data).to.be.an(\"array\");",
+                                    "    pm.expect(res.data.length).to.be.at.least(1);",
+                                    "    pm.expect(res.data[0]).to.have.property(\"scrapCategory\");",
+                                    "    pm.expect(res.data[0]).to.have.property(\"disposition\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16. GET /inventory/scraps - Daftar Scrap Cutting (200 OK)",
+                    "request": {
+                        "description": "Mengambil daftar pencatatan sisa potongan dan limbah cutting dengan filter order_id dan scrap_category.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{warehouse_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "scraps"
+                            ],
+                            "query": [
+                                {
+                                    "key": "orderId",
+                                    "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
+                                }
+                            ],
+                            "raw": "{{base_url}}/inventory/scraps?orderId=fad2530f-90d9-4a76-af96-d9f7db451a98"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"createdAt\": \"2026-10-14T23:09:18.139211+07:00\",\n            \"disposition\": \"SIMPAN_GUDANG_SISA\",\n            \"id\": \"bc4eba1e-b2a3-41a9-8f39-4ea026932f66\",\n            \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"notes\": \"Sisa pemotongan pola badan dan kerah batch 1\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"quantity\": 4.25,\n            \"recordedByName\": \"Bambang Supriyadi\",\n            \"scrapCategory\": \"PERCA_KECIL\",\n            \"unit\": \"KG\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "name": "200 OK",
+                            "status": "OK"
+                        }
+                    ]
                 }
             ],
-            "name": "09. Tahap 3: Gudang \u0026 Inventaris - Penerimaan \u0026 Stok Lot (BPMN 02)"
+            "name": "09. Tahap 3: Gudang & Inventaris - Penerimaan, Stok Lot, Pengeluaran Cutting & Blokade Silang (BPMN 02)"
         }
     ],
     "variable": [
@@ -4578,7 +5017,7 @@
         {
             "key": "client_aventura_id",
             "type": "string",
-            "value": ""
+            "value": "483b04f2-d5b3-4581-97e9-27ccbfb38637"
         },
         {
             "key": "article_parka_id",
@@ -4669,6 +5108,21 @@
             "key": "lot_id",
             "type": "string",
             "value": "4c2591b6-a60b-4f97-b50e-f8c936e1fd57"
+        },
+        {
+            "key": "lot_aventura_id",
+            "type": "string",
+            "value": "f075a84d-ac2a-4b7d-a688-7328c4c03927"
+        },
+        {
+            "key": "issue_id",
+            "type": "string",
+            "value": "7a347ac6-b1ba-4084-8240-e0500c0abb3f"
+        },
+        {
+            "key": "scrap_id",
+            "type": "string",
+            "value": "bc4eba1e-b2a3-41a9-8f39-4ea026932f66"
         }
     ]
 }
