@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/modules/identity"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
+	"github.com/lukla/operations-engine/internal/modules/payroll"
 	"github.com/lukla/operations-engine/internal/modules/production"
 	"github.com/lukla/operations-engine/internal/modules/ratecard"
 	"github.com/lukla/operations-engine/internal/platform/authn"
@@ -78,9 +79,13 @@ func New(ctx context.Context) (*App, error) {
 	productionSvc := production.NewService(productionRepo)
 	productionHandler := production.NewHandler(productionSvc)
 
+	payrollRepo := payroll.NewPostgresRepository(db)
+	payrollSvc := payroll.NewService(payrollRepo)
+	payrollHandler := payroll.NewHandler(payrollSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, authnMiddleware, internalAuthz)
+	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -122,6 +127,7 @@ func registerRoutes(
 	masterdataHandler *masterdata.Handler,
 	ratecardHandler *ratecard.Handler,
 	productionHandler *production.Handler,
+	payrollHandler *payroll.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -135,5 +141,6 @@ func registerRoutes(
 	masterdata.RegisterRoutes(v1, masterdataHandler, authnMiddleware, internalAuthz)
 	ratecardHandler.RegisterRoutes(v1, authnMiddleware)
 	productionHandler.RegisterRoutes(v1, authnMiddleware)
+	payroll.RegisterRoutes(v1, payrollHandler, authnMiddleware)
 }
 

@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -2424,6 +2426,236 @@ func TestApp_AssemblyAndProductionDashboardLiveDB(t *testing.T) {
 		t.Fatalf("expected 403 Forbidden for client creating assembly, got %d", wClientAsm.Code)
 	}
 }
+
+func getAuthToken(t *testing.T, app *App, username, password string) string {
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": password,
+	})
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.server.Handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("failed to login %s: %d, body: %s", username, w.Code, w.Body.String())
+	}
+	var resp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	return resp.Data.Token
+}
+
+func TestApp_PayrollSkenario2LiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login as executive, production, and finance
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+	finToken := getAuthToken(t, application, "finance@lukla.local", "password")
+	prodToken := getAuthToken(t, application, "production@lukla.local", "password")
+
+	// 2. Fetch active line, order, and component
+	var lineID, orderID, componentID string
+	err = application.db.QueryRow(`SELECT id FROM lines WHERE status = 'ACTIVE' LIMIT 1`).Scan(&lineID)
+	if err != nil {
+		t.Fatalf("no active line found: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM orders WHERE status = 'IN_PRODUCTION' LIMIT 1`).Scan(&orderID)
+	if err != nil {
+		t.Fatalf("no active order found: %v", err)
+	}
+	err = application.db.QueryRow(`SELECT id FROM components LIMIT 1`).Scan(&componentID)
+	if err != nil {
+		t.Fatalf("no component found: %v", err)
+	}
+
+	// 3. Skenario Uji 2: Create a new operator joining mid-week (Wednesday 2026-10-14)
+	midweekCode := fmt.Sprintf("OP-MID-%d", time.Now().UnixNano())
+	var newOperatorID string
+	err = application.db.QueryRow(`
+		INSERT INTO operators (operator_code, name, join_date, status, default_line)
+		VALUES ($1, 'Dewi Penjahit Baru Midweek', '2026-10-14', 'ACTIVE', 'LINE-01')
+		RETURNING id
+	`, midweekCode).Scan(&newOperatorID)
+	if err != nil {
+		t.Fatalf("failed to insert midweek operator: %v", err)
+	}
+
+	periodCode := fmt.Sprintf("PAY-TEST-%d", time.Now().UnixNano())
+	t.Cleanup(func() {
+		_, _ = application.db.Exec(`DELETE FROM payroll_periods WHERE period_code = $1`, periodCode)
+		_, _ = application.db.Exec(`DELETE FROM production_outputs WHERE operator_id = $1`, newOperatorID)
+		_, _ = application.db.Exec(`DELETE FROM operators WHERE id = $1`, newOperatorID)
+	})
+
+	// 4. Insert production outputs for this operator:
+	// Output Wednesday (2026-10-14): 80 pcs @ 3000 = 240,000
+	// Output Thursday  (2026-10-15): 120 pcs @ 3000 = 360,000
+	// Output Monday prior to join (2026-10-12): 50 pcs @ 3000 = 150,000 (Should be EXCLUDED by business rule!)
+	_, err = application.db.Exec(`
+		INSERT INTO production_outputs (line_id, order_id, operator_id, component_id, quantity, time_slot, work_date, snapshot_sewing_rate)
+		VALUES 
+			($1, $2, $3, $4, 80, '08:00-08:30', '2026-10-14', 3000.00),
+			($1, $2, $3, $4, 120, '08:30-09:00', '2026-10-15', 3000.00),
+			($1, $2, $3, $4, 50, '08:00-08:30', '2026-10-12', 3000.00)
+	`, lineID, orderID, newOperatorID, componentID)
+	if err != nil {
+		t.Fatalf("failed to insert production outputs: %v", err)
+	}
+
+	// 5. Create Payroll Period via POST /api/v1/payroll/periods by Finance
+	createReqBody := map[string]interface{}{
+		"periodCode":              periodCode,
+		"startDate":               "2026-10-12",
+		"endDate":                 "2026-10-18",
+		"mealAllowancePercentage": 12.50,
+		"notes":                   "Uji Skenario 2 Penjahit Baru di Tengah Minggu",
+	}
+	createJSON, _ := json.Marshal(createReqBody)
+
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBuffer(createJSON))
+	reqCreate.Header.Set("Authorization", "Bearer "+finToken)
+	reqCreate.Header.Set("Content-Type", "application/json")
+	wCreate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreate, reqCreate)
+
+	if wCreate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for payroll period, got %d. Body: %s", wCreate.Code, wCreate.Body.String())
+	}
+
+	var createdPeriodResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID                      string  `json:"id"`
+			PeriodCode              string  `json:"periodCode"`
+			Status                  string  `json:"status"`
+			MealAllowancePercentage float64 `json:"mealAllowancePercentage"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wCreate.Body.Bytes(), &createdPeriodResp); err != nil {
+		t.Fatalf("failed to parse create period response: %v", err)
+	}
+	periodID := createdPeriodResp.Data.ID
+	if periodID == "" || createdPeriodResp.Data.Status != "DRAFT" {
+		t.Fatalf("unexpected period data: %+v", createdPeriodResp)
+	}
+
+	// 6. Test RBAC: Production Head cannot calculate payroll (403 Forbidden)
+	reqProdCalc, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/calculate", bytes.NewBufferString(`{}`))
+	reqProdCalc.Header.Set("Authorization", "Bearer "+prodToken)
+	reqProdCalc.Header.Set("Content-Type", "application/json")
+	wProdCalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wProdCalc, reqProdCalc)
+
+	if wProdCalc.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for production head calculating payroll, got %d", wProdCalc.Code)
+	}
+
+	// 7. Calculate Payroll via POST /api/v1/payroll/periods/{id}/calculate by Executive
+	reqCalc, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/"+periodID+"/calculate", bytes.NewBufferString(`{}`))
+	reqCalc.Header.Set("Authorization", "Bearer "+execToken)
+	reqCalc.Header.Set("Content-Type", "application/json")
+	wCalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCalc, reqCalc)
+
+	if wCalc.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for payroll calculation, got %d. Body: %s", wCalc.Code, wCalc.Body.String())
+	}
+
+	// 8. List slips via GET /api/v1/payroll/periods/{id}/slips
+	reqSlips, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/"+periodID+"/slips?operatorId="+newOperatorID, nil)
+	reqSlips.Header.Set("Authorization", "Bearer "+finToken)
+	wSlips := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSlips, reqSlips)
+
+	if wSlips.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list slips, got %d. Body: %s", wSlips.Code, wSlips.Body.String())
+	}
+
+	var slipsResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID                  string  `json:"id"`
+			OperatorID          string  `json:"operatorId"`
+			OperatorCode        string  `json:"operatorCode"`
+			TotalPieces         int     `json:"totalPieces"`
+			GrossPieceRateTotal float64 `json:"grossPieceRateTotal"`
+			MealAllowanceAmount float64 `json:"mealAllowanceAmount"`
+			NetPayableTotal     float64 `json:"netPayableTotal"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wSlips.Body.Bytes(), &slipsResp); err != nil {
+		t.Fatalf("failed to parse slips response: %v", err)
+	}
+
+	if len(slipsResp.Data) == 0 {
+		t.Fatalf("expected at least 1 slip for midweek operator, got 0")
+	}
+
+	slip := slipsResp.Data[0]
+	// Skenario 2 Verification:
+	// Quantity: Wednesday (80) + Thursday (120) = 200 pcs (Monday's 50 pcs must be EXCLUDED because joinDate was Wednesday!)
+	if slip.TotalPieces != 200 {
+		t.Fatalf("Skenario 2 FAILED: expected TotalPieces = 200 (excluding Monday output prior to join date), got %d", slip.TotalPieces)
+	}
+	// Gross Piece Rate: 200 pcs * 3000 = 600,000.00
+	if slip.GrossPieceRateTotal != 600000.00 {
+		t.Fatalf("Skenario 2 FAILED: expected GrossPieceRateTotal = 600000.00, got %f", slip.GrossPieceRateTotal)
+	}
+	// Meal Allowance: 12.5% of 600,000 = 75,000.00
+	if slip.MealAllowanceAmount != 75000.00 {
+		t.Fatalf("Skenario 2 FAILED: expected MealAllowanceAmount = 75000.00, got %f", slip.MealAllowanceAmount)
+	}
+	// Total Net Payable: 600,000 + 75,000 = 675,000.00
+	if slip.NetPayableTotal != 675000.00 {
+		t.Fatalf("Skenario 2 FAILED: expected NetPayableTotal = 675000.00, got %f", slip.NetPayableTotal)
+	}
+
+	// 9. Get detailed slip via GET /api/v1/payroll/slips/{id}
+	reqDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/slips/"+slip.ID, nil)
+	reqDetail.Header.Set("Authorization", "Bearer "+finToken)
+	wDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDetail, reqDetail)
+
+	if wDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for slip detail, got %d. Body: %s", wDetail.Code, wDetail.Body.String())
+	}
+
+	var detailResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID                      string  `json:"id"`
+			MealAllowancePercentage float64 `json:"mealAllowancePercentage"`
+			Items                   []struct {
+				WorkDate           string  `json:"workDate"`
+				Quantity           int     `json:"quantity"`
+				SnapshotSewingRate float64 `json:"snapshotSewingRate"`
+				Subtotal           float64 `json:"subtotal"`
+			} `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wDetail.Body.Bytes(), &detailResp); err != nil {
+		t.Fatalf("failed to parse slip detail: %v", err)
+	}
+	if len(detailResp.Data.Items) != 2 {
+		t.Fatalf("expected 2 slip items (Wednesday & Thursday), got %d", len(detailResp.Data.Items))
+	}
+	if detailResp.Data.MealAllowancePercentage != 12.50 {
+		t.Fatalf("expected MealAllowancePercentage 12.50, got %f", detailResp.Data.MealAllowancePercentage)
+	}
+}
+
 
 
 

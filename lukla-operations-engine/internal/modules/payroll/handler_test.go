@@ -1,0 +1,462 @@
+package payroll
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+type mockPayrollRepository struct {
+	periods        map[string]*PayrollPeriod
+	slips          map[string]*PayrollSlip
+	slipDetails    map[string]*PayrollSlipDetail
+	outputs        []OperatorOutputAggregation
+	createErr      error
+	calculateErr   error
+	listSlipsTotal int
+}
+
+func newMockRepository() *mockPayrollRepository {
+	return &mockPayrollRepository{
+		periods:     make(map[string]*PayrollPeriod),
+		slips:       make(map[string]*PayrollSlip),
+		slipDetails: make(map[string]*PayrollSlipDetail),
+	}
+}
+
+func (m *mockPayrollRepository) CreatePeriod(ctx context.Context, p *PayrollPeriod) error {
+	if m.createErr != nil {
+		return m.createErr
+	}
+	p.ID = "period-001"
+	p.CreatedAt = time.Now()
+	p.UpdatedAt = time.Now()
+	m.periods[p.ID] = p
+	return nil
+}
+
+func (m *mockPayrollRepository) FindPeriodByID(ctx context.Context, id string) (*PayrollPeriod, error) {
+	if p, ok := m.periods[id]; ok {
+		return p, nil
+	}
+	return nil, ErrPeriodNotFound
+}
+
+func (m *mockPayrollRepository) FindPeriodByCode(ctx context.Context, code string) (*PayrollPeriod, error) {
+	for _, p := range m.periods {
+		if p.PeriodCode == code {
+			return p, nil
+		}
+	}
+	return nil, ErrPeriodNotFound
+}
+
+func (m *mockPayrollRepository) ListPeriods(ctx context.Context, filter ListPeriodsFilter) ([]PayrollPeriod, int, error) {
+	result := []PayrollPeriod{}
+	for _, p := range m.periods {
+		if filter.Status != "" && p.Status != filter.Status {
+			continue
+		}
+		result = append(result, *p)
+	}
+	return result, len(result), nil
+}
+
+func (m *mockPayrollRepository) UpdatePeriodTotalsAndStatus(ctx context.Context, periodID string, status string, opsCount int, gross, meal, adj, net float64) error {
+	p, ok := m.periods[periodID]
+	if !ok {
+		return ErrPeriodNotFound
+	}
+	p.Status = status
+	p.TotalOperatorsCount = opsCount
+	p.TotalGrossPieceRate = gross
+	p.TotalMealAllowance = meal
+	p.TotalAdjustments = adj
+	p.TotalNetPayable = net
+	return nil
+}
+
+func (m *mockPayrollRepository) GetEligibleOperatorOutputs(ctx context.Context, startDate, endDate string, operatorIDs []string) ([]OperatorOutputAggregation, error) {
+	return m.outputs, nil
+}
+
+func (m *mockPayrollRepository) SaveCalculationResults(ctx context.Context, periodID string, slips []PayrollSlip, itemsMap map[string][]PayrollSlipItem, totalOps int, totalGross, totalMeal, totalAdj, totalNet float64) error {
+	if m.calculateErr != nil {
+		return m.calculateErr
+	}
+	p, ok := m.periods[periodID]
+	if !ok {
+		return ErrPeriodNotFound
+	}
+	if p.Status == string(PeriodStatusLocked) {
+		return ErrPeriodAlreadyLocked
+	}
+	p.Status = string(PeriodStatusCalculated)
+	p.TotalOperatorsCount = totalOps
+	p.TotalGrossPieceRate = totalGross
+	p.TotalMealAllowance = totalMeal
+	p.TotalAdjustments = totalAdj
+	p.TotalNetPayable = totalNet
+
+	for _, s := range slips {
+		sCopy := s
+		sCopy.ID = "slip-" + s.OperatorID
+		m.slips[sCopy.ID] = &sCopy
+		m.slipDetails[sCopy.ID] = &PayrollSlipDetail{
+			PayrollSlip:             sCopy,
+			MealAllowancePercentage: p.MealAllowancePercentage,
+			Items:                   itemsMap[s.OperatorID],
+		}
+	}
+	return nil
+}
+
+func (m *mockPayrollRepository) ListSlipsByPeriod(ctx context.Context, periodID string, filter ListSlipsFilter) ([]PayrollSlip, int, error) {
+	result := []PayrollSlip{}
+	for _, s := range m.slips {
+		if s.PayrollPeriodID == periodID {
+			result = append(result, *s)
+		}
+	}
+	return result, len(result), nil
+}
+
+func (m *mockPayrollRepository) FindSlipByID(ctx context.Context, slipID string) (*PayrollSlipDetail, error) {
+	if s, ok := m.slipDetails[slipID]; ok {
+		return s, nil
+	}
+	return nil, ErrSlipNotFound
+}
+
+func setupTestRouter(repo Repository, role string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	svc := NewService(repo)
+	handler := NewHandler(svc)
+
+	authnMock := func(c *gin.Context) {
+		c.Set("user_id", "user-mock-123")
+		c.Set("role", role)
+		c.Next()
+	}
+
+	api := r.Group("/api/v1")
+	RegisterRoutes(api, handler, authnMock)
+	return r
+}
+
+func TestCreatePeriod_Success_ByOwner(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "owner_executive")
+
+	body := `{"periodCode":"PAY-2026-W42","startDate":"2026-10-12","endDate":"2026-10-18","mealAllowancePercentage":12.5}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatePeriod_Success_ByFinance(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "finance")
+
+	body := `{"startDate":"2026-10-12","endDate":"2026-10-18","mealAllowancePercentage":10.0}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatePeriod_Forbidden_ByProductionHead(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "production_head")
+
+	body := `{"startDate":"2026-10-12","endDate":"2026-10-18","mealAllowancePercentage":12.0}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatePeriod_MealAllowanceOutOfRange(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "owner_executive")
+
+	// 9.5% is below 10%
+	body := `{"startDate":"2026-10-12","endDate":"2026-10-18","mealAllowancePercentage":9.5}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreatePeriod_InvalidDates(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "owner_executive")
+
+	// Start date after end date
+	body := `{"startDate":"2026-10-19","endDate":"2026-10-12","mealAllowancePercentage":12.0}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetPeriod_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:                      "p-1",
+		PeriodCode:              "PAY-2026-W42",
+		StartDate:               "2026-10-12",
+		EndDate:                 "2026-10-18",
+		MealAllowancePercentage: 12.0,
+		Status:                  "DRAFT",
+	}
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/p-1", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+}
+
+func TestGetPeriod_NotFound(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/non-existent", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", w.Code)
+	}
+}
+
+func TestListPeriods_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1", PeriodCode: "PAY-1", Status: "DRAFT"}
+	repo.periods["p-2"] = &PayrollPeriod{ID: "p-2", PeriodCode: "PAY-2", Status: "CALCULATED"}
+	r := setupTestRouter(repo, "owner_executive")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+}
+
+func TestCalculatePayroll_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:                      "p-1",
+		PeriodCode:              "PAY-2026-W42",
+		StartDate:               "2026-10-12",
+		EndDate:                 "2026-10-18",
+		MealAllowancePercentage: 10.0,
+		Status:                  "DRAFT",
+	}
+
+	// 2 outputs for operator 1
+	repo.outputs = []OperatorOutputAggregation{
+		{
+			OperatorID:         "op-1",
+			OperatorCode:       "OP-01",
+			OperatorName:       "Siti Rahma",
+			OperatorJoinDate:   "2026-10-14",
+			OrderID:            "order-1",
+			OrderCode:          "PO-1",
+			ClientName:         "Client A",
+			ComponentID:        "comp-1",
+			ComponentName:      "Saku",
+			WorkDate:           "2026-10-14",
+			Quantity:           100,
+			SnapshotSewingRate: 2000.0,
+			Subtotal:           200000.0,
+		},
+		{
+			OperatorID:         "op-1",
+			OperatorCode:       "OP-01",
+			OperatorName:       "Siti Rahma",
+			OperatorJoinDate:   "2026-10-14",
+			OrderID:            "order-1",
+			OrderCode:          "PO-1",
+			ClientName:         "Client A",
+			ComponentID:        "comp-1",
+			ComponentName:      "Saku",
+			WorkDate:           "2026-10-15",
+			Quantity:           50,
+			SnapshotSewingRate: 2000.0,
+			Subtotal:           100000.0,
+		},
+	}
+
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/calculate", bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	// Verify calculated results in mock
+	p := repo.periods["p-1"]
+	if p.Status != string(PeriodStatusCalculated) {
+		t.Errorf("expected status CALCULATED, got %s", p.Status)
+	}
+	if p.TotalGrossPieceRate != 300000.0 {
+		t.Errorf("expected TotalGross 300000.0, got %f", p.TotalGrossPieceRate)
+	}
+	// 10% of 300,000 = 30,000
+	if p.TotalMealAllowance != 30000.0 {
+		t.Errorf("expected TotalMealAllowance 30000.0, got %f", p.TotalMealAllowance)
+	}
+	if p.TotalNetPayable != 330000.0 {
+		t.Errorf("expected TotalNetPayable 330000.0, got %f", p.TotalNetPayable)
+	}
+}
+
+func TestCalculatePayroll_Forbidden_Operator(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1", Status: "DRAFT"}
+	r := setupTestRouter(repo, "tailor_operator")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/calculate", bytes.NewBufferString(`{}`))
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got %d", w.Code)
+	}
+}
+
+func TestCalculatePayroll_LockedPeriodConflict(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{
+		ID:     "p-1",
+		Status: string(PeriodStatusLocked),
+	}
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/payroll/periods/p-1/calculate", bytes.NewBufferString(`{}`))
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListSlips_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.periods["p-1"] = &PayrollPeriod{ID: "p-1", Status: "CALCULATED"}
+	repo.slips["slip-1"] = &PayrollSlip{
+		ID:                  "slip-1",
+		PayrollPeriodID:     "p-1",
+		OperatorID:          "op-1",
+		OperatorName:        "Siti",
+		GrossPieceRateTotal: 500000.0,
+	}
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/periods/p-1/slips", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+}
+
+func TestGetSlipDetail_Success(t *testing.T) {
+	repo := newMockRepository()
+	repo.slipDetails["slip-1"] = &PayrollSlipDetail{
+		PayrollSlip: PayrollSlip{
+			ID:                  "slip-1",
+			PayrollPeriodID:     "p-1",
+			OperatorID:          "op-1",
+			OperatorName:        "Siti",
+			GrossPieceRateTotal: 500000.0,
+			MealAllowanceAmount: 62500.0,
+			NetPayableTotal:     562500.0,
+		},
+		MealAllowancePercentage: 12.5,
+		Items: []PayrollSlipItem{
+			{
+				ComponentName:      "Lengan",
+				Quantity:           100,
+				SnapshotSewingRate: 5000.0,
+				Subtotal:           500000.0,
+			},
+		},
+	}
+	r := setupTestRouter(repo, "owner_executive")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/slips/slip-1", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool              `json:"success"`
+		Data    PayrollSlipDetail `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Data.OperatorName != "Siti" {
+		t.Errorf("expected operator Siti, got %s", resp.Data.OperatorName)
+	}
+	if len(resp.Data.Items) != 1 {
+		t.Errorf("expected 1 item, got %d", len(resp.Data.Items))
+	}
+}
+
+func TestGetSlipDetail_NotFound(t *testing.T) {
+	repo := newMockRepository()
+	r := setupTestRouter(repo, "finance")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/payroll/slips/non-existent", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", w.Code)
+	}
+}
+
