@@ -1,0 +1,30 @@
+package production
+
+import (
+	"context"
+)
+
+// Repository specifies the contract for production persistence operations.
+type Repository interface {
+	// Line operations
+	ListLines(ctx context.Context) ([]ProductionLine, error)
+	FindLineByID(ctx context.Context, id string) (*ProductionLineDetail, error)
+	FindLineByCode(ctx context.Context, code string) (*ProductionLine, error)
+	CreateLine(ctx context.Context, line *ProductionLine) error
+	UpdateLine(ctx context.Context, line *ProductionLine) error
+	GetTotalFactoryCapacity(ctx context.Context, excludeLineID string) (int, error)
+
+	// Allocation operations
+	ListAllocations(ctx context.Context, filter ListAllocationsFilter) ([]LineAllocation, error)
+	FindAllocationByID(ctx context.Context, id string) (*LineAllocation, error)
+	FindActiveAllocationByOperator(ctx context.Context, operatorID string) (*LineAllocation, error)
+	CreateAllocation(ctx context.Context, alloc *LineAllocation) error
+	TransferOperator(ctx context.Context, oldAllocID string, newAlloc *LineAllocation, transferLog *AllocationTransferLog) error
+	ListTransferHistoriesByAllocation(ctx context.Context, allocationID string) ([]AllocationTransferLog, error)
+
+	// Validation helpers
+	ValidateOperator(ctx context.Context, operatorID string) (name string, code string, skillTier string, err error)
+	ValidateOrder(ctx context.Context, orderID string) (orderCode string, clientID string, articleID string, err error)
+	ValidateComponent(ctx context.Context, componentID string) (componentName string, err error)
+}
+

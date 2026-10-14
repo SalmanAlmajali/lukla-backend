@@ -1776,6 +1776,216 @@ func TestApp_RateCardsLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_ProductionLinesAndAllocationsLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// Clean up previous test run allocations for idempotent test execution
+	_, _ = application.db.Exec("DELETE FROM line_transfers WHERE operator_id = (SELECT id FROM operators WHERE operator_code = 'JH-001')")
+	_, _ = application.db.Exec("DELETE FROM line_allocations WHERE operator_id = (SELECT id FROM operators WHERE operator_code = 'JH-001')")
+
+	// 1. Executive Login
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+	if wExecLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login executive: %d", wExecLogin.Code)
+	}
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Client Login
+	loginClientBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqClientLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginClientBody))
+	reqClientLogin.Header.Set("Content-Type", "application/json")
+	wClientLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLogin, reqClientLogin)
+	if wClientLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login client: %d", wClientLogin.Code)
+	}
+	var clientLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientLogin.Body.Bytes(), &clientLoginResp)
+	clientToken := clientLoginResp.Data.Token
+
+	// Step 1: GET /api/v1/lines as Executive -> 200 OK
+	reqLines, _ := http.NewRequest(http.MethodGet, "/api/v1/lines", nil)
+	reqLines.Header.Set("Authorization", "Bearer "+execToken)
+	wLines := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLines, reqLines)
+
+	if wLines.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /lines, got %d: %s", wLines.Code, wLines.Body.String())
+	}
+
+	var linesResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID          string `json:"id"`
+			Code        string `json:"code"`
+			Name        string `json:"name"`
+			MaxCapacity int    `json:"maxCapacity"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLines.Body.Bytes(), &linesResp)
+	if len(linesResp.Data) < 2 {
+		t.Fatalf("expected at least 2 seeded production lines, got %d", len(linesResp.Data))
+	}
+	line1ID := linesResp.Data[0].ID
+	line2ID := linesResp.Data[1].ID
+
+	// Step 2: GET /api/v1/lines as Client -> 403 Forbidden
+	reqClientLines, _ := http.NewRequest(http.MethodGet, "/api/v1/lines", nil)
+	reqClientLines.Header.Set("Authorization", "Bearer "+clientToken)
+	wClientLines := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLines, reqClientLines)
+
+	if wClientLines.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client accessing /lines, got %d", wClientLines.Code)
+	}
+
+	// Step 3: GET /api/v1/lines/:id -> 200 OK
+	reqLineDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/lines/"+line1ID, nil)
+	reqLineDetail.Header.Set("Authorization", "Bearer "+execToken)
+	wLineDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLineDetail, reqLineDetail)
+
+	if wLineDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /lines/:id, got %d: %s", wLineDetail.Code, wLineDetail.Body.String())
+	}
+
+	// Step 4: PUT /api/v1/lines/:id -> 200 OK (update name)
+	putLineBody, _ := json.Marshal(map[string]interface{}{
+		"name": "Line Jahit Parka Utama (Updated)",
+	})
+	reqPutLine, _ := http.NewRequest(http.MethodPut, "/api/v1/lines/"+line1ID, bytes.NewBuffer(putLineBody))
+	reqPutLine.Header.Set("Authorization", "Bearer "+execToken)
+	reqPutLine.Header.Set("Content-Type", "application/json")
+	wPutLine := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wPutLine, reqPutLine)
+
+	if wPutLine.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on PUT /lines/:id, got %d: %s", wPutLine.Code, wPutLine.Body.String())
+	}
+
+	// Fetch Order ID from DB
+	var orderID string
+	err = application.db.QueryRow("SELECT id FROM orders WHERE order_number = 'PO-2026-10-001'").Scan(&orderID)
+	if err != nil {
+		t.Fatalf("failed to query seeded order PO-2026-10-001: %v", err)
+	}
+
+	// Fetch Operator Siti Rahmawati ID
+	var operatorID string
+	err = application.db.QueryRow("SELECT id FROM operators WHERE operator_code = 'JH-001'").Scan(&operatorID)
+	if err != nil {
+		t.Fatalf("failed to query seeded operator JH-001: %v", err)
+	}
+
+	// Step 5: POST /api/v1/line-allocations -> 201 Created (Allocate JH-001 to Line 1)
+	allocBody, _ := json.Marshal(map[string]interface{}{
+		"lineId":     line1ID,
+		"orderId":    orderID,
+		"operatorId": operatorID,
+	})
+	reqAlloc, _ := http.NewRequest(http.MethodPost, "/api/v1/line-allocations", bytes.NewBuffer(allocBody))
+	reqAlloc.Header.Set("Authorization", "Bearer "+execToken)
+	reqAlloc.Header.Set("Content-Type", "application/json")
+	wAlloc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAlloc, reqAlloc)
+
+	if wAlloc.Code != http.StatusCreated && wAlloc.Code != http.StatusConflict {
+		t.Fatalf("expected 201 Created or 409 on POST /line-allocations, got %d: %s", wAlloc.Code, wAlloc.Body.String())
+	}
+
+	var allocID string
+	if wAlloc.Code == http.StatusCreated {
+		var allocResp struct {
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		_ = json.Unmarshal(wAlloc.Body.Bytes(), &allocResp)
+		allocID = allocResp.Data.ID
+	} else {
+		// already allocated from previous run, get active allocation id
+		_ = application.db.QueryRow("SELECT id FROM line_allocations WHERE operator_id = $1 AND status = 'ACTIVE'", operatorID).Scan(&allocID)
+	}
+
+	// Step 6: POST /api/v1/line-allocations/:id/transfer -> 200 OK (BPMN 04 Transfer to Line 2)
+	transferBody, _ := json.Marshal(map[string]interface{}{
+		"destinationLineId": line2ID,
+		"transferReason":    "Mesin jahit di Line 1 mendadak macet / balancing line 2",
+	})
+	reqTransfer, _ := http.NewRequest(http.MethodPost, "/api/v1/line-allocations/"+allocID+"/transfer", bytes.NewBuffer(transferBody))
+	reqTransfer.Header.Set("Authorization", "Bearer "+execToken)
+	reqTransfer.Header.Set("Content-Type", "application/json")
+	wTransfer := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wTransfer, reqTransfer)
+
+	if wTransfer.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on POST /line-allocations/:id/transfer, got %d: %s", wTransfer.Code, wTransfer.Body.String())
+	}
+
+	var transferResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OldAllocationID     string `json:"oldAllocationId"`
+			NewAllocationID     string `json:"newAllocationId"`
+			DestinationLineCode string `json:"destinationLineCode"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wTransfer.Body.Bytes(), &transferResp)
+	if !transferResp.Success || transferResp.Data.NewAllocationID == "" {
+		t.Fatalf("transfer response invalid: %+v", transferResp)
+	}
+
+	// Step 7: GET /api/v1/line-allocations/:id/history -> 200 OK
+	reqHist, _ := http.NewRequest(http.MethodGet, "/api/v1/line-allocations/"+transferResp.Data.NewAllocationID+"/history", nil)
+	reqHist.Header.Set("Authorization", "Bearer "+execToken)
+	wHist := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wHist, reqHist)
+
+	if wHist.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET /line-allocations/:id/history, got %d: %s", wHist.Code, wHist.Body.String())
+	}
+	var histResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			Reason string `json:"reason"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wHist.Body.Bytes(), &histResp)
+	if len(histResp.Data) == 0 {
+		t.Fatalf("expected at least 1 transfer history record after transfer")
+	}
+}
+
+
 
 
 

@@ -1,0 +1,2 @@
+DELETE FROM lines WHERE code IN ('LINE-01', 'LINE-02', 'LINE-03');
+
