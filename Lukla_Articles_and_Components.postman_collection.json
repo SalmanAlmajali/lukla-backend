@@ -1,45 +1,60 @@
 {
 	"info": {
 		"_postman_id": "c1f79a94-4b53-4dc9-98db-4e1b7f0e3401",
-		"name": "Lukla Operations Engine - Articles & Components API",
 		"description": "Postman Collection untuk menguji API Master Data Artikel, Komponen (termasuk Standard SAM / Time Study Tracker), dan Operators (Internal Staff Only) dengan Multi-Tenant Role Isolation pada Lukla Operations Engine.",
+		"name": "Lukla Operations Engine API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:8080/api/v1",
-			"type": "string"
+			"type": "string",
+			"value": "http://localhost:8080/api/v1"
 		},
 		{
 			"key": "auth_token",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
 		},
 		{
 			"key": "client_token",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
 		},
 		{
 			"key": "client_snohund_id",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
 		},
 		{
 			"key": "client_aventura_id",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
 		},
 		{
 			"key": "article_parka_id",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
 		},
 		{
 			"key": "article_aventura_id",
-			"value": "",
-			"type": "string"
+			"type": "string",
+			"value": ""
+		},
+		{
+			"key": "operator_id",
+			"type": "string",
+			"value": ""
+		},
+		{
+			"key": "production_token",
+			"type": "string",
+			"value": ""
+		},
+		{
+			"key": "rate_card_id",
+			"type": "string",
+			"value": "82e1daf7-c85f-4c48-b4ad-516a9c4c68f5"
 		}
 	],
 	"item": [
@@ -69,28 +84,28 @@
 						}
 					],
 					"request": {
-						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"executive@lukla.local\",\n    \"password\": \"password\"\n}"
+						},
+						"description": "Login sebagai staf eksekutif/internal. Token otomatis disimpan ke variabel collection {{auth_token}}.",
 						"header": [
 							{
 								"key": "Content-Type",
 								"value": "application/json"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"username\": \"executive@lukla.local\",\n    \"password\": \"password\"\n}"
-						},
+						"method": "POST",
 						"url": {
-							"raw": "{{base_url}}/auth/login",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"auth",
 								"login"
-							]
-						},
-						"description": "Login sebagai staf eksekutif/internal. Token otomatis disimpan ke variabel collection {{auth_token}}."
+							],
+							"raw": "{{base_url}}/auth/login"
+						}
 					},
 					"response": []
 				},
@@ -117,33 +132,33 @@
 						}
 					],
 					"request": {
-						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"client@lukla.local\",\n    \"password\": \"password\"\n}"
+						},
+						"description": "Login sebagai user portal klien Snøhund. Token disimpan ke variabel collection {{client_token}}.",
 						"header": [
 							{
 								"key": "Content-Type",
 								"value": "application/json"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"username\": \"client@lukla.local\",\n    \"password\": \"password\"\n}"
-						},
+						"method": "POST",
 						"url": {
-							"raw": "{{base_url}}/auth/login",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"auth",
 								"login"
-							]
-						},
-						"description": "Login sebagai user portal klien Snøhund. Token disimpan ke variabel collection {{client_token}}."
+							],
+							"raw": "{{base_url}}/auth/login"
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "3. Get Me & Store Snøhund Client ID",
+					"name": "3. Get Me \u0026 Store Snøhund Client ID",
 					"event": [
 						{
 							"listen": "test",
@@ -153,7 +168,7 @@
 									"pm.test(\"Status code is 200 OK\", function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
-									"if (jsonData.data && jsonData.data.clientId) {",
+									"if (jsonData.data \u0026\u0026 jsonData.data.clientId) {",
 									"    pm.collectionVariables.set(\"client_snohund_id\", jsonData.data.clientId);",
 									"    console.log(\"Saved client_snohund_id: \" + jsonData.data.clientId);",
 									"}"
@@ -163,24 +178,72 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Mengambil profil user klien Snøhund dan menyimpan clientId ke {{client_snohund_id}}.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/auth/me",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"auth",
 								"me"
-							]
+							],
+							"raw": "{{base_url}}/auth/me"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Login Production Head (Kepala Produksi / Mandor)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Production head token is returned\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.token).to.be.a('string');",
+									"    pm.collectionVariables.set(\"production_token\", jsonData.data.token);",
+									"    console.log(\"Saved production_token: \" + jsonData.data.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"production@lukla.local\",\n    \"password\": \"password\"\n}"
 						},
-						"description": "Mengambil profil user klien Snøhund dan menyimpan clientId ke {{client_snohund_id}}."
+						"description": "Login sebagai Kepala Produksi / Mandor (Bambang Supriyadi) yang memiliki wewenang mengelola Rate Cards. Token disimpan di variabel collection {{production_token}}.",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"method": "POST",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							],
+							"raw": "{{base_url}}/auth/login"
+						}
 					},
 					"response": []
 				}
@@ -205,7 +268,7 @@
 									"    pm.expect(jsonData.data).to.be.an('array');",
 									"    pm.expect(jsonData.meta).to.be.an('object');",
 									"});",
-									"if (jsonData.data && jsonData.data.length > 0) {",
+									"if (jsonData.data \u0026\u0026 jsonData.data.length \u003e 0) {",
 									"    jsonData.data.forEach(function(item) {",
 									"        if (item.code === 'ART-SNO-PK01') {",
 									"            pm.collectionVariables.set(\"article_parka_id\", item.id);",
@@ -224,23 +287,23 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Mengambil seluruh daftar artikel produk untuk internal staff. Script otomatis mengekstrak ID artikel Parka dan Aventura ke variabel.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"articles"
-							]
-						},
-						"description": "Mengambil seluruh daftar artikel produk untuk internal staff. Script otomatis mengekstrak ID artikel Parka dan Aventura ke variabel."
+							],
+							"raw": "{{base_url}}/articles"
+						}
 					},
 					"response": []
 				},
@@ -266,15 +329,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Menyaring artikel berdasarkan kategori GARMENT (pakaian).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?category=GARMENT",
 							"host": [
 								"{{base_url}}"
 							],
@@ -286,9 +349,9 @@
 									"key": "category",
 									"value": "GARMENT"
 								}
-							]
-						},
-						"description": "Menyaring artikel berdasarkan kategori GARMENT (pakaian)."
+							],
+							"raw": "{{base_url}}/articles?category=GARMENT"
+						}
 					},
 					"response": []
 				},
@@ -314,15 +377,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Menyaring artikel berdasarkan kategori BAG (tas / backpack).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?category=BAG",
 							"host": [
 								"{{base_url}}"
 							],
@@ -334,24 +397,24 @@
 									"key": "category",
 									"value": "BAG"
 								}
-							]
-						},
-						"description": "Menyaring artikel berdasarkan kategori BAG (tas / backpack)."
+							],
+							"raw": "{{base_url}}/articles?category=BAG"
+						}
 					},
 					"response": []
 				},
 				{
 					"name": "4. Filter Articles by Client ID",
 					"request": {
-						"method": "GET",
+						"description": "Menyaring daftar artikel khusus milik klien tertentu (misal Snøhund Brand).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}",
 							"host": [
 								"{{base_url}}"
 							],
@@ -363,24 +426,24 @@
 									"key": "clientId",
 									"value": "{{client_snohund_id}}"
 								}
-							]
-						},
-						"description": "Menyaring daftar artikel khusus milik klien tertentu (misal Snøhund Brand)."
+							],
+							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}"
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "5. Search & Pagination (page=1, limit=5, search=Parka)",
+					"name": "5. Search \u0026 Pagination (page=1, limit=5, search=Parka)",
 					"request": {
-						"method": "GET",
+						"description": "Pencarian teks artikel dengan pagination (page, limit, search).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?page=1&limit=5&search=Parka",
 							"host": [
 								"{{base_url}}"
 							],
@@ -400,9 +463,9 @@
 									"key": "search",
 									"value": "Parka"
 								}
-							]
-						},
-						"description": "Pencarian teks artikel dengan pagination (page, limit, search)."
+							],
+							"raw": "{{base_url}}/articles?page=1\u0026limit=5\u0026search=Parka"
+						}
 					},
 					"response": []
 				},
@@ -427,23 +490,23 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Pengguna portal klien (CLIENT_PORTAL) dilarang mengakses data artikel umum pabrik tanpa menyertakan clientId miliknya. Harus ditolak 403 Forbidden.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"articles"
-							]
-						},
-						"description": "Pengguna portal klien (CLIENT_PORTAL) dilarang mengakses data artikel umum pabrik tanpa menyertakan clientId miliknya. Harus ditolak 403 Forbidden."
+							],
+							"raw": "{{base_url}}/articles"
+						}
 					},
 					"response": []
 				},
@@ -470,15 +533,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Pengguna portal klien hanya diizinkan mengakses data yang berkaitan dengannya saja (menyertakan query clientId miliknya).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}",
 							"host": [
 								"{{base_url}}"
 							],
@@ -490,9 +553,9 @@
 									"key": "clientId",
 									"value": "{{client_snohund_id}}"
 								}
-							]
-						},
-						"description": "Pengguna portal klien hanya diizinkan mengakses data yang berkaitan dengannya saja (menyertakan query clientId miliknya)."
+							],
+							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}"
+						}
 					},
 					"response": []
 				},
@@ -512,15 +575,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Uji Multi-tenant isolation: Klien Snøhund mencoba menyaring data artikel milik Klien Aventura. Harus ditolak 403 Forbidden.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles?clientId={{client_aventura_id}}",
 							"host": [
 								"{{base_url}}"
 							],
@@ -532,9 +595,9 @@
 									"key": "clientId",
 									"value": "{{client_aventura_id}}"
 								}
-							]
-						},
-						"description": "Uji Multi-tenant isolation: Klien Snøhund mencoba menyaring data artikel milik Klien Aventura. Harus ditolak 403 Forbidden."
+							],
+							"raw": "{{base_url}}/articles?clientId={{client_aventura_id}}"
+						}
 					},
 					"response": []
 				},
@@ -559,18 +622,18 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Validasi keamanan: Setiap API Master Data Artikel wajib menyertakan token autentikasi. Jika tanpa token, harus ditolak 401 Unauthorized.",
 						"header": [],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"articles"
-							]
-						},
-						"description": "Validasi keamanan: Setiap API Master Data Artikel wajib menyertakan token autentikasi. Jika tanpa token, harus ditolak 401 Unauthorized."
+							],
+							"raw": "{{base_url}}/articles"
+						}
 					},
 					"response": []
 				},
@@ -590,7 +653,11 @@
 						}
 					],
 					"request": {
-						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"code\": \"ART-SNO-JK99\",\n    \"title\": \"Snøhund Glacier Summit Down Jacket 2026\",\n    \"category\": \"GARMENT\",\n    \"description\": \"850-fill hydrophobic goose down expedition jacket with Pertex Quantum Pro shell\"\n}"
+						},
+						"description": "Menambahkan master artikel produk baru.",
 						"header": [
 							{
 								"key": "Authorization",
@@ -601,20 +668,16 @@
 								"value": "application/json"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"code\": \"ART-SNO-JK99\",\n    \"title\": \"Snøhund Glacier Summit Down Jacket 2026\",\n    \"category\": \"GARMENT\",\n    \"description\": \"850-fill hydrophobic goose down expedition jacket with Pertex Quantum Pro shell\"\n}"
-						},
+						"method": "POST",
 						"url": {
-							"raw": "{{base_url}}/articles",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"articles"
-							]
-						},
-						"description": "Menambahkan master artikel produk baru."
+							],
+							"raw": "{{base_url}}/articles"
+						}
 					},
 					"response": []
 				},
@@ -639,31 +702,31 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Mengambil detail artikel berserta seluruh komponen operasinya.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_parka_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"articles",
 								"{{article_parka_id}}"
-							]
-						},
-						"description": "Mengambil detail artikel berserta seluruh komponen operasinya."
+							],
+							"raw": "{{base_url}}/articles/{{article_parka_id}}"
+						}
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "03. Components & Time Study API",
+			"name": "03. Components \u0026 Time Study API",
 			"item": [
 				{
 					"name": "1. List Components of Article (Internal Staff)",
@@ -687,15 +750,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Mengambil daftar urutan komponen operasi beserta Standard SAM (hasil Time Study) dari artikel tertentu.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
 							"host": [
 								"{{base_url}}"
 							],
@@ -703,9 +766,9 @@
 								"articles",
 								"{{article_parka_id}}",
 								"components"
-							]
-						},
-						"description": "Mengambil daftar urutan komponen operasi beserta Standard SAM (hasil Time Study) dari artikel tertentu."
+							],
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components"
+						}
 					},
 					"response": []
 				},
@@ -725,15 +788,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Klien Snøhund mengakses komponen artikel miliknya sendiri.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
 							"host": [
 								"{{base_url}}"
 							],
@@ -741,9 +804,9 @@
 								"articles",
 								"{{article_parka_id}}",
 								"components"
-							]
-						},
-						"description": "Klien Snøhund mengakses komponen artikel miliknya sendiri."
+							],
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components"
+						}
 					},
 					"response": []
 				},
@@ -763,15 +826,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Uji multi-tenant: Klien Snøhund mencoba mengakses komponen artikel milik Klien Aventura. Harus 403 Forbidden.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components",
 							"host": [
 								"{{base_url}}"
 							],
@@ -779,9 +842,9 @@
 								"articles",
 								"{{article_aventura_id}}",
 								"components"
-							]
-						},
-						"description": "Uji multi-tenant: Klien Snøhund mencoba mengakses komponen artikel milik Klien Aventura. Harus 403 Forbidden."
+							],
+							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components"
+						}
 					},
 					"response": []
 				},
@@ -805,7 +868,11 @@
 						}
 					],
 					"request": {
-						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Pasang Label Reflektif \u0026 Hangtag\",\n    \"code\": \"CMP-SNO-PK-06\",\n    \"sequenceNumber\": 6,\n    \"standardSAM\": 2.25\n}"
+						},
+						"description": "Menambahkan komponen operasional baru dengan hasil pengukuran Time Study (Standard SAM = 2.25 menit).",
 						"header": [
 							{
 								"key": "Authorization",
@@ -816,12 +883,8 @@
 								"value": "application/json"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Pasang Label Reflektif & Hangtag\",\n    \"code\": \"CMP-SNO-PK-06\",\n    \"sequenceNumber\": 6,\n    \"standardSAM\": 2.25\n}"
-						},
+						"method": "POST",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
 							"host": [
 								"{{base_url}}"
 							],
@@ -829,9 +892,9 @@
 								"articles",
 								"{{article_parka_id}}",
 								"components"
-							]
-						},
-						"description": "Menambahkan komponen operasional baru dengan hasil pengukuran Time Study (Standard SAM = 2.25 menit)."
+							],
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components"
+						}
 					},
 					"response": []
 				},
@@ -851,7 +914,11 @@
 						}
 					],
 					"request": {
-						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Ilegal Component Injection\",\n    \"code\": \"CMP-HACK-01\"\n}"
+						},
+						"description": "Klien Snøhund mencoba menyuntikkan komponen ke artikel milik Klien Aventura. Harus 403 Forbidden.",
 						"header": [
 							{
 								"key": "Authorization",
@@ -862,12 +929,8 @@
 								"value": "application/json"
 							}
 						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\": \"Ilegal Component Injection\",\n    \"code\": \"CMP-HACK-01\"\n}"
-						},
+						"method": "POST",
 						"url": {
-							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components",
 							"host": [
 								"{{base_url}}"
 							],
@@ -875,9 +938,9 @@
 								"articles",
 								"{{article_aventura_id}}",
 								"components"
-							]
-						},
-						"description": "Klien Snøhund mencoba menyuntikkan komponen ke artikel milik Klien Aventura. Harus 403 Forbidden."
+							],
+							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components"
+						}
 					},
 					"response": []
 				}
@@ -909,30 +972,34 @@
 									"    pm.expect(op).to.have.property('operatorCode');",
 									"    pm.expect(op).to.have.property('name');",
 									"    pm.expect(op).to.have.property('status');",
-									"});"
+									"});",
+									"if (jsonData.data \u0026\u0026 jsonData.data.length \u003e 0) {",
+									"    pm.collectionVariables.set(\"operator_id\", jsonData.data[0].id);",
+									"    console.log(\"Saved operator_id: \" + jsonData.data[0].id);",
+									"}"
 								],
 								"type": "text/javascript"
 							}
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Mengambil seluruh daftar operator jahit / workshop untuk staf internal (Executive, Manager, Supervisor).",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"operators"
-							]
-						},
-						"description": "Mengambil seluruh daftar operator jahit / workshop untuk staf internal (Executive, Manager, Supervisor)."
+							],
+							"raw": "{{base_url}}/operators"
+						}
 					},
 					"response": []
 				},
@@ -959,15 +1026,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Menyaring daftar operator yang berstatus aktif.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators?status=ACTIVE",
 							"host": [
 								"{{base_url}}"
 							],
@@ -979,9 +1046,9 @@
 									"key": "status",
 									"value": "ACTIVE"
 								}
-							]
-						},
-						"description": "Menyaring daftar operator yang berstatus aktif."
+							],
+							"raw": "{{base_url}}/operators?status=ACTIVE"
+						}
 					},
 					"response": []
 				},
@@ -1008,15 +1075,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Menyaring operator yang sedang cuti (ON_LEAVE), misal Iwan Setiawan.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators?status=ON_LEAVE",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1028,9 +1095,9 @@
 									"key": "status",
 									"value": "ON_LEAVE"
 								}
-							]
-						},
-						"description": "Menyaring operator yang sedang cuti (ON_LEAVE), misal Iwan Setiawan."
+							],
+							"raw": "{{base_url}}/operators?status=ON_LEAVE"
+						}
 					},
 					"response": []
 				},
@@ -1057,15 +1124,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Menyaring operator yang dialokasikan di lini produksi LINE-1.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators?line=LINE-1",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1077,9 +1144,9 @@
 									"key": "line",
 									"value": "LINE-1"
 								}
-							]
-						},
-						"description": "Menyaring operator yang dialokasikan di lini produksi LINE-1."
+							],
+							"raw": "{{base_url}}/operators?line=LINE-1"
+						}
 					},
 					"response": []
 				},
@@ -1104,15 +1171,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Pencarian nama operator jahit 'Ahmad'.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators?search=Ahmad",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1124,9 +1191,9 @@
 									"key": "search",
 									"value": "Ahmad"
 								}
-							]
-						},
-						"description": "Pencarian nama operator jahit 'Ahmad'."
+							],
+							"raw": "{{base_url}}/operators?search=Ahmad"
+						}
 					},
 					"response": []
 				},
@@ -1151,15 +1218,15 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Validasi enum status operator. Parameter status tidak valid menghasilkan 400 Bad Request.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{auth_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators?status=INVALID_STATUS",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1171,9 +1238,9 @@
 									"key": "status",
 									"value": "INVALID_STATUS"
 								}
-							]
-						},
-						"description": "Validasi enum status operator. Parameter status tidak valid menghasilkan 400 Bad Request."
+							],
+							"raw": "{{base_url}}/operators?status=INVALID_STATUS"
+						}
 					},
 					"response": []
 				},
@@ -1198,23 +1265,23 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "User eksternal klien (Snøhund) mencoba melihat daftar data operator internal pabrik. Ditolak dengan 403 Forbidden.",
 						"header": [
 							{
 								"key": "Authorization",
 								"value": "Bearer {{client_token}}"
 							}
 						],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"operators"
-							]
-						},
-						"description": "User eksternal klien (Snøhund) mencoba melihat daftar data operator internal pabrik. Ditolak dengan 403 Forbidden."
+							],
+							"raw": "{{base_url}}/operators"
+						}
 					},
 					"response": []
 				},
@@ -1239,23 +1306,1147 @@
 						}
 					],
 					"request": {
-						"method": "GET",
+						"description": "Request tanpa token otentikasi. Ditolak dengan 401 Unauthorized.",
 						"header": [],
+						"method": "GET",
 						"url": {
-							"raw": "{{base_url}}/operators",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"operators"
-							]
-						},
-						"description": "Request tanpa token otentikasi. Ditolak dengan 401 Unauthorized."
+							],
+							"raw": "{{base_url}}/operators"
+						}
 					},
 					"response": []
+				},
+				{
+					"name": "9. Get Operator Detail by Code (JH-001)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Validate operator detail fields\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.operatorCode).to.eql('JH-001');",
+									"    pm.expect(jsonData.data.name).to.eql('Ahmad Supriatna');",
+									"    pm.expect(jsonData.data.status).to.eql('ACTIVE');",
+									"    pm.expect(jsonData.data.defaultLine).to.eql('LINE-1');",
+									"    pm.expect(jsonData.data.skillTier).to.eql('SENIOR');",
+									"});",
+									"if (jsonData.data \u0026\u0026 jsonData.data.id) {",
+									"    pm.collectionVariables.set(\"operator_id\", jsonData.data.id);",
+									"    console.log(\"Saved operator_id: \" + jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengambil detail operator jahit berdasarkan kode operator (JH-001 - Ahmad Supriatna).",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators",
+								"JH-001"
+							],
+							"raw": "{{base_url}}/operators/JH-001"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10. Get Operator Detail by UUID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Validate operator detail retrieved by UUID\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get(\"operator_id\"));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengambil detail operator jahit menggunakan ID UUID.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators",
+								"{{operator_id}}"
+							],
+							"raw": "{{base_url}}/operators/{{operator_id}}"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "11. Get Operator Detail Not Found (Must be 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Returns NOT_FOUND error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mencoba mengambil operator dengan ID yang tidak terdaftar. Menghasilkan 404 Not Found.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators",
+								"non-existent-operator-id"
+							],
+							"raw": "{{base_url}}/operators/non-existent-operator-id"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "12. Client Access Operator Detail (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"pm.test(\"Returns FORBIDDEN error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('FORBIDDEN');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "User eksternal klien (Snøhund) mencoba melihat profil detail operator jahit pabrik. Ditolak dengan 403 Forbidden.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators",
+								"JH-001"
+							],
+							"raw": "{{base_url}}/operators/JH-001"
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "13. Unauthenticated Operator Detail (Must be 401 Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"pm.test(\"Returns UNAUTHORIZED error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('UNAUTHORIZED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Request detail operator tanpa token otentikasi. Ditolak dengan 401 Unauthorized.",
+						"header": [],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"operators",
+								"JH-001"
+							],
+							"raw": "{{base_url}}/operators/JH-001"
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "05. Rate Cards (BPMN 10)",
+			"item": [
+				{
+					"name": "1. List All Rate Cards (Internal Staff - Executive)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Rate cards array returned successfully\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    pm.expect(jsonData.data.length).to.be.above(0);",
+									"    if (jsonData.data.length \u003e 0) {",
+									"        pm.collectionVariables.set(\"rate_card_id\", jsonData.data[0].id);",
+									"        console.log(\"Saved rate_card_id: \" + jsonData.data[0].id);",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengambil seluruh daftar master data Rate Cards untuk seluruh artikel dan komponen garment. Hanya dapat diakses oleh staf internal (Owner/Eksekutif, Kepala Produksi, Quality, dll).",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"raw": "{{base_url}}/rate-cards"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - All Rate Cards",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"a894ad0f-a65f-4638-b14b-50b8f77e1794\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"a1807a99-a036-431d-a543-5c73f1c20408\",\n            \"componentName\": \"Jahit Saku Samping \\u0026 Saku Kargo Paha\",\n            \"sewingRate\": 7200,\n            \"cuttingRate\": 850,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku samping \\u0026 paha\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:52:19.523529+07:00\"\n        },\n        {\n            \"id\": \"1e7dfa58-30f9-4ca5-89c6-6c66d6f036eb\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"194e54cf-7a2e-4cd1-9d46-b4c0f07135df\",\n            \"componentName\": \"Pasang Resleting Fly \\u0026 Ban Pinggang Elastis\",\n            \"sewingRate\": 3200,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Fly front \\u0026 ban pinggang\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"2a81449d-91fc-4448-a7a6-f0b6a00cfe04\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"65e52f36-28b1-4198-839b-3f45ba2a5794\",\n            \"componentName\": \"Assembly Selangkangan, Jahit Kaki \\u0026 Hem Bawah\",\n            \"sewingRate\": 4200,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly inseam \\u0026 hemming\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "2. Filter Rate Cards by Client (Snøhund)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Filtered rate cards belong to client\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    jsonData.data.forEach(function(rc) {",
+									"        pm.expect(rc.clientId).to.eql(pm.collectionVariables.get(\"client_snohund_id\"));",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Menyaring daftar Rate Cards berdasarkan ID klien tertentu (Snøhund Brand).",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"query": [
+								{
+									"key": "client_id",
+									"value": "{{client_snohund_id}}"
+								}
+							],
+							"raw": "{{base_url}}/rate-cards?client_id={{client_snohund_id}}"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - Filtered by Client Snøhund",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards?client_id={{client_snohund_id}}"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "3. Client View Own Rate Cards (Snøhund)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Client only receives own rate cards\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    jsonData.data.forEach(function(rc) {",
+									"        pm.expect(rc.clientName).to.include(\"Snohund\");",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "User eksternal klien (Snøhund) hanya dapat melihat daftar Rate Cards yang berkaitan dengan artikel/komponen brand miliknya secara otomatis melalui tenant isolation.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"raw": "{{base_url}}/rate-cards"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - Client Own Rate Cards",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "4. Client Access Other Client Rate Cards (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"pm.test(\"Returns FORBIDDEN error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('FORBIDDEN');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "User klien (Snøhund) mencoba secara sengaja mengintip/menyaring tarif rate card milik brand kompetitor (Aventura). Sistem menolak tegas dengan 403 Forbidden.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"query": [
+								{
+									"key": "client_id",
+									"value": "{{client_aventura_id}}"
+								}
+							],
+							"raw": "{{base_url}}/rate-cards?client_id={{client_aventura_id}}"
+						}
+					},
+					"response": [
+						{
+							"name": "403 Forbidden - Client Access Other Client",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards?client_id={{client_aventura_id}}"
+								}
+							},
+							"status": "Forbidden",
+							"code": 403,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"Akses ditolak: Anda hanya dapat mengakses rate card milik klien Anda sendiri\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "5. Get Rate Card Detail by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Rate card detail returned\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.id).to.eql(pm.collectionVariables.get(\"rate_card_id\"));",
+									"    pm.expect(jsonData.data.sewingRate).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengambil informasi detail sebuah rate card berdasarkan UUID unik, mencakup sewingRate, cuttingRate, effectiveDate, dan nama komponen.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards",
+								"{{rate_card_id}}"
+							],
+							"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - Get Rate Card Detail",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n        \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n        \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n        \"sewingRate\": 6800,\n        \"cuttingRate\": 1100,\n        \"effectiveDate\": \"2026-10-14\",\n        \"notes\": \"Tarif awal komponen backpack harness\",\n        \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n        \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "6. Get Rate Card Detail Not Found (Must be 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"pm.test(\"Returns NOT_FOUND error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('NOT_FOUND');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Request detail rate card dengan ID yang tidak ditemukan. Menghasilkan 404 Not Found.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards",
+								"00000000-0000-0000-0000-000000000000"
+							],
+							"raw": "{{base_url}}/rate-cards/00000000-0000-0000-0000-000000000000"
+						}
+					},
+					"response": [
+						{
+							"name": "404 Not Found - Rate Card Non Existent",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards/00000000-0000-0000-0000-000000000000"
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"NOT_FOUND\",\n        \"message\": \"Rate card tidak ditemukan.\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "7. Post New Rate Card (Production Head / Mandor)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"pm.test(\"New rate card created successfully\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.id).to.be.a('string');",
+									"    pm.expect(jsonData.data.sewingRate).to.eql(6500);",
+									"    pm.collectionVariables.set(\"rate_card_id\", jsonData.data.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n    \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n    \"sewingRate\": 6500,\n    \"cuttingRate\": 1000,\n    \"notes\": \"Tarif awal komponen backpack harness\"\n}"
+						},
+						"description": "Kepala Produksi (Mandor) menetapkan tarif borongan potong dan jahit baru untuk komponen artikel garment.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{production_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"method": "POST",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"raw": "{{base_url}}/rate-cards"
+						}
+					},
+					"response": [
+						{
+							"name": "201 Created - New Rate Card",
+							"originalRequest": {
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n    \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n    \"sewingRate\": 6500,\n    \"cuttingRate\": 1000,\n    \"notes\": \"Tarif awal komponen backpack harness\"\n}"
+								},
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{production_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"method": "POST",
+								"url": {
+									"raw": "{{base_url}}/rate-cards"
+								}
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\r\n    \"success\":  true,\r\n    \"data\":  {\r\n                 \"id\":  \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\r\n                 \"clientId\":  \"f310f933-4b79-40c4-849d-f0334716d43c\",\r\n                 \"clientName\":  \"Sn\ufffdhund Brand\",\r\n                 \"articleId\":  \"47b353d2-e59c-4bab-8f1b-81169c836136\",\r\n                 \"articleTitle\":  \"Sn\ufffdhund Alpine Summit Backpack 45L\",\r\n                 \"componentId\":  \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\r\n                 \"componentName\":  \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\r\n                 \"sewingRate\":  6500,\r\n                 \"cuttingRate\":  1000,\r\n                 \"effectiveDate\":  \"2026-10-14\",\r\n                 \"notes\":  \"Tarif awal komponen backpack harness\",\r\n                 \"createdAt\":  \"2026-10-14T14:57:18.875416+07:00\",\r\n                 \"updatedAt\":  \"2026-10-14T14:57:18.875416+07:00\"\r\n             }\r\n}\r\n"
+						}
+					]
+				},
+				{
+					"name": "8. Put Update Rate Card with Audit Reason (Owner / Executive)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Rate card updated successfully\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.sewingRate).to.eql(6800);",
+									"    pm.expect(jsonData.data.cuttingRate).to.eql(1100);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sewingRate\": 6800,\n    \"cuttingRate\": 1100,\n    \"changeReason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\"\n}"
+						},
+						"description": "Owner / Staf Eksekutif memperbarui tarif borongan. Wajib menyertakan changeReason sebagai audit trail kepatuhan BPMN 10.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"method": "PUT",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards",
+								"{{rate_card_id}}"
+							],
+							"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - Rate Card Updated",
+							"originalRequest": {
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"sewingRate\": 6800,\n    \"cuttingRate\": 1100,\n    \"changeReason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\"\n}"
+								},
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"method": "PUT",
+								"url": {
+									"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n        \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n        \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n        \"sewingRate\": 6800,\n        \"cuttingRate\": 1100,\n        \"effectiveDate\": \"2026-10-14\",\n        \"notes\": \"Tarif awal komponen backpack harness\",\n        \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n        \"updatedAt\": \"2026-10-14T15:12:03.086779+07:00\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "9. Put Update Rate Card Missing Reason (Must be 400 Bad Request)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"pm.test(\"Validation error for missing changeReason\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('VALIDATION_ERROR');",
+									"    pm.expect(jsonData.error.message).to.include('changeReason');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sewingRate\": 7000\n}"
+						},
+						"description": "Mencoba mengubah tarif rate card tanpa menyertakan changeReason. Ditolak oleh validator audit trail dengan 400 Bad Request.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"method": "PUT",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards",
+								"{{rate_card_id}}"
+							],
+							"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+						}
+					},
+					"response": [
+						{
+							"name": "400 Bad Request - Missing Change Reason",
+							"originalRequest": {
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"sewingRate\": 7000\n}"
+								},
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"method": "PUT",
+								"url": {
+									"raw": "{{base_url}}/rate-cards/{{rate_card_id}}"
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"VALIDATION_ERROR\",\n        \"message\": \"Data pembaruan tarif tidak valid.\",\n        \"details\": \"Key: 'UpdateRateCardRequest.ChangeReason' Error:Field validation for 'ChangeReason' failed on the 'required' tag\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "10. Client Attempt Create Rate Card (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"pm.test(\"Returns FORBIDDEN error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('FORBIDDEN');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n    \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n    \"sewingRate\": 9999\n}"
+						},
+						"description": "User eksternal klien mencoba membuat atau memodifikasi tarif rate card pabrik. Ditolak dengan 403 Forbidden karena wewenang hanya pada Eksekutif \u0026 Kepala Produksi.",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"method": "POST",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"raw": "{{base_url}}/rate-cards"
+						}
+					},
+					"response": [
+						{
+							"name": "403 Forbidden - Client Attempt Create",
+							"originalRequest": {
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n    \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n    \"sewingRate\": 9999\n}"
+								},
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{client_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"method": "POST",
+								"url": {
+									"raw": "{{base_url}}/rate-cards"
+								}
+							},
+							"status": "Forbidden",
+							"code": 403,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"Akses ditolak: hanya Owner dan Kepala Produksi yang dapat menetapkan atau mengubah rate card\"\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "11. Get Rate Card Audit Trail History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"History logs returned\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    pm.expect(jsonData.data.length).to.be.above(0);",
+									"    pm.expect(jsonData.data[0].reason).to.be.a('string');",
+									"    pm.expect(jsonData.data[0].changedByName).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengambil riwayat log audit perubahan tarif rate card, mencakup siapa yang mengubah (changedByName), waktu perubahan, tarif lama vs tarif baru, serta alasan perubahan (changeReason).",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards",
+								"{{rate_card_id}}",
+								"history"
+							],
+							"raw": "{{base_url}}/rate-cards/{{rate_card_id}}/history"
+						}
+					},
+					"response": [
+						{
+							"name": "200 OK - Rate Card History",
+							"originalRequest": {
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{auth_token}}"
+									}
+								],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards/{{rate_card_id}}/history"
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"c779c3c7-74fb-4657-8df6-354ea9198b08\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6800,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1100,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T15:12:03.086779+07:00\"\n        },\n        {\n            \"id\": \"405a570d-8af4-4de0-984d-cdc1180234bc\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6800,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1100,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"b5a054b5-7bb2-4026-b617-12e7c95be671\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6500,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1000,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T14:57:18.906979+07:00\"\n        },\n        {\n            \"id\": \"ebb9e646-2de4-445b-abf2-e0884a771bc3\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 0,\n            \"newSewingRate\": 6500,\n            \"oldCuttingRate\": 0,\n            \"newCuttingRate\": 1000,\n            \"changedByUserId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n            \"changedByName\": \"Bambang Supriyadi\",\n            \"reason\": \"Penetapan tarif awal komponen\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\"\n        }\n    ]\n}"
+						}
+					]
+				},
+				{
+					"name": "12. Unauthenticated Access Rate Cards (Must be 401 Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"pm.test(\"Returns UNAUTHORIZED error code\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql('UNAUTHORIZED');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"description": "Mengakses endpoint rate cards tanpa menyertakan Authorization Bearer token. Ditolak dengan 401 Unauthorized.",
+						"header": [],
+						"method": "GET",
+						"url": {
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"rate-cards"
+							],
+							"raw": "{{base_url}}/rate-cards"
+						}
+					},
+					"response": [
+						{
+							"name": "401 Unauthorized - Missing Token",
+							"originalRequest": {
+								"header": [],
+								"method": "GET",
+								"url": {
+									"raw": "{{base_url}}/rate-cards"
+								}
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": {\n        \"code\": \"UNAUTHORIZED\",\n        \"message\": \"Header Authorization Bearer token diperlukan.\"\n    },\n    \"success\": false\n}"
+						}
+					]
 				}
 			]
 		}
 	]
 }
-

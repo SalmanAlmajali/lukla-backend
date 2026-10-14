@@ -830,15 +830,22 @@ paths:
       tags:
         - Operators
       summary: Detail profil penjahit
+      description: |
+        Mengambil profil detail operator/penjahit berdasarkan ID UUID atau kode operator (e.g. JH-001).
+        - **Staf Internal**: Hanya staf internal pabrik yang dapat mengakses detail operator.
+        - **Akun Klien (CLIENT_PORTAL)**: Ditolak (HTTP 403 Forbidden). Akun klien eksternal tidak diizinkan mengakses data master operator pabrik.
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+          description: UUID operator atau kode operator (e.g. JH-001)
       responses:
         '200':
-          description: Detail operator
+          description: Detail profil operator
           content:
             application/json:
               schema:
@@ -852,6 +859,30 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/Operator'
+        '400':
+          description: Parameter ID operator tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk akun klien eksternal (hanya staf internal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Operator jahit tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       tags:
         - Operators
@@ -933,17 +964,25 @@ paths:
       tags:
         - Rate Cards (BPMN 10)
       summary: Daftar tarif ongkos jahit & potong per komponen artikel klien
+      description: |
+        Mengambil daftar tarif ongkos jahit dan potong per komponen artikel.
+        - **Staf Internal**: Dapat melihat seluruh rate card atau menyaring berdasarkan clientId / articleId.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat melihat rate card komponen pada artikel miliknya sendiri.
+      security:
+        - BearerAuth: []
       parameters:
         - name: clientId
           in: query
           required: false
           schema:
             type: string
+          description: Filter berdasarkan UUID klien
         - name: articleId
           in: query
           required: false
           schema:
             type: string
+          description: Filter berdasarkan UUID artikel
       responses:
         '200':
           description: Daftar rate card aktif
@@ -962,10 +1001,25 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/RateCard'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk rate card milik klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Rate Cards (BPMN 10)
       summary: "Tetapkan tarif baru untuk suatu komponen (Authorized: OWNER, KEPALA_PRODUKSI)"
+      description: |
+        Menetapkan tarif ongkos jahit dan potong awal untuk suatu komponen artikel klien.
+        Hanya dapat dilakukan oleh Owner / Eksekutif (`owner_executive`) dan Kepala Produksi (`production_head`).
       security:
         - BearerAuth: []
       requestBody:
@@ -990,18 +1044,86 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/RateCard'
+        '400':
+          description: Parameter atau nilai tarif tidak valid (misal bernilai negatif)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Hak akses ditolak (Hanya Owner & Kepala Produksi)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Rate card untuk komponen artikel ini sudah ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /rate-cards/{id}:
+    get:
+      tags:
+        - Rate Cards (BPMN 10)
+      summary: Detail profil tarif rate card per komponen
+      description: Mengambil data detail tarif komponen berdasarkan UUID rate card.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detail rate card
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - data
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/RateCard'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk rate card klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rate card tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       tags:
         - Rate Cards (BPMN 10)
       summary: Ubah tarif rate card dan catat otomatis ke riwayat audit trail
+      description: |
+        Memperbarui tarif ongkos jahit / potong dan wajib menyertakan alasan perubahan (`changeReason`) untuk pencatatan audit trail BPMN 10.
+        Hanya dapat dilakukan oleh Owner / Eksekutif (`owner_executive`) dan Kepala Produksi (`production_head`).
       security:
         - BearerAuth: []
       parameters:
@@ -1032,8 +1154,26 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/RateCard'
+        '400':
+          description: Request body tidak valid atau changeReason kosong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Hak akses ditolak
+          description: Hak akses ditolak (Hanya Owner & Kepala Produksi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rate card tidak ditemukan
           content:
             application/json:
               schema:
@@ -1044,6 +1184,9 @@ paths:
       tags:
         - Rate Cards (BPMN 10)
       summary: Riwayat perubahan tarif (Audit Trail per komponen)
+      description: Mengambil seluruh rekam jejak perubahan harga tarif komponen beserta nama pengubah dan alasannya.
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -1068,6 +1211,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/RateCardHistory'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk rate card klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Rate card tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /orders/minimal:
     get:

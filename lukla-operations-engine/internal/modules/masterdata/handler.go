@@ -2,6 +2,7 @@ package masterdata
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/platform/authn"
@@ -286,6 +287,37 @@ func (h *Handler) ListOperators(c *gin.Context) {
 	httpx.OK(c, operators)
 }
 
+// GetOperatorDetail handles GET /operators/:id.
+// Hanya dapat diakses oleh staf internal (internal staff).
+func (h *Handler) GetOperatorDetail(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		httpx.BadRequest(c, "INVALID_PARAMETER", "ID operator diperlukan.")
+		return
+	}
+
+	role, _ := authn.RoleFrom(c)
+
+	operator, err := h.svc.GetOperatorDetail(c.Request.Context(), id, role)
+	if err != nil {
+		if errors.Is(err, ErrOperatorNotFound) {
+			httpx.NotFound(c, "NOT_FOUND", "Operator jahit tidak ditemukan.")
+			return
+		}
+		if errors.Is(err, ErrForbiddenOperatorAccess) {
+			httpx.Forbidden(c, "FORBIDDEN", err.Error())
+			return
+		}
+
+		requestID, _ := c.Get("request_id")
+		rid, _ := requestID.(string)
+		httpx.InternalServerError(c, rid)
+		return
+	}
+
+	httpx.OK(c, operator)
+}
+
 // RegisterRoutes registers masterdata routes on the given router group.
 func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerFunc, authzMiddleware gin.HandlerFunc) {
 	r.GET("/clients", authnMiddleware, authzMiddleware, h.ListClients)
@@ -299,6 +331,7 @@ func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerF
 	r.POST("/articles/:id/components", authnMiddleware, h.CreateComponent)
 
 	r.GET("/operators", authnMiddleware, authzMiddleware, h.ListOperators)
+	r.GET("/operators/:id", authnMiddleware, authzMiddleware, h.GetOperatorDetail)
 }
 
 

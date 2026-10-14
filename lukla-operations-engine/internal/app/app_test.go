@@ -1401,6 +1401,383 @@ func TestApp_OperatorsLiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_GetOperatorDetail_LiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Executive Login
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	if wExecLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login executive: %d", wExecLogin.Code)
+	}
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Client Login
+	loginClientBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqClientLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginClientBody))
+	reqClientLogin.Header.Set("Content-Type", "application/json")
+	wClientLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLogin, reqClientLogin)
+
+	if wClientLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login client: %d", wClientLogin.Code)
+	}
+	var clientLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientLogin.Body.Bytes(), &clientLoginResp)
+	clientToken := clientLoginResp.Data.Token
+
+	// Test 1: Executive retrieves operator detail by code (JH-001)
+	reqByCode, _ := http.NewRequest(http.MethodGet, "/api/v1/operators/JH-001", nil)
+	reqByCode.Header.Set("Authorization", "Bearer "+execToken)
+	wByCode := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wByCode, reqByCode)
+
+	if wByCode.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /operators/JH-001, got %d. Body: %s", wByCode.Code, wByCode.Body.String())
+	}
+
+	var opResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID           string  `json:"id"`
+			OperatorCode string  `json:"operatorCode"`
+			Name         string  `json:"name"`
+			Status       string  `json:"status"`
+			DefaultLine  *string `json:"defaultLine"`
+			SkillTier    *string `json:"skillTier"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wByCode.Body.Bytes(), &opResp); err != nil {
+		t.Fatalf("failed to unmarshal operator response: %v", err)
+	}
+
+	if !opResp.Success {
+		t.Fatal("expected success true")
+	}
+	if opResp.Data.OperatorCode != "JH-001" {
+		t.Errorf("expected operatorCode JH-001, got %s", opResp.Data.OperatorCode)
+	}
+	if opResp.Data.Name != "Ahmad Supriatna" {
+		t.Errorf("expected name Ahmad Supriatna, got %s", opResp.Data.Name)
+	}
+	if opResp.Data.Status != "ACTIVE" {
+		t.Errorf("expected status ACTIVE, got %s", opResp.Data.Status)
+	}
+	if opResp.Data.DefaultLine == nil || *opResp.Data.DefaultLine != "LINE-1" {
+		t.Errorf("expected defaultLine LINE-1, got %v", opResp.Data.DefaultLine)
+	}
+
+	operatorUUID := opResp.Data.ID
+
+	// Test 2: Executive retrieves operator detail by UUID
+	reqByUUID, _ := http.NewRequest(http.MethodGet, "/api/v1/operators/"+operatorUUID, nil)
+	reqByUUID.Header.Set("Authorization", "Bearer "+execToken)
+	wByUUID := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wByUUID, reqByUUID)
+
+	if wByUUID.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /operators by UUID, got %d. Body: %s", wByUUID.Code, wByUUID.Body.String())
+	}
+
+	// Test 3: Operator not found
+	reqNotFound, _ := http.NewRequest(http.MethodGet, "/api/v1/operators/non-existent-operator-id", nil)
+	reqNotFound.Header.Set("Authorization", "Bearer "+execToken)
+	wNotFound := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNotFound, reqNotFound)
+
+	if wNotFound.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d. Body: %s", wNotFound.Code, wNotFound.Body.String())
+	}
+
+	// Test 4: Client role attempts access -> 403 Forbidden
+	reqClientAccess, _ := http.NewRequest(http.MethodGet, "/api/v1/operators/JH-001", nil)
+	reqClientAccess.Header.Set("Authorization", "Bearer "+clientToken)
+	wClientAccess := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientAccess, reqClientAccess)
+
+	if wClientAccess.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client role accessing operator detail, got %d. Body: %s", wClientAccess.Code, wClientAccess.Body.String())
+	}
+
+	// Test 5: Unauthenticated request -> 401 Unauthorized
+	reqNoAuth, _ := http.NewRequest(http.MethodGet, "/api/v1/operators/JH-001", nil)
+	wNoAuth := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNoAuth, reqNoAuth)
+
+	if wNoAuth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated request, got %d", wNoAuth.Code)
+	}
+}
+
+func TestApp_RateCardsLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Executive Login
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	if wExecLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login executive: %d", wExecLogin.Code)
+	}
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Production Head Login
+	loginProdBody, _ := json.Marshal(map[string]string{
+		"username": "production@lukla.local",
+		"password": "password",
+	})
+	reqProdLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginProdBody))
+	reqProdLogin.Header.Set("Content-Type", "application/json")
+	wProdLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wProdLogin, reqProdLogin)
+
+	if wProdLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login production head: %d", wProdLogin.Code)
+	}
+	var prodLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wProdLogin.Body.Bytes(), &prodLoginResp)
+	prodToken := prodLoginResp.Data.Token
+
+	// 3. Client Login (Snøhund)
+	loginClientBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqClientLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginClientBody))
+	reqClientLogin.Header.Set("Content-Type", "application/json")
+	wClientLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientLogin, reqClientLogin)
+
+	if wClientLogin.Code != http.StatusOK {
+		t.Fatalf("failed to login client: %d", wClientLogin.Code)
+	}
+	var clientLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientLogin.Body.Bytes(), &clientLoginResp)
+	clientToken := clientLoginResp.Data.Token
+
+	// Fetch Client ID for Snøhund
+	reqMe, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqMe.Header.Set("Authorization", "Bearer "+clientToken)
+	wMe := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMe, reqMe)
+	var meResp struct {
+		Data struct {
+			ClientID *string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wMe.Body.Bytes(), &meResp)
+	if meResp.Data.ClientID == nil {
+		t.Fatal("expected clientId for client user in /auth/me")
+	}
+	snohundClientID := *meResp.Data.ClientID
+
+	// Test 1: Executive lists all rate cards -> 200 OK (at least 8 seeded)
+	reqAllRates, _ := http.NewRequest(http.MethodGet, "/api/v1/rate-cards", nil)
+	reqAllRates.Header.Set("Authorization", "Bearer "+execToken)
+	wAllRates := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAllRates, reqAllRates)
+
+	if wAllRates.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET /rate-cards, got %d. Body: %s", wAllRates.Code, wAllRates.Body.String())
+	}
+	var allRatesResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID            string  `json:"id"`
+			ClientID      string  `json:"clientId"`
+			ArticleID     string  `json:"articleId"`
+			ComponentID   string  `json:"componentId"`
+			ComponentName string  `json:"componentName"`
+			SewingRate    float64 `json:"sewingRate"`
+			CuttingRate   float64 `json:"cuttingRate"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAllRates.Body.Bytes(), &allRatesResp)
+	if len(allRatesResp.Data) < 8 {
+		t.Fatalf("expected at least 8 rate cards, got %d", len(allRatesResp.Data))
+	}
+
+	firstRateCardID := allRatesResp.Data[0].ID
+
+	// Test 2: Client lists rate cards -> only sees its own rate cards
+	reqClientRates, _ := http.NewRequest(http.MethodGet, "/api/v1/rate-cards", nil)
+	reqClientRates.Header.Set("Authorization", "Bearer "+clientToken)
+	wClientRates := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientRates, reqClientRates)
+
+	if wClientRates.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client GET /rate-cards, got %d", wClientRates.Code)
+	}
+	var clientRatesResp struct {
+		Data []struct {
+			ClientID string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientRates.Body.Bytes(), &clientRatesResp)
+	for _, rc := range clientRatesResp.Data {
+		if rc.ClientID != snohundClientID {
+			t.Errorf("client received rate card belonging to other client: %s", rc.ClientID)
+		}
+	}
+
+	// Test 3: Client tries to query other client's rate cards -> 403 Forbidden
+	reqForbiddenClient, _ := http.NewRequest(http.MethodGet, "/api/v1/rate-cards?clientId=00000000-0000-0000-0000-000000000000", nil)
+	reqForbiddenClient.Header.Set("Authorization", "Bearer "+clientToken)
+	wForbiddenClient := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbiddenClient, reqForbiddenClient)
+
+	if wForbiddenClient.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client queries other clientId, got %d", wForbiddenClient.Code)
+	}
+
+	// Test 4: Client tries to POST /rate-cards -> 403 Forbidden
+	dummyRateCardBody, _ := json.Marshal(map[string]any{
+		"clientId":    snohundClientID,
+		"articleId":   allRatesResp.Data[0].ArticleID,
+		"componentId": allRatesResp.Data[0].ComponentID,
+		"sewingRate":  5000,
+	})
+	reqClientPost, _ := http.NewRequest(http.MethodPost, "/api/v1/rate-cards", bytes.NewBuffer(dummyRateCardBody))
+	reqClientPost.Header.Set("Authorization", "Bearer "+clientToken)
+	reqClientPost.Header.Set("Content-Type", "application/json")
+	wClientPost := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientPost, reqClientPost)
+
+	if wClientPost.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client attempts to create rate card, got %d", wClientPost.Code)
+	}
+
+	// Test 5: Executive updates rate card with changeReason -> 200 OK
+	updateRateBody, _ := json.Marshal(map[string]any{
+		"sewingRate":   7200.0,
+		"cuttingRate":  850.0,
+		"changeReason": "Kenaikan biaya benang tahan abrasi dan penyesuaian UMR",
+	})
+	reqUpdate, _ := http.NewRequest(http.MethodPut, "/api/v1/rate-cards/"+firstRateCardID, bytes.NewBuffer(updateRateBody))
+	reqUpdate.Header.Set("Authorization", "Bearer "+execToken)
+	reqUpdate.Header.Set("Content-Type", "application/json")
+	wUpdate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wUpdate, reqUpdate)
+
+	if wUpdate.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for update rate card, got %d. Body: %s", wUpdate.Code, wUpdate.Body.String())
+	}
+	var updateResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			SewingRate  float64 `json:"sewingRate"`
+			CuttingRate float64 `json:"cuttingRate"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wUpdate.Body.Bytes(), &updateResp)
+	if updateResp.Data.SewingRate != 7200.0 {
+		t.Errorf("expected sewingRate 7200, got %f", updateResp.Data.SewingRate)
+	}
+
+	// Test 6: Update rate card without changeReason -> 400 Bad Request
+	noReasonBody, _ := json.Marshal(map[string]any{
+		"sewingRate": 7500.0,
+	})
+	reqNoReason, _ := http.NewRequest(http.MethodPut, "/api/v1/rate-cards/"+firstRateCardID, bytes.NewBuffer(noReasonBody))
+	reqNoReason.Header.Set("Authorization", "Bearer "+execToken)
+	reqNoReason.Header.Set("Content-Type", "application/json")
+	wNoReason := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNoReason, reqNoReason)
+
+	if wNoReason.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request without changeReason, got %d", wNoReason.Code)
+	}
+
+	// Test 7: Production Head views audit history -> 200 OK
+	reqHist, _ := http.NewRequest(http.MethodGet, "/api/v1/rate-cards/"+firstRateCardID+"/history", nil)
+	reqHist.Header.Set("Authorization", "Bearer "+prodToken)
+	wHist := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wHist, reqHist)
+
+	if wHist.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for rate card history, got %d. Body: %s", wHist.Code, wHist.Body.String())
+	}
+	var histResp struct {
+		Data []struct {
+			NewSewingRate float64 `json:"newSewingRate"`
+			Reason        string  `json:"reason"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wHist.Body.Bytes(), &histResp)
+	if len(histResp.Data) == 0 {
+		t.Fatalf("expected at least 1 history record after update")
+	}
+
+	// Test 8: Unauthenticated access -> 401 Unauthorized
+	reqNoAuth, _ := http.NewRequest(http.MethodGet, "/api/v1/rate-cards", nil)
+	wNoAuth := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNoAuth, reqNoAuth)
+
+	if wNoAuth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated GET /rate-cards, got %d", wNoAuth.Code)
+	}
+}
+
+
+
 
 
 

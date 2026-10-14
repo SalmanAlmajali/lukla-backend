@@ -19,10 +19,10 @@ import (
 )
 
 type mockRepository struct {
-	clients    []Client
-	articles   []Article
-	components []Component
-	operators  []Operator
+	clients            []Client
+	articles           []Article
+	components         []Component
+	operators          []Operator
 }
 
 func (m *mockRepository) ListOperators(ctx context.Context, filter ListOperatorsFilter) ([]Operator, error) {
@@ -398,6 +398,10 @@ func setupTestRouter() *gin.Engine {
 			role = "client"
 			cid := "mock-id-02"
 			clientID = &cid
+		} else if userID == "user-prod-head" {
+			role = "production_head"
+		} else if userID == "user-tailor" {
+			role = "tailor"
 		}
 		return &authn.UserIdentity{
 			ID:       userID,
@@ -1400,4 +1404,125 @@ func TestListOperators_Unauthorized_InvalidToken(t *testing.T) {
 	}
 }
 
+func TestGetOperatorDetail_Success_ByID(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
 
+	req, _ := http.NewRequest(http.MethodGet, "/operators/op-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool     `json:"success"`
+		Data    Operator `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Fatal("expected success true")
+	}
+	if resp.Data.ID != "op-01" {
+		t.Errorf("expected op-01, got %s", resp.Data.ID)
+	}
+	if resp.Data.OperatorCode != "JH-001" {
+		t.Errorf("expected JH-001, got %s", resp.Data.OperatorCode)
+	}
+	if resp.Data.Name != "Ahmad Supriatna" {
+		t.Errorf("expected Ahmad Supriatna, got %s", resp.Data.Name)
+	}
+	if resp.Data.Status != OperatorStatusActive {
+		t.Errorf("expected ACTIVE, got %s", resp.Data.Status)
+	}
+}
+
+func TestGetOperatorDetail_Success_ByCode(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators/JH-002", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool     `json:"success"`
+		Data    Operator `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data.ID != "op-02" {
+		t.Errorf("expected op-02, got %s", resp.Data.ID)
+	}
+	if resp.Data.OperatorCode != "JH-002" {
+		t.Errorf("expected JH-002, got %s", resp.Data.OperatorCode)
+	}
+	if resp.Data.Name != "Dedi Kusnadi" {
+		t.Errorf("expected Dedi Kusnadi, got %s", resp.Data.Name)
+	}
+}
+
+func TestGetOperatorDetail_NotFound(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators/non-existent-operator-id", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetOperatorDetail_ClientRole_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to role "client"
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators/op-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client role accesses /operators/:id, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetOperatorDetail_Unauthorized_NoToken(t *testing.T) {
+	r := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators/op-01", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated request to /operators/:id, got %d", w.Code)
+	}
+}
+
+func TestGetOperatorDetail_Unauthorized_InvalidToken(t *testing.T) {
+	r := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/operators/op-01", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for invalid token, got %d", w.Code)
+	}
+}

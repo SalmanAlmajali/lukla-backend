@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/modules/identity"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
+	"github.com/lukla/operations-engine/internal/modules/ratecard"
 	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/authz"
 	"github.com/lukla/operations-engine/internal/platform/database"
@@ -68,9 +69,13 @@ func New(ctx context.Context) (*App, error) {
 	masterdataSvc := masterdata.NewService(masterdataRepo)
 	masterdataHandler := masterdata.NewHandler(masterdataSvc)
 
+	ratecardRepo := ratecard.NewPostgresRepository(db)
+	ratecardSvc := ratecard.NewService(ratecardRepo)
+	ratecardHandler := ratecard.NewHandler(ratecardSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, authnMiddleware, internalAuthz)
+	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -110,6 +115,7 @@ func registerRoutes(
 	r *gin.Engine,
 	identityHandler *identity.Handler,
 	masterdataHandler *masterdata.Handler,
+	ratecardHandler *ratecard.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -121,5 +127,6 @@ func registerRoutes(
 	v1 := r.Group("/api/v1")
 	identity.RegisterRoutes(v1, identityHandler, authnMiddleware)
 	masterdata.RegisterRoutes(v1, masterdataHandler, authnMiddleware, internalAuthz)
+	ratecardHandler.RegisterRoutes(v1, authnMiddleware)
 }
 

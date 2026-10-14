@@ -19,7 +19,7 @@ var (
 	ErrForbiddenArticleAccess = errors.New("Akses ditolak: Anda hanya dapat mengakses data artikel milik klien Anda sendiri")
 	ErrInvalidOperatorStatus  = errors.New("Status operator tidak valid, harus 'ACTIVE', 'INACTIVE', atau 'ON_LEAVE'")
 	ErrForbiddenOperatorAccess = errors.New("Akses ditolak: akun klien eksternal tidak diizinkan mengakses data master operator pabrik")
-	ErrOperatorNotFound       = errors.New("Operator jahit tidak ditemukan")
+	ErrOperatorNotFound        = errors.New("Operator jahit tidak ditemukan")
 )
 
 // Service handles business logic for master data entities.
@@ -331,5 +331,6 @@ func (s *Service) GetOperatorDetail(ctx context.Context, id string, requesterRol
 
 	return op, nil
 }
+
 
 
