@@ -264,3 +264,86 @@ func TestApp_ClientProfileLiveDB(t *testing.T) {
 		t.Logf("client@lukla.local successfully linked to clientId: %s", *meResp.Data.ClientID)
 	}
 }
+
+func TestApp_LogoutLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login first to get JWT token
+	loginBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginBody))
+	reqLogin.Header.Set("Content-Type", "application/json")
+	wLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogin, reqLogin)
+
+	if wLogin.Code != http.StatusOK {
+		t.Fatalf("login failed: %s", wLogin.Body.String())
+	}
+
+	var loginResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLogin.Body.Bytes(), &loginResp)
+	token := loginResp.Data.Token
+
+	// 2. Call POST /api/v1/auth/logout with Bearer token
+	reqLogout, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	reqLogout.Header.Set("Authorization", "Bearer "+token)
+	wLogout := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogout, reqLogout)
+
+	if wLogout.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for /api/v1/auth/logout, got %d. Body: %s", wLogout.Code, wLogout.Body.String())
+	}
+
+	var logoutResp struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(wLogout.Body.Bytes(), &logoutResp); err != nil {
+		t.Fatalf("failed to unmarshal logout response: %v", err)
+	}
+
+	if !logoutResp.Success {
+		t.Errorf("expected success to be true")
+	}
+	if logoutResp.Message != "Berhasil logout." {
+		t.Errorf("expected message 'Berhasil logout.', got %s", logoutResp.Message)
+	}
+}
+
+func TestApp_LogoutUnauthorizedLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	reqLogout, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	wLogout := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLogout, reqLogout)
+
+	if wLogout.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for missing token on logout, got %d. Body: %s", wLogout.Code, wLogout.Body.String())
+	}
+}
+

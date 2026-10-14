@@ -306,3 +306,68 @@ func TestMe_WithClientID(t *testing.T) {
 	}
 }
 
+func TestLogout_Success(t *testing.T) {
+	router, _, svc := setupTestRouter()
+
+	loginData, err := svc.Login(context.Background(), LoginRequest{
+		Username: "production@lukla.local",
+		Password: "password",
+	})
+	if err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+loginData.Token)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Errorf("expected success to be true")
+	}
+	if resp.Message != "Berhasil logout." {
+		t.Errorf("expected message 'Berhasil logout.', got %s", resp.Message)
+	}
+}
+
+func TestLogout_Unauthorized_NoToken(t *testing.T) {
+	router, _, _ := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodPost, "/auth/logout", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401 for missing token, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLogout_Unauthorized_InvalidToken(t *testing.T) {
+	router, _, _ := setupTestRouter()
+
+	req, _ := http.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer invalid.jwt.token")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401 for invalid token, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+

@@ -68,8 +68,27 @@ func (h *Handler) Me(c *gin.Context) {
 	httpx.OK(c, profile)
 }
 
+// Logout handles POST /auth/logout for the authenticated user.
+func (h *Handler) Logout(c *gin.Context) {
+	userID, ok := authn.UserIDFrom(c)
+	if !ok || userID == "" {
+		httpx.Unauthorized(c, "UNAUTHORIZED", "Pengguna tidak terautentikasi.")
+		return
+	}
+
+	if err := h.svc.Logout(c.Request.Context(), userID); err != nil {
+		requestID, _ := c.Get("request_id")
+		rid, _ := requestID.(string)
+		httpx.InternalServerError(c, rid)
+		return
+	}
+
+	httpx.OKWithMessage(c, "Berhasil logout.", nil)
+}
+
 // RegisterRoutes registers identity module routes on the given router group.
 func RegisterRoutes(r *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerFunc) {
 	r.POST("/auth/login", h.Login)
 	r.GET("/auth/me", authnMiddleware, h.Me)
+	r.POST("/auth/logout", authnMiddleware, h.Logout)
 }

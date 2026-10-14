@@ -120,6 +120,16 @@ func (s *Service) GetProfile(ctx context.Context, userID string) (*UserResponse,
 	}, nil
 }
 
+// Logout terminates the current session for the user.
+// In the current stateless JWT implementation, logout acknowledges session termination.
+// Hook point for future token blocklist/revocation storage (e.g. Redis).
+func (s *Service) Logout(ctx context.Context, userID string) error {
+	if userID == "" {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
 func mapRoleCodeToEnum(roleCode string) string {
 	switch strings.ToLower(roleCode) {
 	case "owner_executive", "executive":
