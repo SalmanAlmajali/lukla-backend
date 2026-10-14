@@ -1,0 +1,888 @@
+{
+	"info": {
+		"_postman_id": "c1f79a94-4b53-4dc9-98db-4e1b7f0e3401",
+		"name": "Lukla Operations Engine - Articles & Components API",
+		"description": "Postman Collection untuk menguji API Master Data Artikel dan Komponen (termasuk Standard SAM / Time Study Tracker) dengan Multi-Tenant Role Isolation pada Lukla Operations Engine.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3002/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_snohund_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "client_aventura_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "article_parka_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "article_aventura_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01. Authentication",
+			"item": [
+				{
+					"name": "1. Login Executive (Internal Staff)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Token is returned\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.token).to.be.a('string');",
+									"    pm.collectionVariables.set(\"auth_token\", jsonData.data.token);",
+									"    console.log(\"Saved auth_token: \" + jsonData.data.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"executive@lukla.local\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login sebagai staf eksekutif/internal. Token otomatis disimpan ke variabel collection {{auth_token}}."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Login Client Snøhund (Client Portal)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Client token is returned\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data.token).to.be.a('string');",
+									"    pm.collectionVariables.set(\"client_token\", jsonData.data.token);",
+									"    console.log(\"Saved client_token: \" + jsonData.data.token);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"client@lukla.local\",\n    \"password\": \"password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login sebagai user portal klien Snøhund. Token disimpan ke variabel collection {{client_token}}."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Get Me & Store Snøhund Client ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"if (jsonData.data && jsonData.data.clientId) {",
+									"    pm.collectionVariables.set(\"client_snohund_id\", jsonData.data.clientId);",
+									"    console.log(\"Saved client_snohund_id: \" + jsonData.data.clientId);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						},
+						"description": "Mengambil profil user klien Snøhund dan menyimpan clientId ke {{client_snohund_id}}."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02. Articles API",
+			"item": [
+				{
+					"name": "1. List All Articles (Internal Staff)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Returns articles array with pagination meta\", function () {",
+									"    pm.expect(jsonData.success).to.eql(true);",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    pm.expect(jsonData.meta).to.be.an('object');",
+									"});",
+									"if (jsonData.data && jsonData.data.length > 0) {",
+									"    jsonData.data.forEach(function(item) {",
+									"        if (item.code === 'ART-SNO-PK01') {",
+									"            pm.collectionVariables.set(\"article_parka_id\", item.id);",
+									"            console.log(\"Saved article_parka_id: \" + item.id);",
+									"        } else if (item.code === 'ART-AVE-TR01') {",
+									"            pm.collectionVariables.set(\"article_aventura_id\", item.id);",
+									"            pm.collectionVariables.set(\"client_aventura_id\", item.clientId);",
+									"            console.log(\"Saved article_aventura_id: \" + item.id);",
+									"            console.log(\"Saved client_aventura_id: \" + item.clientId);",
+									"        }",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							]
+						},
+						"description": "Mengambil seluruh daftar artikel produk untuk internal staff. Script otomatis mengekstrak ID artikel Parka dan Aventura ke variabel."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Filter Articles - Category GARMENT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"All returned items have category GARMENT\", function () {",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.category).to.eql('GARMENT');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?category=GARMENT",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "category",
+									"value": "GARMENT"
+								}
+							]
+						},
+						"description": "Menyaring artikel berdasarkan kategori GARMENT (pakaian)."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Filter Articles - Category BAG",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"All returned items have category BAG\", function () {",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.category).to.eql('BAG');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?category=BAG",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "category",
+									"value": "BAG"
+								}
+							]
+						},
+						"description": "Menyaring artikel berdasarkan kategori BAG (tas / backpack)."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Filter Articles by Client ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "clientId",
+									"value": "{{client_snohund_id}}"
+								}
+							]
+						},
+						"description": "Menyaring daftar artikel khusus milik klien tertentu (misal Snøhund Brand)."
+					},
+					"response": []
+				},
+				{
+					"name": "5. Search & Pagination (page=1, limit=5, search=Parka)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?page=1&limit=5&search=Parka",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "5"
+								},
+								{
+									"key": "search",
+									"value": "Parka"
+								}
+							]
+						},
+						"description": "Pencarian teks artikel dengan pagination (page, limit, search)."
+					},
+					"response": []
+				},
+				{
+					"name": "6a. List Articles as Client without clientId (Must be 403 Forbidden - Data Umum Ditolak)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403 Forbidden for general data query by client\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});",
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Returns error message regarding general data restriction\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql(\"FORBIDDEN\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							]
+						},
+						"description": "Pengguna portal klien (CLIENT_PORTAL) dilarang mengakses data artikel umum pabrik tanpa menyertakan clientId miliknya. Harus ditolak 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "6b. List Articles as Client with Own clientId (200 OK - Data Milik Sendiri)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Client only sees their own articles\", function () {",
+									"    var expectedClientId = pm.collectionVariables.get(\"client_snohund_id\");",
+									"    jsonData.data.forEach(function(item) {",
+									"        pm.expect(item.clientId).to.eql(expectedClientId);",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?clientId={{client_snohund_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "clientId",
+									"value": "{{client_snohund_id}}"
+								}
+							]
+						},
+						"description": "Pengguna portal klien hanya diizinkan mengakses data yang berkaitan dengannya saja (menyertakan query clientId miliknya)."
+					},
+					"response": []
+				},
+				{
+					"name": "7. Client Query Other Client ID (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles?clientId={{client_aventura_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							],
+							"query": [
+								{
+									"key": "clientId",
+									"value": "{{client_aventura_id}}"
+								}
+							]
+						},
+						"description": "Uji Multi-tenant isolation: Klien Snøhund mencoba menyaring data artikel milik Klien Aventura. Harus ditolak 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "7b. Query Articles without Token (Must be 401 Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 401 Unauthorized\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Error code is UNAUTHORIZED\", function () {",
+									"    pm.expect(jsonData.success).to.eql(false);",
+									"    pm.expect(jsonData.error.code).to.eql(\"UNAUTHORIZED\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/articles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							]
+						},
+						"description": "Validasi keamanan: Setiap API Master Data Artikel wajib menyertakan token autentikasi. Jika tanpa token, harus ditolak 401 Unauthorized."
+					},
+					"response": []
+				},
+				{
+					"name": "8. Create New Article (Internal Staff)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"code\": \"ART-SNO-JK99\",\n    \"title\": \"Snøhund Glacier Summit Down Jacket 2026\",\n    \"category\": \"GARMENT\",\n    \"description\": \"850-fill hydrophobic goose down expedition jacket with Pertex Quantum Pro shell\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles"
+							]
+						},
+						"description": "Menambahkan master artikel produk baru."
+					},
+					"response": []
+				},
+				{
+					"name": "9. Get Article Detail (Includes Components List)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response contains components array\", function () {",
+									"    pm.expect(jsonData.data).to.have.property('components');",
+									"    pm.expect(jsonData.data.components).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_parka_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_parka_id}}"
+							]
+						},
+						"description": "Mengambil detail artikel berserta seluruh komponen operasinya."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03. Components & Time Study API",
+			"item": [
+				{
+					"name": "1. List Components of Article (Internal Staff)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Components list contains standardSAM (Time Study)\", function () {",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"    pm.expect(jsonData.data.length).to.be.greaterThan(0);",
+									"    pm.expect(jsonData.data[0]).to.have.property('standardSAM');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_parka_id}}",
+								"components"
+							]
+						},
+						"description": "Mengambil daftar urutan komponen operasi beserta Standard SAM (hasil Time Study) dari artikel tertentu."
+					},
+					"response": []
+				},
+				{
+					"name": "2. List Components as Client Snøhund (Own Article)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_parka_id}}",
+								"components"
+							]
+						},
+						"description": "Klien Snøhund mengakses komponen artikel miliknya sendiri."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Client Snøhund Access Aventura Components (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_aventura_id}}",
+								"components"
+							]
+						},
+						"description": "Uji multi-tenant: Klien Snøhund mencoba mengakses komponen artikel milik Klien Aventura. Harus 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Add Operational Component with Time Study SAM",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"pm.test(\"Component has standardSAM\", function () {",
+									"    pm.expect(jsonData.data.standardSAM).to.eql(2.25);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Pasang Label Reflektif & Hangtag\",\n    \"code\": \"CMP-SNO-PK-06\",\n    \"sequenceNumber\": 6,\n    \"standardSAM\": 2.25\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_parka_id}}/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_parka_id}}",
+								"components"
+							]
+						},
+						"description": "Menambahkan komponen operasional baru dengan hasil pengukuran Time Study (Standard SAM = 2.25 menit)."
+					},
+					"response": []
+				},
+				{
+					"name": "5. Client Add Component to Other Client Article (Must be 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 403 Forbidden\", function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{client_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Ilegal Component Injection\",\n    \"code\": \"CMP-HACK-01\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/articles/{{article_aventura_id}}/components",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"articles",
+								"{{article_aventura_id}}",
+								"components"
+							]
+						},
+						"description": "Klien Snøhund mencoba menyuntikkan komponen ke artikel milik Klien Aventura. Harus 403 Forbidden."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
+

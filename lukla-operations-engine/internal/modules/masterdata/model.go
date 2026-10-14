@@ -31,4 +31,61 @@ type ClientDetail struct {
 	ActiveOrdersCount int `json:"activeOrdersCount"`
 }
 
+// Article represents a manufactured garment or bag model under a specific client.
+type Article struct {
+	ID          string     `json:"id"`
+	ClientID    string     `json:"clientId"`
+	ClientName  string     `json:"clientName,omitempty"`
+	Title       string     `json:"title"`
+	Code        string     `json:"code"`
+	Category    string     `json:"category"`
+	Description *string    `json:"description"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt,omitempty"`
+	DeletedAt   *time.Time `json:"deletedAt,omitempty"`
+}
 
+// ListArticlesFilter defines query filtering and pagination for listing articles.
+type ListArticlesFilter struct {
+	ClientID string `form:"clientId"`
+	Category string `form:"category"`
+	Search   string `form:"search"`
+	Page     int    `form:"page"`
+	Limit    int    `form:"limit"`
+}
+
+// CreateArticleRequest defines the request body for creating a new article.
+type CreateArticleRequest struct {
+	ClientID    string  `json:"clientId" binding:"required"`
+	Title       string  `json:"title" binding:"required"`
+	Code        string  `json:"code" binding:"required"`
+	Category    string  `json:"category" binding:"required"`
+	Description *string `json:"description"`
+}
+
+// ArticleDetail represents detailed article information including its components.
+type ArticleDetail struct {
+	Article
+	Components []Component `json:"components"`
+}
+
+// Component represents an operational step / component in manufacturing an article.
+type Component struct {
+	ID             string     `json:"id"`
+	ArticleID      string     `json:"articleId"`
+	Name           string     `json:"name"`
+	Code           *string    `json:"code"`
+	SequenceNumber int        `json:"sequenceNumber"`
+	StandardSAM    *float64   `json:"standardSAM"`
+	CreatedAt      time.Time  `json:"createdAt,omitempty"`
+	UpdatedAt      time.Time  `json:"updatedAt,omitempty"`
+	DeletedAt      *time.Time `json:"deletedAt,omitempty"`
+}
+
+// CreateComponentRequest defines the payload for creating a new component.
+type CreateComponentRequest struct {
+	Name           string   `json:"name" binding:"required"`
+	Code           *string  `json:"code"`
+	SequenceNumber *int     `json:"sequenceNumber"`
+	StandardSAM    *float64 `json:"standardSAM"`
+}

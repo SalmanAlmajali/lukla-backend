@@ -747,6 +747,470 @@ func TestApp_GetClientDetail_LiveDB(t *testing.T) {
 	}
 }
 
+func TestApp_ArticlesLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login Executive
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Login Client Snøhund
+	loginSnohundBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqSnohundLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginSnohundBody))
+	reqSnohundLogin.Header.Set("Content-Type", "application/json")
+	wSnohundLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundLogin, reqSnohundLogin)
+
+	var snohundLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSnohundLogin.Body.Bytes(), &snohundLoginResp)
+	snohundToken := snohundLoginResp.Data.Token
+
+	// Get Snøhund client ID
+	reqMe, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqMe.Header.Set("Authorization", "Bearer "+snohundToken)
+	wMe := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMe, reqMe)
+	var meResp struct {
+		Data struct {
+			ClientID *string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wMe.Body.Bytes(), &meResp)
+	snohundClientID := *meResp.Data.ClientID
+
+	// 3. Login Client Aventura
+	loginAventuraBody, _ := json.Marshal(map[string]string{
+		"username": "client.aventura@lukla.local",
+		"password": "password",
+	})
+	reqAventuraLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginAventuraBody))
+	reqAventuraLogin.Header.Set("Content-Type", "application/json")
+	wAventuraLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAventuraLogin, reqAventuraLogin)
+
+	var aventuraLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAventuraLogin.Body.Bytes(), &aventuraLoginResp)
+	aventuraToken := aventuraLoginResp.Data.Token
+
+	reqAveMe, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqAveMe.Header.Set("Authorization", "Bearer "+aventuraToken)
+	wAveMe := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAveMe, reqAveMe)
+	var aveMeResp struct {
+		Data struct {
+			ClientID *string `json:"clientId"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAveMe.Body.Bytes(), &aveMeResp)
+	aventuraClientID := *aveMeResp.Data.ClientID
+
+	// Test 1: Executive lists all articles
+	reqAllArticles, _ := http.NewRequest(http.MethodGet, "/api/v1/articles", nil)
+	reqAllArticles.Header.Set("Authorization", "Bearer "+execToken)
+	wAllArticles := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAllArticles, reqAllArticles)
+
+	if wAllArticles.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for exec listing articles, got %d. Body: %s", wAllArticles.Code, wAllArticles.Body.String())
+	}
+
+	var allArticlesResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID         string `json:"id"`
+			ClientID   string `json:"clientId"`
+			ClientName string `json:"clientName"`
+			Title      string `json:"title"`
+			Code       string `json:"code"`
+			Category   string `json:"category"`
+		} `json:"data"`
+		Meta struct {
+			Total int64 `json:"total"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(wAllArticles.Body.Bytes(), &allArticlesResp); err != nil {
+		t.Fatalf("failed to decode all articles response: %v", err)
+	}
+
+	if allArticlesResp.Meta.Total < 5 {
+		t.Errorf("expected at least 5 seeded articles, got %d", allArticlesResp.Meta.Total)
+	}
+
+	// Test 2: Filter by category GARMENT
+	reqGarment, _ := http.NewRequest(http.MethodGet, "/api/v1/articles?category=GARMENT", nil)
+	reqGarment.Header.Set("Authorization", "Bearer "+execToken)
+	wGarment := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wGarment, reqGarment)
+
+	if wGarment.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for category GARMENT, got %d", wGarment.Code)
+	}
+	var garmentResp struct {
+		Data []struct {
+			Category string `json:"category"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wGarment.Body.Bytes(), &garmentResp)
+	for _, art := range garmentResp.Data {
+		if art.Category != "GARMENT" {
+			t.Errorf("expected all articles to be GARMENT, got %s", art.Category)
+		}
+	}
+
+	// Test 3: Filter by category BAG
+	reqBag, _ := http.NewRequest(http.MethodGet, "/api/v1/articles?category=BAG", nil)
+	reqBag.Header.Set("Authorization", "Bearer "+execToken)
+	wBag := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wBag, reqBag)
+
+	if wBag.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for category BAG, got %d", wBag.Code)
+	}
+	var bagResp struct {
+		Data []struct {
+			Category string `json:"category"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wBag.Body.Bytes(), &bagResp)
+	for _, art := range bagResp.Data {
+		if art.Category != "BAG" {
+			t.Errorf("expected all articles to be BAG, got %s", art.Category)
+		}
+	}
+
+	// Test 4a: Client Snøhund attempts to query general articles without clientId -> 403 Forbidden!
+	reqSnohundGeneral, _ := http.NewRequest(http.MethodGet, "/api/v1/articles", nil)
+	reqSnohundGeneral.Header.Set("Authorization", "Bearer "+snohundToken)
+	wSnohundGeneral := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundGeneral, reqSnohundGeneral)
+
+	if wSnohundGeneral.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for snohund querying general articles without clientId, got %d. Body: %s", wSnohundGeneral.Code, wSnohundGeneral.Body.String())
+	}
+
+	// Test 4b: Client Snøhund lists its own articles by supplying clientId -> 200 OK!
+	reqSnohundArticles, _ := http.NewRequest(http.MethodGet, "/api/v1/articles?clientId="+snohundClientID, nil)
+	reqSnohundArticles.Header.Set("Authorization", "Bearer "+snohundToken)
+	wSnohundArticles := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundArticles, reqSnohundArticles)
+
+	if wSnohundArticles.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for snohund listing own articles, got %d. Body: %s", wSnohundArticles.Code, wSnohundArticles.Body.String())
+	}
+
+	var snohundArticlesResp struct {
+		Data []struct {
+			ID       string `json:"id"`
+			ClientID string `json:"clientId"`
+			Code     string `json:"code"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSnohundArticles.Body.Bytes(), &snohundArticlesResp)
+	if len(snohundArticlesResp.Data) < 2 {
+		t.Fatalf("expected at least 2 articles for Snøhund, got %d", len(snohundArticlesResp.Data))
+	}
+	var snohundArticleID string
+	for _, art := range snohundArticlesResp.Data {
+		if art.ClientID != snohundClientID {
+			t.Errorf("security breach: client received article for client %s, expected %s", art.ClientID, snohundClientID)
+		}
+		if art.Code == "ART-SNO-PK01" {
+			snohundArticleID = art.ID
+		}
+	}
+
+	// Test 5: Client Snøhund attempts to query Aventura articles via clientId param -> 403 Forbidden!
+	reqForbiddenClientID, _ := http.NewRequest(http.MethodGet, "/api/v1/articles?clientId="+aventuraClientID, nil)
+	reqForbiddenClientID.Header.Set("Authorization", "Bearer "+snohundToken)
+	wForbiddenClientID := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbiddenClientID, reqForbiddenClientID)
+
+	if wForbiddenClientID.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client queries another client's articles, got %d", wForbiddenClientID.Code)
+	}
+
+	// Test 6: Snøhund views detail of its own article -> 200 OK
+	if snohundArticleID != "" {
+		reqArticleDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+snohundArticleID, nil)
+		reqArticleDetail.Header.Set("Authorization", "Bearer "+snohundToken)
+		wArticleDetail := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(wArticleDetail, reqArticleDetail)
+
+		if wArticleDetail.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK for article detail, got %d. Body: %s", wArticleDetail.Code, wArticleDetail.Body.String())
+		}
+	}
+
+	// Test 7: Snøhund views detail of Aventura's article -> 403 Forbidden!
+	reqAventuraArticles, _ := http.NewRequest(http.MethodGet, "/api/v1/articles?clientId="+aventuraClientID, nil)
+	reqAventuraArticles.Header.Set("Authorization", "Bearer "+aventuraToken)
+	wAventuraArticles := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wAventuraArticles, reqAventuraArticles)
+	var aveArticlesResp struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wAventuraArticles.Body.Bytes(), &aveArticlesResp)
+	if len(aveArticlesResp.Data) > 0 {
+		aveArticleID := aveArticlesResp.Data[0].ID
+		reqSnohundSneak, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+aveArticleID, nil)
+		reqSnohundSneak.Header.Set("Authorization", "Bearer "+snohundToken)
+		wSnohundSneak := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(wSnohundSneak, reqSnohundSneak)
+
+		if wSnohundSneak.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 Forbidden when client accesses other client's article detail, got %d", wSnohundSneak.Code)
+		}
+	}
+
+	// Test 8: Verify Client detail reflects calculated articlesCount
+	reqClientDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/clients/"+snohundClientID, nil)
+	reqClientDetail.Header.Set("Authorization", "Bearer "+snohundToken)
+	wClientDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wClientDetail, reqClientDetail)
+
+	if wClientDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client detail, got %d", wClientDetail.Code)
+	}
+	var clientDetailResp struct {
+		Data struct {
+			ArticlesCount int `json:"articlesCount"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wClientDetail.Body.Bytes(), &clientDetailResp)
+	if clientDetailResp.Data.ArticlesCount < 2 {
+		t.Errorf("expected articlesCount >= 2 for Snøhund, got %d", clientDetailResp.Data.ArticlesCount)
+	}
+
+	// Test 9: Unauthenticated request to /api/v1/articles -> 401 Unauthorized!
+	reqNoAuth, _ := http.NewRequest(http.MethodGet, "/api/v1/articles", nil)
+	wNoAuth := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNoAuth, reqNoAuth)
+
+	if wNoAuth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for request without token, got %d", wNoAuth.Code)
+	}
+}
+
+func TestApp_ComponentsLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+
+	// 1. Login Executive
+	loginExecBody, _ := json.Marshal(map[string]string{
+		"username": "executive@lukla.local",
+		"password": "password",
+	})
+	reqExecLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginExecBody))
+	reqExecLogin.Header.Set("Content-Type", "application/json")
+	wExecLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExecLogin, reqExecLogin)
+
+	var execLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wExecLogin.Body.Bytes(), &execLoginResp)
+	execToken := execLoginResp.Data.Token
+
+	// 2. Login Client Snøhund
+	loginSnohundBody, _ := json.Marshal(map[string]string{
+		"username": "client@lukla.local",
+		"password": "password",
+	})
+	reqSnohundLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(loginSnohundBody))
+	reqSnohundLogin.Header.Set("Content-Type", "application/json")
+	wSnohundLogin := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundLogin, reqSnohundLogin)
+
+	var snohundLoginResp struct {
+		Data struct {
+			Token string `json:"token"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSnohundLogin.Body.Bytes(), &snohundLoginResp)
+	snohundToken := snohundLoginResp.Data.Token
+
+	// 3. Find Snøhund Parka Article ID and Aventura Article ID
+	reqArticles, _ := http.NewRequest(http.MethodGet, "/api/v1/articles", nil)
+	reqArticles.Header.Set("Authorization", "Bearer "+execToken)
+	wArticles := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wArticles, reqArticles)
+
+	var articlesResp struct {
+		Data []struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wArticles.Body.Bytes(), &articlesResp)
+
+	var snohundParkaID, aventuraPantsID string
+	for _, a := range articlesResp.Data {
+		if a.Code == "ART-SNO-PK01" {
+			snohundParkaID = a.ID
+		} else if a.Code == "ART-AVE-TR01" {
+			aventuraPantsID = a.ID
+		}
+	}
+
+	if snohundParkaID == "" || aventuraPantsID == "" {
+		t.Fatalf("expected seeded articles ART-SNO-PK01 and ART-AVE-TR01 to exist")
+	}
+
+	// 4. Executive lists components of Snøhund Parka
+	reqComps, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+snohundParkaID+"/components", nil)
+	reqComps.Header.Set("Authorization", "Bearer "+execToken)
+	wComps := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wComps, reqComps)
+
+	if wComps.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list components, got %d. Body: %s", wComps.Code, wComps.Body.String())
+	}
+
+	var compsResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID             string   `json:"id"`
+			ArticleID      string   `json:"articleId"`
+			Name           string   `json:"name"`
+			Code           *string  `json:"code"`
+			SequenceNumber int      `json:"sequenceNumber"`
+			StandardSAM    *float64 `json:"standardSAM"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wComps.Body.Bytes(), &compsResp); err != nil {
+		t.Fatalf("failed to decode components response: %v", err)
+	}
+
+	if len(compsResp.Data) < 5 {
+		t.Errorf("expected at least 5 seeded components for Snøhund Parka, got %d", len(compsResp.Data))
+	}
+	// Verify that StandardSAM is present (Time Study measure)
+	hasSAM := false
+	for _, c := range compsResp.Data {
+		if c.StandardSAM != nil && *c.StandardSAM > 0 {
+			hasSAM = true
+			break
+		}
+	}
+	if !hasSAM {
+		t.Errorf("expected standardSAM values to be present on seeded components")
+	}
+
+	// 5. Snøhund Client lists components of its own article -> 200 OK
+	reqSnohundComps, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+snohundParkaID+"/components", nil)
+	reqSnohundComps.Header.Set("Authorization", "Bearer "+snohundToken)
+	wSnohundComps := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSnohundComps, reqSnohundComps)
+
+	if wSnohundComps.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for Snøhund accessing own components, got %d", wSnohundComps.Code)
+	}
+
+	// 6. Snøhund Client attempts to list components of Aventura article -> 403 Forbidden!
+	reqForbiddenComps, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+aventuraPantsID+"/components", nil)
+	reqForbiddenComps.Header.Set("Authorization", "Bearer "+snohundToken)
+	wForbiddenComps := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbiddenComps, reqForbiddenComps)
+
+	if wForbiddenComps.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for Snøhund accessing Aventura components, got %d", wForbiddenComps.Code)
+	}
+
+	// 7. Executive creates a new component on Snøhund Parka
+	newCompBody := `{"name": "QC Akhir & Labeling", "code": "CMP-SNO-PK-06", "sequenceNumber": 6, "standardSAM": 1.75}`
+	reqCreateComp, _ := http.NewRequest(http.MethodPost, "/api/v1/articles/"+snohundParkaID+"/components", bytes.NewBufferString(newCompBody))
+	reqCreateComp.Header.Set("Authorization", "Bearer "+execToken)
+	reqCreateComp.Header.Set("Content-Type", "application/json")
+	wCreateComp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreateComp, reqCreateComp)
+
+	if wCreateComp.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for creating component, got %d. Body: %s", wCreateComp.Code, wCreateComp.Body.String())
+	}
+
+	// 8. Snøhund Client attempts to add component to Aventura article -> 403 Forbidden!
+	reqSneakComp, _ := http.NewRequest(http.MethodPost, "/api/v1/articles/"+aventuraPantsID+"/components", bytes.NewBufferString(newCompBody))
+	reqSneakComp.Header.Set("Authorization", "Bearer "+snohundToken)
+	reqSneakComp.Header.Set("Content-Type", "application/json")
+	wSneakComp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSneakComp, reqSneakComp)
+
+	if wSneakComp.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client adds component to other client's article, got %d", wSneakComp.Code)
+	}
+
+	// 9. Verify GET /api/v1/articles/:id returns components inside ArticleDetail
+	reqDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/articles/"+snohundParkaID, nil)
+	reqDetail.Header.Set("Authorization", "Bearer "+execToken)
+	wDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDetail, reqDetail)
+
+	if wDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for article detail, got %d", wDetail.Code)
+	}
+
+	var detailResp struct {
+		Data struct {
+			ID         string `json:"id"`
+			Components []struct {
+				Name string `json:"name"`
+			} `json:"components"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wDetail.Body.Bytes(), &detailResp)
+	if len(detailResp.Data.Components) < 5 {
+		t.Errorf("expected ArticleDetail to contain at least 5 components, got %d", len(detailResp.Data.Components))
+	}
+}
+
+
+
 
 
 

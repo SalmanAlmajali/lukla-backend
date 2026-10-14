@@ -21,6 +21,9 @@ servers:
   - url: /api/v1
     description: Relative API Root
 
+security:
+  - BearerAuth: []
+
 tags:
   - name: Auth & RBAC
     description: Autentikasi dan identifikasi peran 8 pengguna
@@ -38,6 +41,7 @@ tags:
 paths:
   /auth/login:
     post:
+      security: []
       tags:
         - Auth & RBAC
       summary: Login pengguna sesuai peran RBAC
@@ -106,6 +110,10 @@ paths:
       tags:
         - Clients
       summary: Daftar seluruh klien maklon terdaftar
+      description: |
+        Menampilkan daftar seluruh klien maklon terdaftar di pabrik dengan pagination dan pencarian.
+        - **Staf Internal**: Berlaku umum, dapat melihat daftar seluruh klien pabrik.
+        - **Akun Klien (CLIENT_PORTAL)**: Ditolak (HTTP 403 Forbidden). Akun klien dilarang mengakses data umum daftar seluruh klien pabrik dan hanya dapat mengakses profil perusahaannya sendiri melalui endpoint `/clients/{id}`.
       parameters:
         - name: search
           in: query
@@ -169,7 +177,13 @@ paths:
                         type: integer
                         example: 2
         '401':
-          description: Tidak terautentikasi
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk akun klien (data umum daftar klien hanya untuk staf internal)
           content:
             application/json:
               schema:
@@ -290,13 +304,19 @@ paths:
       tags:
         - Articles & Components
       summary: Daftar artikel produk
+      description: |
+        Menampilkan daftar artikel produk dengan pagination, filter kategori, dan pencarian teks.
+        - **Staf Internal**: Berlaku umum, dapat melihat seluruh artikel pabrik atau menyaring per clientId.
+        - **Akun Klien (CLIENT_PORTAL)**: Dilarang mengakses data umum artikel pabrik (wajib menyertakan parameter query `clientId` akun sendiri). Mengakses data umum atau clientId milik klien lain akan ditolak HTTP 403 Forbidden.
+      security:
+        - BearerAuth: []
       parameters:
         - name: clientId
           in: query
           required: false
           schema:
             type: string
-          description: Filter artikel berdasarkan client_id
+          description: Filter artikel berdasarkan client_id (wajib diisi bagi akun klien)
         - name: category
           in: query
           required: false
@@ -304,6 +324,26 @@ paths:
             type: string
             enum: [GARMENT, BAG]
           description: Filter kategori produk
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cari berdasarkan judul atau kode artikel
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Nomor halaman pagination
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah data per halaman
       responses:
         '200':
           description: Daftar artikel
@@ -314,6 +354,7 @@ paths:
                 required:
                   - success
                   - data
+                  - meta
                 properties:
                   success:
                     type: boolean
@@ -322,10 +363,52 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Article'
+                  meta:
+                    type: object
+                    required:
+                      - page
+                      - limit
+                      - total
+                      - totalPages
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      total:
+                        type: integer
+                        example: 5
+                      totalPages:
+                        type: integer
+                        example: 1
+        '400':
+          description: Parameter query atau filter kategori tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk data umum artikel tanpa clientId atau data artikel klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Articles & Components
       summary: Tambah master artikel baru
+      description: |
+        Mendaftarkan artikel produk baru beserta kategori dan client_id pemilik.
+        - **Staf Internal**: Dapat mendaftarkan artikel untuk klien mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat mendaftarkan artikel untuk perusahaannya sendiri (`clientId` miliknya).
       security:
         - BearerAuth: []
       requestBody:
@@ -350,12 +433,36 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/Article'
+        '400':
+          description: Request body atau kategori tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk membuat artikel pada klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /articles/{id}:
     get:
       tags:
         - Articles & Components
       summary: Detail artikel beserta seluruh komponen operasinya
+      description: |
+        Menampilkan detail spesifikasi artikel beserta seluruh komponen operasinya dan estimasi standard SAM.
+        - **Staf Internal**: Berlaku umum, dapat mengakses artikel milik klien mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat mengakses detail artikel milik perusahaannya sendiri (`clientId` miliknya).
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -378,6 +485,18 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/ArticleDetail'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk artikel klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Artikel tidak ditemukan
           content:
@@ -385,11 +504,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+
   /articles/{id}/components:
     get:
       tags:
         - Articles & Components
       summary: Daftar komponen operasi suatu artikel
+      description: |
+        Menampilkan daftar komponen operasi dan urutan proses jahit/potong beserta Standard SAM (Time Study Tracker).
+        - **Staf Internal**: Berlaku umum, dapat mengakses komponen dari artikel milik klien mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat mengakses komponen dari artikel milik perusahaannya sendiri.
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -415,10 +541,32 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Component'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk artikel klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Artikel tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
         - Articles & Components
       summary: Tambah komponen operasi baru pada artikel
+      description: |
+        Menambahkan komponen operasi baru pada suatu artikel beserta estimasi Standard SAM.
+        - **Staf Internal**: Dapat menambahkan komponen pada artikel milik klien mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat menambahkan komponen pada artikel milik perusahaannya sendiri.
       security:
         - BearerAuth: []
       parameters:
@@ -450,12 +598,41 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/Component'
+        '400':
+          description: Request body tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk membuat komponen pada artikel klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Artikel tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 
   /components/{id}:
     put:
       tags:
         - Articles & Components
       summary: Perbarui spesifikasi komponen
+      description: |
+        Memperbarui spesifikasi komponen operasi (nama, kode, urutan, atau Standard SAM).
+        - **Staf Internal**: Dapat memperbarui komponen artikel mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat memperbarui komponen pada artikel miliknya sendiri.
       security:
         - BearerAuth: []
       parameters:
@@ -486,10 +663,38 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/Component'
+        '400':
+          description: Request body tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk komponen artikel milik klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Komponen tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
         - Articles & Components
       summary: Hapus komponen dari artikel
+      description: |
+        Menghapus komponen operasi dari artikel.
+        - **Staf Internal**: Dapat menghapus komponen artikel mana pun.
+        - **Akun Klien (CLIENT_PORTAL)**: Hanya dapat menghapus komponen pada artikel miliknya sendiri.
       security:
         - BearerAuth: []
       parameters:
@@ -505,6 +710,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Tidak terautentikasi (Header Authorization Bearer token diperlukan)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Akses ditolak untuk komponen artikel milik klien lain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Komponen tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /operators:
     get:

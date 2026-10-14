@@ -1,0 +1,51 @@
+Saran saya: kerjakan per "irisan vertikal" (satu proses dari database sampai layar), dengan urutan yang mengikuti tiga hal: ketergantungan antar-proses, target utama client, dan kebutuhan *parallel run* payroll.
+
+**Dasar urutan**
+- Client menyebut target utamanya: **barang lolos QC, payroll penjahit dari output jahit, dan bonus QC**. Jadi nilai terbesar ada di jalur *output → payroll → bonus*.
+- Payroll perlu **parallel run 2–4 minggu** sebelum dipercaya, dan datanya baru ada setelah mandor mulai menginput output. Jadi jalur output dan payroll sebaiknya didahulukan agar data nyata terkumpul lebih awal.
+- Dengan 1–2 developer efektif, tiap irisan harus bisa didemokan sendiri.
+
+## Urutan yang disarankan
+
+| Tahap | BPMN | Isi | Ukuran | Hasil yang bisa didemokan |
+|---|---|---|---|---|
+| **0. Fondasi** | 10 (Rate Card), plus master data | Kerangka repo + CI, login seed, 8 peran (RBAC), `client_id` di semua tabel, master data (klien, artikel + kategori produk, komponen, penjahit), rate card + riwayat, order minimal (dibuat lewat seed atau form sederhana) | M | Login per peran; Kepala Produksi dan Owner bisa mengatur tarif |
+| **1. Produksi** | 4 (Line), 5 (Output 30 menit) | Alokasi penjahit, pindah line, terminal input 30 menit untuk mandor, assembly → Menunggu QC, dashboard dasar | L | Mandor menginput output; dashboard real-time. **Pilot 1 line bisa dimulai** |
+| **2. Payroll** | 7 (Payroll mingguan) | Borongan per penjahit, uang makan, rekap, penguncian | M | Skenario uji 2 (penjahit baru di tengah minggu). **Parallel run payroll dimulai** |
+| **3. Gudang** | 2 (Gudang & blokade) | Penerimaan, tag Client ID + Order ID, blokade salah-keluar, scrap | M | Skenario uji 1 |
+| **4. QC & Bonus** | 6 (QC), 8 (Pool bonus) | Inspeksi lolos/repair/reject + kategori defect, pool bonus, pembagian ÷3 | M | Skenario uji 3 (3.000 pcs lolos ÷ 3) |
+| **5. Status klien** | 11 (Portal & notifikasi), bagian akhir 1 | Order selesai, status di portal, notifikasi. **Gerbang keputusan RLS** | M | Klien melihat status dan stok titipan miliknya |
+| **6. Sample** | 3 (Sample → Order Massal) | Versioning, time study, persetujuan klien, konversi (menggantikan order minimal) | M | Skenario uji 4 |
+| **7. Penutup** | 9 (Overhead), 1 (End-to-end) | Overhead bulanan, uji end-to-end seluruh alur, hardening | S–M | Semua 4 skenario lulus, siap go-live |
+
+*(Ukuran S/M/L relatif untuk perbandingan, bukan estimasi waktu. Waktu sebenarnya perlu dihitung tim Anda.)*
+
+## Kenapa begini
+
+1. **Produksi dan payroll sebelum gudang.** Gudang adalah masalah pertama di SRS, tetapi gudang tidak dibutuhkan oleh payroll. Payroll yang menunggu data nyata lebih berisiko tertunda. Gudang bisa dikerjakan **paralel** oleh developer lain (atau frontend) setelah fondasi selesai.
+2. **QC dan bonus setelah payroll.** Bonus butuh data lolos QC, tetapi upah penjahit **tidak** tergantung QC (keputusan client: reject tidak mempengaruhi upah). Jadi payroll bisa jalan lebih dulu tanpa QC.
+3. **Sample paling akhir.** Sample dan versioning penting, tetapi tidak menghalangi produksi, gudang, QC, atau payroll. Order minimal dari seed cukup untuk tahap awal.
+4. **Portal setelah data cukup.** Portal membaca data dari gudang, produksi, dan QC, dan memicu gerbang RLS.
+5. **Overhead paling belakang.** Masih ada pertanyaan terbuka (pakaian vs tas) dan nilainya paling rendah.
+
+## Yang perlu diputuskan sebelum tiap tahap dimulai
+
+| Tahap | Jawaban client / keputusan yang ditunggu |
+|---|---|
+| 0 | Konfirmasi ADR (PostgreSQL, sqlc/pgx, OpenAPI), penyedia cloud, daftar artikel dan komponen awal |
+| 1 | Daftar komponen per artikel, jam kerja, perangkat di lantai produksi, kondisi jaringan |
+| 2 | **Aturan penguncian dan koreksi payroll**, siapa yang menetapkan % uang makan, format slip upah |
+| 3 | Kategori scrap, aturan stok opname |
+| 4 | **Periode pembayaran bonus**, nama penerima bonus, daftar kategori defect |
+| 5 | Saluran notifikasi, cara akun klien dibuat |
+| 6 | Cara klien menyetujui sample dan order massal |
+| 7 | Alokasi overhead pakaian vs tas |
+
+## Praktik yang membantu tim Anda
+- **Tulis OpenAPI per tahap** sebelum coding tahap itu, supaya backend dan frontend bisa jalan paralel (frontend memakai mock server).
+- **Jadikan skenario uji SRS sebagai uji otomatis** sejak tahap yang terkait. Di akhir tahap 7 keempatnya sudah ada.
+- **Pasang `client_id` dan repository terpusat dari tahap 0** (prasyarat RLS belakangan).
+- **Jangan mengunci skema** modul yang jawabannya masih menggantung (QC, payroll, bonus) sampai pertanyaannya terjawab.
+- **Pilot 1 line** dimulai begitu tahap 1 selesai, jangan menunggu semua modul jadi.
+
+Urutan ini **berbeda dari roadmap awal** di BRD dan dokumen arsitektur (yang menaruh gudang lebih dulu dan payroll di Sprint 5–6). Kalau Anda setuju, saya perbarui keduanya agar konsisten. Saya juga bisa mulai menyusun OpenAPI untuk **tahap 0 dan 1** karena itu yang akan dikerjakan tim lebih dulu.

@@ -10,8 +10,13 @@ import (
 )
 
 var (
-	ErrClientNotFound        = errors.New("Klien tidak ditemukan")
-	ErrForbiddenClientAccess = errors.New("Akses ditolak: Anda hanya dapat mengakses data klien milik akun Anda sendiri")
+	ErrClientNotFound         = errors.New("Klien tidak ditemukan")
+	ErrForbiddenClientAccess  = errors.New("Akses ditolak: Anda hanya dapat mengakses data klien milik akun Anda sendiri")
+	ErrForbiddenGeneralAccess = errors.New("Akses ditolak: akun klien eksternal tidak diizinkan mengakses data artikel umum pabrik. Harap sertakan parameter clientId milik akun Anda.")
+	ErrArticleNotFound        = errors.New("Artikel tidak ditemukan")
+	ErrDuplicateArticleCode   = errors.New("Kode artikel sudah digunakan")
+	ErrInvalidCategory        = errors.New("Kategori produk tidak valid, harus 'GARMENT' atau 'BAG'")
+	ErrForbiddenArticleAccess = errors.New("Akses ditolak: Anda hanya dapat mengakses data artikel milik klien Anda sendiri")
 )
 
 // Service handles business logic for master data entities.
@@ -84,4 +89,201 @@ func (s *Service) GetClientDetail(ctx context.Context, clientID string, requeste
 	return detail, nil
 }
 
+// ListArticles retrieves a paginated list of articles with multi-tenant scoping and category filters.
+// Staf internal berlaku umum (dapat mengakses seluruh artikel atau memfilter per clientId).
+// Pengguna peran klien (client / CLIENT_PORTAL) tidak dapat mengakses data umum pabrik (wajib menyertakan clientId miliknya).
+func (s *Service) ListArticles(ctx context.Context, filter ListArticlesFilter, requesterRole string, requesterClientID *string) ([]Article, httpx.PaginationMeta, error) {
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		if requesterClientID == nil || *requesterClientID == "" {
+			return nil, httpx.PaginationMeta{}, ErrForbiddenArticleAccess
+		}
+		if filter.ClientID == "" {
+			return nil, httpx.PaginationMeta{}, ErrForbiddenGeneralAccess
+		}
+		if filter.ClientID != *requesterClientID {
+			return nil, httpx.PaginationMeta{}, ErrForbiddenArticleAccess
+		}
+	}
+
+	if filter.Category != "" {
+		cat := strings.ToUpper(strings.TrimSpace(filter.Category))
+		if cat != "GARMENT" && cat != "BAG" {
+			return nil, httpx.PaginationMeta{}, ErrInvalidCategory
+		}
+		filter.Category = cat
+	}
+
+	page := filter.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 10
+	} else if limit > 100 {
+		limit = 100
+	}
+
+	articles, total, err := s.repo.ListArticles(ctx, ListArticlesFilter{
+		ClientID: filter.ClientID,
+		Category: filter.Category,
+		Search:   filter.Search,
+		Page:     page,
+		Limit:    limit,
+	})
+	if err != nil {
+		return nil, httpx.PaginationMeta{}, err
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = int(math.Ceil(float64(total) / float64(limit)))
+	}
+
+	meta := httpx.PaginationMeta{
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+	}
+
+	return articles, meta, nil
+}
+
+// GetArticleDetail retrieves the detailed information of an article by ID, including its components.
+func (s *Service) GetArticleDetail(ctx context.Context, id string, requesterRole string, requesterClientID *string) (*ArticleDetail, error) {
+	art, err := s.repo.FindArticleByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if art == nil {
+		return nil, ErrArticleNotFound
+	}
+
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		if requesterClientID == nil || *requesterClientID != art.ClientID {
+			return nil, ErrForbiddenArticleAccess
+		}
+	}
+
+	comps, err := s.repo.ListComponentsByArticleID(ctx, art.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArticleDetail{
+		Article:    *art,
+		Components: comps,
+	}, nil
+}
+
+// CreateArticle validates and creates a new article record.
+func (s *Service) CreateArticle(ctx context.Context, req CreateArticleRequest, requesterRole string, requesterClientID *string) (*Article, error) {
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		if requesterClientID == nil || *requesterClientID != req.ClientID {
+			return nil, ErrForbiddenArticleAccess
+		}
+	}
+
+	category := strings.ToUpper(strings.TrimSpace(req.Category))
+	if category != "GARMENT" && category != "BAG" {
+		return nil, ErrInvalidCategory
+	}
+
+	client, err := s.repo.FindClientByID(ctx, req.ClientID)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, ErrClientNotFound
+	}
+
+	exists, err := s.repo.ArticleCodeExists(ctx, req.Code)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrDuplicateArticleCode
+	}
+
+	article := Article{
+		ClientID:    req.ClientID,
+		Code:        strings.TrimSpace(req.Code),
+		Title:       strings.TrimSpace(req.Title),
+		Category:    category,
+		Description: req.Description,
+	}
+
+	if err := s.repo.CreateArticle(ctx, &article); err != nil {
+		return nil, err
+	}
+
+	return &article, nil
+}
+
+// ListComponents retrieves the operational components of an article.
+func (s *Service) ListComponents(ctx context.Context, articleID string, requesterRole string, requesterClientID *string) ([]Component, error) {
+	art, err := s.repo.FindArticleByID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+	if art == nil {
+		return nil, ErrArticleNotFound
+	}
+
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		if requesterClientID == nil || *requesterClientID != art.ClientID {
+			return nil, ErrForbiddenArticleAccess
+		}
+	}
+
+	return s.repo.ListComponentsByArticleID(ctx, art.ID)
+}
+
+// CreateComponent adds an operational component to an article with optional Standard SAM.
+func (s *Service) CreateComponent(ctx context.Context, articleID string, req CreateComponentRequest, requesterRole string, requesterClientID *string) (*Component, error) {
+	art, err := s.repo.FindArticleByID(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+	if art == nil {
+		return nil, ErrArticleNotFound
+	}
+
+	normRole := strings.ToLower(strings.TrimSpace(requesterRole))
+	if normRole == "client" || normRole == "client_portal" {
+		if requesterClientID == nil || *requesterClientID != art.ClientID {
+			return nil, ErrForbiddenArticleAccess
+		}
+	}
+
+	seq := 1
+	if req.SequenceNumber != nil && *req.SequenceNumber > 0 {
+		seq = *req.SequenceNumber
+	} else {
+		comps, err := s.repo.ListComponentsByArticleID(ctx, art.ID)
+		if err == nil {
+			seq = len(comps) + 1
+		}
+	}
+
+	comp := Component{
+		ArticleID:      art.ID,
+		Name:           strings.TrimSpace(req.Name),
+		Code:           req.Code,
+		SequenceNumber: seq,
+		StandardSAM:    req.StandardSAM,
+	}
+
+	if err := s.repo.CreateComponent(ctx, &comp); err != nil {
+		return nil, err
+	}
+
+	return &comp, nil
+}
 

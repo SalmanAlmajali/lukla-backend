@@ -1,6 +1,7 @@
 package masterdata
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,8 +19,29 @@ import (
 )
 
 type mockRepository struct {
-	clients []Client
+	clients    []Client
+	articles   []Article
+	components []Component
 }
+
+func (m *mockRepository) ListComponentsByArticleID(ctx context.Context, articleID string) ([]Component, error) {
+	var comps []Component
+	for _, c := range m.components {
+		if c.ArticleID == articleID {
+			comps = append(comps, c)
+		}
+	}
+	return comps, nil
+}
+
+func (m *mockRepository) CreateComponent(ctx context.Context, comp *Component) error {
+	comp.ID = fmt.Sprintf("mock-comp-%d", len(m.components)+1)
+	comp.CreatedAt = time.Now()
+	comp.UpdatedAt = time.Now()
+	m.components = append(m.components, *comp)
+	return nil
+}
+
 
 func (m *mockRepository) ListClients(ctx context.Context, filter ListClientsFilter) ([]Client, int64, error) {
 	page := filter.Page
@@ -68,6 +90,79 @@ func (m *mockRepository) FindClientByID(ctx context.Context, id string) (*Client
 	return nil, nil
 }
 
+func (m *mockRepository) ListArticles(ctx context.Context, filter ListArticlesFilter) ([]Article, int64, error) {
+	page := filter.Page
+	if page <= 0 {
+		page = 1
+	}
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 10
+	} else if limit > 100 {
+		limit = 100
+	}
+
+	var matched []Article
+	search := strings.ToLower(strings.TrimSpace(filter.Search))
+	for _, a := range m.articles {
+		if filter.ClientID != "" && a.ClientID != filter.ClientID {
+			continue
+		}
+		if filter.Category != "" && a.Category != filter.Category {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(a.Title), search) && !strings.Contains(strings.ToLower(a.Code), search) {
+			continue
+		}
+		matched = append(matched, a)
+	}
+
+	total := int64(len(matched))
+	offset := (page - 1) * limit
+	if offset >= len(matched) {
+		return []Article{}, total, nil
+	}
+
+	end := offset + limit
+	if end > len(matched) {
+		end = len(matched)
+	}
+
+	return matched[offset:end], total, nil
+}
+
+func (m *mockRepository) FindArticleByID(ctx context.Context, id string) (*Article, error) {
+	for _, a := range m.articles {
+		if a.ID == id || strings.EqualFold(a.Code, id) {
+			return &a, nil
+		}
+	}
+	return nil, nil
+}
+
+func (m *mockRepository) CreateArticle(ctx context.Context, article *Article) error {
+	article.ID = fmt.Sprintf("mock-art-%d", len(m.articles)+1)
+	article.CreatedAt = time.Now()
+	article.UpdatedAt = time.Now()
+	for _, c := range m.clients {
+		if c.ID == article.ClientID {
+			article.ClientName = c.Name
+			break
+		}
+	}
+	m.articles = append(m.articles, *article)
+	return nil
+}
+
+func (m *mockRepository) ArticleCodeExists(ctx context.Context, code string) (bool, error) {
+	for _, a := range m.articles {
+		if strings.EqualFold(a.Code, code) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 const testJWTSecret = "test-secret-key-1234567890123456"
 
 func createTestToken(userID string) string {
@@ -103,7 +198,91 @@ func setupTestRouter() *gin.Engine {
 		}
 	}
 
-	repo := &mockRepository{clients: mockClients}
+	mockArticles := []Article{
+		{
+			ID:         "art-01",
+			ClientID:   "mock-id-01",
+			ClientName: "Snøhund Brand",
+			Code:       "ART-SNO-PK01",
+			Title:      "Snøhund Arctic Parka",
+			Category:   "GARMENT",
+			CreatedAt:  time.Now(),
+		},
+		{
+			ID:         "art-02",
+			ClientID:   "mock-id-01",
+			ClientName: "Snøhund Brand",
+			Code:       "ART-SNO-BP01",
+			Title:      "Snøhund Summit Pack",
+			Category:   "BAG",
+			CreatedAt:  time.Now(),
+		},
+		{
+			ID:         "art-03",
+			ClientID:   "mock-id-02",
+			ClientName: "Client Brand 02",
+			Code:       "ART-AVE-TR01",
+			Title:      "Aventura Cargo Pants",
+			Category:   "GARMENT",
+			CreatedAt:  time.Now(),
+		},
+		{
+			ID:         "art-04",
+			ClientID:   "mock-id-02",
+			ClientName: "Client Brand 02",
+			Code:       "ART-AVE-DP01",
+			Title:      "Aventura Daypack",
+			Category:   "BAG",
+			CreatedAt:  time.Now(),
+		},
+	}
+
+	sam35 := 3.50
+	sam48 := 4.80
+	sam52 := 5.20
+	sam50 := 5.00
+	code1 := "CMP-SNO-PK-01"
+	code2 := "CMP-SNO-PK-02"
+	code3 := "CMP-SNO-PK-03"
+	code4 := "CMP-AVE-TR-01"
+
+	mockComponents := []Component{
+		{
+			ID:             "comp-01",
+			ArticleID:      "art-01",
+			Code:           &code1,
+			Name:           "Potong Pola",
+			SequenceNumber: 1,
+			StandardSAM:    &sam35,
+		},
+		{
+			ID:             "comp-02",
+			ArticleID:      "art-01",
+			Code:           &code2,
+			Name:           "Jahit Saku Kargo",
+			SequenceNumber: 2,
+			StandardSAM:    &sam48,
+		},
+		{
+			ID:             "comp-03",
+			ArticleID:      "art-01",
+			Code:           &code3,
+			Name:           "Pasang Resleting",
+			SequenceNumber: 3,
+			StandardSAM:    &sam52,
+		},
+		{
+			ID:             "comp-04",
+			ArticleID:      "art-03",
+			Code:           &code4,
+			Name:           "Jahit Saku Celana",
+			SequenceNumber: 1,
+			StandardSAM:    &sam50,
+		},
+	}
+
+	repo := &mockRepository{clients: mockClients, articles: mockArticles, components: mockComponents}
+
 	svc := NewService(repo)
 	handler := NewHandler(svc)
 
@@ -450,6 +629,490 @@ func TestGetClientDetail_Unauthorized(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 Unauthorized for missing token, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+// ---------------- Articles Tests ---------------- //
+
+func TestListArticles_Internal_All(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool                 `json:"success"`
+		Data    []Article            `json:"data"`
+		Meta    httpx.PaginationMeta `json:"meta"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Success {
+		t.Errorf("expected success true")
+	}
+	if len(resp.Data) != 4 {
+		t.Errorf("expected 4 articles, got %d", len(resp.Data))
+	}
+	if resp.Meta.Total != 4 {
+		t.Errorf("expected total 4, got %d", resp.Meta.Total)
+	}
+}
+
+func TestListArticles_FilterCategory(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles?category=GARMENT", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool      `json:"success"`
+		Data    []Article `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 garment articles, got %d", len(resp.Data))
+	}
+	for _, art := range resp.Data {
+		if art.Category != "GARMENT" {
+			t.Errorf("expected category GARMENT, got %s", art.Category)
+		}
+	}
+}
+
+func TestListArticles_FilterClientID_Internal(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles?clientId=mock-id-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool      `json:"success"`
+		Data    []Article `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 articles for mock-id-01, got %d", len(resp.Data))
+	}
+	for _, art := range resp.Data {
+		if art.ClientID != "mock-id-01" {
+			t.Errorf("expected clientId mock-id-01, got %s", art.ClientID)
+		}
+	}
+}
+
+func TestListArticles_ClientPortal_NoClientID_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01
+
+	// Client requests general articles without specifying clientId -> 403 Forbidden!
+	req, _ := http.NewRequest(http.MethodGet, "/articles", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client queries general articles without clientId, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListArticles_ClientPortal_OwnClient_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01
+
+	// Client requests articles by explicitly supplying their own clientId -> 200 OK!
+	req, _ := http.NewRequest(http.MethodGet, "/articles?clientId=mock-id-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool      `json:"success"`
+		Data    []Article `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 articles for mock-id-01, got %d", len(resp.Data))
+	}
+	for _, art := range resp.Data {
+		if art.ClientID != "mock-id-01" {
+			t.Errorf("expected clientId mock-id-01, got %s", art.ClientID)
+		}
+	}
+}
+
+func TestListArticles_ClientPortal_OtherClient_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles?clientId=mock-id-02", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client queries another client's articles, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestArticlesAndComponents_Unauthorized(t *testing.T) {
+	r := setupTestRouter()
+
+	endpoints := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/articles"},
+		{http.MethodPost, "/articles"},
+		{http.MethodGet, "/articles/art-01"},
+		{http.MethodGet, "/articles/art-01/components"},
+		{http.MethodPost, "/articles/art-01/components"},
+	}
+
+	for _, ep := range endpoints {
+		t.Run(ep.method+" "+ep.path, func(t *testing.T) {
+			req, _ := http.NewRequest(ep.method, ep.path, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("expected 401 Unauthorized for unauthenticated request to %s %s, got %d", ep.method, ep.path, w.Code)
+			}
+		})
+	}
+}
+
+func TestGetArticleDetail_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool          `json:"success"`
+		Data    ArticleDetail `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data.ID != "art-01" {
+		t.Errorf("expected art-01, got %s", resp.Data.ID)
+	}
+	if resp.Data.Code != "ART-SNO-PK01" {
+		t.Errorf("expected ART-SNO-PK01, got %s", resp.Data.Code)
+	}
+}
+
+func TestGetArticleDetail_NotFound(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/non-existent-art", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", w.Code)
+	}
+}
+
+func TestGetArticleDetail_ClientPortal_OtherClient_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01, trying to access art-03 (mock-id-02)
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-03", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for accessing other client article, got %d", w.Code)
+	}
+}
+
+func TestCreateArticle_Internal_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	body := `{"clientId": "mock-id-01", "code": "ART-NEW-01", "title": "New Raincoat", "category": "GARMENT", "description": "Waterproof raincoat"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool    `json:"success"`
+		Data    Article `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data.Code != "ART-NEW-01" {
+		t.Errorf("expected ART-NEW-01, got %s", resp.Data.Code)
+	}
+}
+
+func TestCreateArticle_ClientPortal_OwnClient_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01
+
+	body := `{"clientId": "mock-id-01", "code": "ART-CLI-01", "title": "Client Parka", "category": "GARMENT"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateArticle_ClientPortal_OtherClient_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01, attempting to create for mock-id-02
+
+	body := `{"clientId": "mock-id-02", "code": "ART-HACK-01", "title": "Hack Article", "category": "GARMENT"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden when client creates article for another client, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateArticle_InvalidCategory(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	body := `{"clientId": "mock-id-01", "code": "ART-INV-01", "title": "Shoes", "category": "FOOTWEAR"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for invalid category, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateArticle_DuplicateCode(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	// ART-SNO-PK01 already exists
+	body := `{"clientId": "mock-id-01", "code": "ART-SNO-PK01", "title": "Duplicate Parka", "category": "GARMENT"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for duplicate code, got %d. Body: %s", w.Code, w.Body.String())
+	}
+}
+
+// ---------------- Component Tests ---------------- //
+
+func TestListComponents_Internal_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-01/components", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool        `json:"success"`
+		Data    []Component `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data) != 3 {
+		t.Fatalf("expected 3 components for art-01, got %d", len(resp.Data))
+	}
+	if resp.Data[0].Name != "Potong Pola" {
+		t.Errorf("expected Potong Pola, got %s", resp.Data[0].Name)
+	}
+	if resp.Data[0].StandardSAM == nil || *resp.Data[0].StandardSAM != 3.50 {
+		t.Errorf("expected standardSAM 3.50, got %v", resp.Data[0].StandardSAM)
+	}
+}
+
+func TestListComponents_ClientPortal_OwnArticle_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01 (owns art-01)
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-01/components", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client accessing own article components, got %d", w.Code)
+	}
+}
+
+func TestListComponents_ClientPortal_OtherClient_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01, art-03 belongs to mock-id-02
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-03/components", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client accessing other client's components, got %d", w.Code)
+	}
+}
+
+func TestListComponents_ArticleNotFound(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/non-existent-art/components", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", w.Code)
+	}
+}
+
+func TestCreateComponent_Internal_Success(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	body := `{"name": "Pasang Label & Hangtag", "code": "CMP-SNO-PK-04", "sequenceNumber": 4, "standardSAM": 2.25}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles/art-01/components", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Success bool      `json:"success"`
+		Data    Component `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Data.Name != "Pasang Label & Hangtag" {
+		t.Errorf("expected name Pasang Label & Hangtag, got %s", resp.Data.Name)
+	}
+	if resp.Data.StandardSAM == nil || *resp.Data.StandardSAM != 2.25 {
+		t.Errorf("expected standardSAM 2.25, got %v", resp.Data.StandardSAM)
+	}
+}
+
+func TestCreateComponent_ClientPortal_OtherClient_Forbidden(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-client-1") // bound to mock-id-01, art-03 belongs to mock-id-02
+
+	body := `{"name": "Hack Component"}`
+	req, _ := http.NewRequest(http.MethodPost, "/articles/art-03/components", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden, got %d", w.Code)
+	}
+}
+
+func TestGetArticleDetail_IncludesComponents(t *testing.T) {
+	r := setupTestRouter()
+	token := createTestToken("user-internal-id")
+
+	req, _ := http.NewRequest(http.MethodGet, "/articles/art-01", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+
+	var resp struct {
+		Success bool          `json:"success"`
+		Data    ArticleDetail `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if len(resp.Data.Components) != 3 {
+		t.Errorf("expected 3 components in article detail, got %d", len(resp.Data.Components))
 	}
 }
 
