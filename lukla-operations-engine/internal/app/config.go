@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration loaded from environment variables.
@@ -53,6 +55,11 @@ type LogConfig struct {
 
 // LoadConfig reads configuration from environment variables and validates required fields.
 func LoadConfig() (Config, error) {
+	// Attempt to load .env from current directory, parent (for cmd/api), or workspace root
+	_ = godotenv.Load()
+	_ = godotenv.Load("../.env")
+	_ = godotenv.Load("../../.env")
+
 	cfg := Config{
 		AppEnv:  getEnv("APP_ENV", "development"),
 		AppName: getEnv("APP_NAME", "lukla-operations-engine"),

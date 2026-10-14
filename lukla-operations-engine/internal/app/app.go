@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lukla/operations-engine/internal/modules/identity"
+	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/database"
 )
 
@@ -38,13 +40,14 @@ func New(ctx context.Context) (*App, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	// TODO: wire modules, e.g.:
-	// identityRepo := identity.NewPostgresRepository(db)
-	// identitySvc  := identity.NewService(identityRepo)
-	// identityHandler := identity.NewHandler(identitySvc)
+	identityRepo := identity.NewPostgresRepository(db)
+	identitySvc := identity.NewService(identityRepo, cfg.Auth.TokenSecret, cfg.Auth.AccessTokenTTL)
+	identityHandler := identity.NewHandler(identitySvc)
+	authnMiddleware := authn.Middleware(cfg.Auth.TokenSecret)
 
 	router := gin.New()
-	registerRoutes(router)
+	router.Use(gin.Recovery())
+	registerRoutes(router, identityHandler, authnMiddleware)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -80,12 +83,12 @@ func (a *App) Run(ctx context.Context) error {
 	}
 }
 
-func registerRoutes(r *gin.Engine) {
+func registerRoutes(r *gin.Engine, identityHandler *identity.Handler, authnMiddleware gin.HandlerFunc) {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// TODO: register module routes here, e.g.:
-	// v1 := r.Group("/api/v1")
-	// identity.RegisterRoutes(v1, identityHandler)
+	// API v1 routes
+	v1 := r.Group("/api/v1")
+	identity.RegisterRoutes(v1, identityHandler, authnMiddleware)
 }

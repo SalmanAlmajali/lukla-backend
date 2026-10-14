@@ -1,51 +1,109 @@
-// Package authn provides session-based authentication middleware and helpers.
-//
-// Authentication flow:
-//  1. Frontend sends username/email + password over HTTPS.
-//  2. Backend verifies password hash, account status, and permissions.
-//  3. Backend creates a new session: generates a new session ID, stores the session record,
-//     and sends an HttpOnly cookie to the browser.
-//  4. Every subsequent API request is validated: session is active, user is active,
-//     permission is granted, and tenant scope is correct.
+// Package authn provides JWT-based authentication middleware and helpers.
 package authn
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-const sessionCookieName = "lukla_session"
-
-// Claims carries the authenticated identity extracted from the session.
+// Claims carries the authenticated identity extracted from the token.
 type Claims struct {
 	UserID   string
 	TenantID string
 	Roles    []string
 }
 
-// Middleware validates the session cookie on every request.
-// On success it stores Claims in the Gin context under the key "claims".
-func Middleware() gin.HandlerFunc {
+// Middleware returns a Gin middleware that validates the JWT Bearer token in the Authorization header.
+func Middleware(tokenSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: read session cookie, look up session in database, validate expiry/status,
-		// load user + roles, set claims in context.
-		cookie, err := c.Cookie(sessionCookieName)
-		if err != nil || cookie == "" {
+		authHeader := c.GetHeader("Authorization")
+		var tokenString string
+
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				tokenString = strings.TrimSpace(parts[1])
+			}
+		}
+
+		if tokenString == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"success": false,
 				"error": gin.H{
-					"code":    "UNAUTHENTICATED",
-					"message": "Sesi tidak valid atau sudah berakhir.",
+					"code":    "UNAUTHORIZED",
+					"message": "Header Authorization Bearer token diperlukan.",
 				},
 			})
 			return
 		}
 
-		// Placeholder — replace with real session lookup.
-		_ = cookie
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return []byte(tokenSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    "UNAUTHORIZED",
+					"message": "Token tidak valid atau sudah kedaluwarsa.",
+				},
+			})
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error": gin.H{
+					"code":    "UNAUTHORIZED",
+					"message": "Klaim token tidak valid.",
+				},
+			})
+			return
+		}
+
+		sub, err := claims.GetSubject()
+		if err != nil || sub == "" {
+			// fallback check direct map key
+			if subVal, exists := claims["sub"].(string); exists && subVal != "" {
+				sub = subVal
+			} else {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "UNAUTHORIZED",
+						"message": "Subject (user ID) pada token tidak ditemukan.",
+					},
+				})
+				return
+			}
+		}
+
+		c.Set("user_id", sub)
+		c.Set("claims", Claims{UserID: sub})
+
 		c.Next()
 	}
+}
+
+// UserIDFrom retrieves the authenticated user ID from context.
+func UserIDFrom(c *gin.Context) (string, bool) {
+	v, ok := c.Get("user_id")
+	if !ok {
+		return "", false
+	}
+	id, ok := v.(string)
+	return id, ok
 }
 
 // ClaimsFrom retrieves Claims stored by the authn middleware.
@@ -57,3 +115,6 @@ func ClaimsFrom(c *gin.Context) (Claims, bool) {
 	claims, ok := v.(Claims)
 	return claims, ok
 }
+
+// ErrUnauthenticated is returned when no valid credentials exist.
+var ErrUnauthenticated = errors.New("pengguna tidak terautentikasi")

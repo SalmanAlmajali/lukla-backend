@@ -6,30 +6,42 @@ import "time"
 
 // User represents an application user account.
 type User struct {
-	ID           string
-	Email        string
-	PasswordHash string // never expose in responses or logs
-	FullName     string
-	Status       UserStatus
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           string     `json:"id"`
+	EmployeeCode *string    `json:"employee_code,omitempty"`
+	FullName     string     `json:"full_name"`
+	Email        *string    `json:"email,omitempty"`
+	PhoneNumber  *string    `json:"phone_number,omitempty"`
+	PasswordHash *string    `json:"-"` // never expose in JSON responses
+	RoleID       int64      `json:"role_id"`
+	RoleCode     string     `json:"role_code"`
+	RoleName     string     `json:"role_name"`
+	ClientID     *string    `json:"client_id,omitempty"`
+	CanAccessApp bool       `json:"can_access_app"`
+	IsActive     bool       `json:"is_active"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 }
 
-// UserStatus represents the lifecycle state of a user account.
-type UserStatus string
+// LoginRequest represents incoming login credentials.
+// Sesuai catatan: field username harus berupa email valid.
+type LoginRequest struct {
+	Username string `json:"username" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
 
-const (
-	UserStatusActive    UserStatus = "active"
-	UserStatusInactive  UserStatus = "inactive"
-	UserStatusSuspended UserStatus = "suspended"
-)
+// LoginData represents the payload returned in standard data envelope.
+type LoginData struct {
+	Token string `json:"token"`
+}
 
-// Session holds an active user session created after successful login.
-type Session struct {
-	ID        string
-	UserID    string
-	CreatedAt time.Time
-	ExpiresAt time.Time
-	IPAddress string
-	UserAgent string
+// UserResponse represents the user profile returned by GET /auth/me.
+type UserResponse struct {
+	ID              string  `json:"id"`
+	Username        string  `json:"username"`
+	Name            string  `json:"name"`
+	Email           string  `json:"email"`
+	Role            string  `json:"role"`
+	ClientID        *string `json:"clientId"`
+	RoleDescription string  `json:"roleDescription"`
 }
