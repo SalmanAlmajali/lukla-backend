@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -124,6 +125,7 @@ func New(ctx context.Context) (*App, error) {
 	overheadHandler := overhead.NewHandler(overheadSvc)
 
 	router := gin.New()
+	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	registerRoutes(
 		router,
@@ -157,6 +159,7 @@ func New(ctx context.Context) (*App, error) {
 
 // Run starts the HTTP server and blocks until ctx is cancelled, then gracefully shuts down.
 func (a *App) Run(ctx context.Context) error {
+	log.Printf("[INFO] Lukla Operations Engine API server running on %s", a.cfg.HTTP.Addr)
 	errCh := make(chan error, 1)
 
 	go func() {
