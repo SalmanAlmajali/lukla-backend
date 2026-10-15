@@ -4075,5 +4075,238 @@ func TestApp_QCBonusPoolLiveDB(t *testing.T) {
 	t.Logf("\n=== ACTUAL GET /api/v1/qc-bonus/periods ===\n%s\n", prettyListPeriods.String())
 }
 
+// ==========================================
+// TAHAP 5.1: PORTAL KLIEN & ISOLASI MULTI-TENANT (BPMN 11)
+// ==========================================
+
+func TestApp_ClientPortalLiveDB(t *testing.T) {
+	_ = godotenv.Load("../../.env")
+	if os.Getenv("DATABASE_URL") == "" {
+		t.Skip("DATABASE_URL not set, skipping live DB test")
+	}
+
+	ctx := context.Background()
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to init app: %v", err)
+	}
+
+	// Token untuk Klien Snøhund (User Client Eksternal)
+	snohundToken := getAuthToken(t, application, "client@lukla.local", "password")
+	// Token untuk Staf Gudang (Internal Staff - Non-Client)
+	wrhToken := getAuthToken(t, application, "warehouse@lukla.local", "password")
+
+	// 1. Ambil client_id milik client@lukla.local
+	var snoClientID string
+	err = application.db.QueryRow(`SELECT client_id FROM users WHERE email = 'client@lukla.local'`).Scan(&snoClientID)
+	if err != nil {
+		t.Fatalf("failed to find client user: %v", err)
+	}
+
+	// Ambil order milik Snøhund
+	var snoOrderID, snoOrderNumber string
+	err = application.db.QueryRow(`SELECT id, order_number FROM orders WHERE client_id = $1 LIMIT 1`, snoClientID).Scan(&snoOrderID, &snoOrderNumber)
+	if err != nil {
+		t.Fatalf("failed to find order for snohund client: %v", err)
+	}
+
+	// Setup client lain (Urban Culture) dan order miliknya untuk pengujian Multi-Tenant Security Breach
+	var otherClientID, otherOrderID string
+	_ = application.db.QueryRow(`
+		INSERT INTO clients (code, name, client_type) 
+		VALUES ('CLIENT-URBAN-CULTURE', 'Urban Culture Wear', 'EXTERNAL') 
+		ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name 
+		RETURNING id
+	`).Scan(&otherClientID)
+
+	var articleID string
+	_ = application.db.QueryRow(`SELECT id FROM articles LIMIT 1`).Scan(&articleID)
+
+	_ = application.db.QueryRow(`
+		INSERT INTO orders (client_id, article_id, order_number, target_quantity, status)
+		VALUES ($1, $2, 'PO-URBAN-999', 500, 'IN_PRODUCTION')
+		ON CONFLICT (order_number) DO UPDATE SET status = 'IN_PRODUCTION'
+		RETURNING id
+	`, otherClientID, articleID).Scan(&otherOrderID)
+
+	// ==========================================
+	// 1. GET /api/v1/portal/dashboard
+	// ==========================================
+	reqDash, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/dashboard", nil)
+	reqDash.Header.Set("Authorization", "Bearer "+snohundToken)
+	wDash := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDash, reqDash)
+
+	if wDash.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client dashboard, got %d. Body: %s", wDash.Code, wDash.Body.String())
+	}
+	var prettyDash bytes.Buffer
+	_ = json.Indent(&prettyDash, wDash.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/dashboard ===\n%s\n", prettyDash.String())
+
+	var dashResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Client struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"client"`
+			ActiveOrdersCount int `json:"activeOrdersCount"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wDash.Body.Bytes(), &dashResp)
+	if dashResp.Data.Client.ID != snoClientID {
+		t.Fatalf("SECURITY VIOLATION: Dashboard client ID mismatch. Expected %s, got %s", snoClientID, dashResp.Data.Client.ID)
+	}
+
+	// ==========================================
+	// 2. GET /api/v1/portal/orders (Order Tracking)
+	// ==========================================
+	reqOrders, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/orders?status=ALL&limit=10", nil)
+	reqOrders.Header.Set("Authorization", "Bearer "+snohundToken)
+	wOrders := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOrders, reqOrders)
+
+	if wOrders.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client orders, got %d. Body: %s", wOrders.Code, wOrders.Body.String())
+	}
+	var prettyOrders bytes.Buffer
+	_ = json.Indent(&prettyOrders, wOrders.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/orders ===\n%s\n", prettyOrders.String())
+
+	var ordersResp struct {
+		Success bool `json:"success"`
+		Data    []struct {
+			ID          string `json:"id"`
+			OrderNumber string `json:"orderNumber"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wOrders.Body.Bytes(), &ordersResp)
+	if len(ordersResp.Data) == 0 {
+		t.Fatalf("expected at least 1 order for snohund client")
+	}
+
+	// Verifikasi tidak ada order milik Urban Culture di daftar order Snøhund
+	for _, o := range ordersResp.Data {
+		if o.ID == otherOrderID {
+			t.Fatalf("SECURITY VIOLATION: Client Snøhund can see order %s belonging to Urban Culture", otherOrderID)
+		}
+	}
+
+	// ==========================================
+	// 3. GET /api/v1/portal/orders/:id (Detail & Progres 3-Tahap)
+	// ==========================================
+	reqOrderDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/orders/"+snoOrderID, nil)
+	reqOrderDetail.Header.Set("Authorization", "Bearer "+snohundToken)
+	wOrderDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOrderDetail, reqOrderDetail)
+
+	if wOrderDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for client order detail, got %d. Body: %s", wOrderDetail.Code, wOrderDetail.Body.String())
+	}
+	var prettyDetail bytes.Buffer
+	_ = json.Indent(&prettyDetail, wOrderDetail.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/orders/:id ===\n%s\n", prettyDetail.String())
+
+	var detailResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID          string `json:"id"`
+			OrderNumber string `json:"orderNumber"`
+			Progress    struct {
+				CuttingQuantity   int     `json:"cuttingQuantity"`
+				SewingQuantity    int     `json:"sewingQuantity"`
+				PassedQCQuantity  int     `json:"passedQCQuantity"`
+				OverallPercentage float64 `json:"overallPercentage"`
+			} `json:"progress"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wOrderDetail.Body.Bytes(), &detailResp)
+	if detailResp.Data.ID != snoOrderID {
+		t.Fatalf("expected order ID %s, got %s", snoOrderID, detailResp.Data.ID)
+	}
+
+	// ==========================================
+	// 4. MULTI-TENANT BREACH TEST (Akses Silang Dilarang)
+	// Klien Snøhund mencoba membuka order milik Urban Culture
+	// ==========================================
+	reqBreach, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/orders/"+otherOrderID, nil)
+	reqBreach.Header.Set("Authorization", "Bearer "+snohundToken)
+	wBreach := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wBreach, reqBreach)
+
+	if wBreach.Code != http.StatusNotFound {
+		t.Fatalf("SECURITY FLAW: Client Snøhund accessed another client's order! Expected 404 Not Found, got %d", wBreach.Code)
+	}
+
+	// ==========================================
+	// 5. GET /api/v1/portal/orders/:id/quality (Transparansi Mutu QC)
+	// ==========================================
+	reqQuality, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/orders/"+snoOrderID+"/quality", nil)
+	reqQuality.Header.Set("Authorization", "Bearer "+snohundToken)
+	wQuality := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wQuality, reqQuality)
+
+	if wQuality.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for order quality, got %d. Body: %s", wQuality.Code, wQuality.Body.String())
+	}
+	var prettyQuality bytes.Buffer
+	_ = json.Indent(&prettyQuality, wQuality.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/orders/:id/quality ===\n%s\n", prettyQuality.String())
+
+	// Breach test mutu QC pesanan klien lain
+	reqQualityBreach, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/orders/"+otherOrderID+"/quality", nil)
+	reqQualityBreach.Header.Set("Authorization", "Bearer "+snohundToken)
+	wQualityBreach := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wQualityBreach, reqQualityBreach)
+	if wQualityBreach.Code != http.StatusNotFound {
+		t.Fatalf("SECURITY FLAW: Client Snøhund accessed another client's order quality! Expected 404, got %d", wQualityBreach.Code)
+	}
+
+	// ==========================================
+	// 6. GET /api/v1/portal/stocks/materials (Stok Bahan Titipan)
+	// ==========================================
+	reqMatStocks, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/stocks/materials", nil)
+	reqMatStocks.Header.Set("Authorization", "Bearer "+snohundToken)
+	wMatStocks := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wMatStocks, reqMatStocks)
+
+	if wMatStocks.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for portal material stocks, got %d. Body: %s", wMatStocks.Code, wMatStocks.Body.String())
+	}
+	var prettyMatStocks bytes.Buffer
+	_ = json.Indent(&prettyMatStocks, wMatStocks.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/stocks/materials ===\n%s\n", prettyMatStocks.String())
+
+	// ==========================================
+	// 7. GET /api/v1/portal/stocks/finished-goods (Barang Jadi Siap Kirim)
+	// ==========================================
+	reqFG, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/stocks/finished-goods", nil)
+	reqFG.Header.Set("Authorization", "Bearer "+snohundToken)
+	wFG := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wFG, reqFG)
+
+	if wFG.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for finished goods stocks, got %d. Body: %s", wFG.Code, wFG.Body.String())
+	}
+	var prettyFG bytes.Buffer
+	_ = json.Indent(&prettyFG, wFG.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/stocks/finished-goods ===\n%s\n", prettyFG.String())
+
+	// ==========================================
+	// 8. RBAC GUARD: NON-CLIENT ATTEMPTING ACCESS TO PORTAL
+	// Staf gudang (role warehouse_staff) tidak boleh mengakses portal klien
+	// ==========================================
+	reqNonClient, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/dashboard", nil)
+	reqNonClient.Header.Set("Authorization", "Bearer "+wrhToken)
+	wNonClient := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNonClient, reqNonClient)
+
+	if wNonClient.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for non-client accessing portal, got %d", wNonClient.Code)
+	}
+}
+
+
 
 

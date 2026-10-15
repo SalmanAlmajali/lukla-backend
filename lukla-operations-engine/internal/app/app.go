@@ -12,6 +12,7 @@ import (
 	"github.com/lukla/operations-engine/internal/modules/inventory"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
 	"github.com/lukla/operations-engine/internal/modules/payroll"
+	"github.com/lukla/operations-engine/internal/modules/portal"
 	"github.com/lukla/operations-engine/internal/modules/production"
 	"github.com/lukla/operations-engine/internal/modules/qcbonus"
 	"github.com/lukla/operations-engine/internal/modules/quality"
@@ -98,9 +99,13 @@ func New(ctx context.Context) (*App, error) {
 	qcbonusSvc := qcbonus.NewService(qcbonusRepo)
 	qcbonusHandler := qcbonus.NewHandler(qcbonusSvc)
 
+	portalRepo := portal.NewPostgresRepository(db)
+	portalSvc := portal.NewService(portalRepo)
+	portalHandler := portal.NewHandler(portalSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, qualityHandler, qcbonusHandler, authnMiddleware, internalAuthz)
+	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, qualityHandler, qcbonusHandler, portalHandler, authnMiddleware, internalAuthz)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -146,6 +151,7 @@ func registerRoutes(
 	inventoryHandler *inventory.Handler,
 	qualityHandler *quality.Handler,
 	qcbonusHandler *qcbonus.Handler,
+	portalHandler *portal.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -163,6 +169,7 @@ func registerRoutes(
 	inventory.RegisterRoutes(v1, inventoryHandler, authnMiddleware)
 	quality.RegisterRoutes(v1, qualityHandler, authnMiddleware)
 	qcbonus.RegisterRoutes(v1, qcbonusHandler, authnMiddleware)
+	portal.RegisterRoutes(v1, portalHandler, authnMiddleware)
 }
 
 

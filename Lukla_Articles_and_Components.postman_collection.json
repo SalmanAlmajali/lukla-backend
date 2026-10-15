@@ -5976,6 +5976,379 @@
                 }
             ],
             "name": "11. Tahap 4.2: QC Pool Bonus 3-Arah \u0026 Skenario Uji 3 (BPMN 08)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "pm.test(\"Client Token is returned \u0026 saved\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.token).to.be.a('string');",
+                                    "    pm.collectionVariables.set(\"client_token\", jsonData.data.token);",
+                                    "    console.log(\"Saved client_token: \" + jsonData.data.token);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "01. POST /auth/login - Login sebagai Akun Klien Snøhund (Simpan client_token)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"snohund@snohund.local\",\n    \"password\": \"password\"\n}"
+                        },
+                        "description": "Login sebagai perwakilan brand Klien Snøhund. Token otomatis disimpan ke variabel {{client_token}}.",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ],
+                            "raw": "{{base_url}}/auth/login"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "02. GET /portal/dashboard - Ringkasan Portal Klien (200 OK)",
+                    "request": {
+                        "description": "Mengambil ringkasan profil klien, status order aktif/selesai, sisa stok bahan baku titipan, dan saldo barang jadi siap kirim.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "dashboard"
+                            ],
+                            "raw": "{{base_url}}/portal/dashboard"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"client\": {\n            \"id\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"name\": \"Snøhund Brand\",\n            \"code\": \"SNOHUND\"\n        },\n        \"activeOrdersCount\": 0,\n        \"completedOrdersCount\": 1,\n        \"readyFinishedGoodsCount\": 3336,\n        \"activeMaterialsCount\": 1,\n        \"unreadNotificationsCount\": 0\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "03. GET /portal/orders - Daftar Pesanan Klien (200 OK)",
+                    "request": {
+                        "description": "Mengambil daftar pesanan maklon yang diterbitkan oleh klien dengan paginasi, filter status, dan search.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "orders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "ALL"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                }
+                            ],
+                            "raw": "{{base_url}}/portal/orders?status=ALL\u0026limit=10\u0026page=1"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"orderNumber\": \"PO-2026-10-001\",\n            \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"category\": \"GARMENT\",\n            \"targetQuantity\": 1000,\n            \"passedQuantity\": 3336,\n            \"progressPercentage\": 100,\n            \"status\": \"COMPLETED\",\n            \"targetDate\": \"2026-11-13\",\n            \"createdAt\": \"2026-10-14T17:30:25.310537+07:00\"\n        }\n    ],\n    \"pagination\": {\n        \"limit\": 10,\n        \"page\": 1,\n        \"total\": 1,\n        \"totalPages\": 1\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "04. GET /portal/orders/:id - Detail Pesanan \u0026 Progres 3-Tahap (200 OK)",
+                    "request": {
+                        "description": "Melihat detail pesanan maklon dengan breakdown progres 3 tahap produksi: Cutting, Sewing/Assembly, dan QC Lolos.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "orders",
+                                "{{order_snohund_id}}"
+                            ],
+                            "raw": "{{base_url}}/portal/orders/{{order_snohund_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderNumber\": \"PO-2026-10-001\",\n        \"article\": {\n            \"id\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"code\": \"ART-SNO-PK01\",\n            \"name\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"category\": \"GARMENT\"\n        },\n        \"targetQuantity\": 1000,\n        \"status\": \"COMPLETED\",\n        \"startDate\": \"2026-10-14\",\n        \"targetDate\": \"2026-11-13\",\n        \"notes\": \"Pesanan Ekspor Snohund Arctic Parka Batch 1\",\n        \"progress\": {\n            \"cuttingQuantity\": 1000,\n            \"sewingQuantity\": 3650,\n            \"passedQCQuantity\": 3336,\n            \"repairQCQuantity\": 12,\n            \"rejectQCQuantity\": 12,\n            \"overallPercentage\": 100\n        }\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 404 Not Found (Data Isolation Protected)\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Error code matches ORDER_NOT_FOUND\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(false);",
+                                    "    pm.expect(jsonData.error.code).to.eql(\"ORDER_NOT_FOUND\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "05. GET /portal/orders/:id - Uji Keamanan Multi-Tenant Akses Silang Klien Lain (404 Not Found)",
+                    "request": {
+                        "description": "Verifikasi anti-IDOR: Klien Snøhund mencoba mengakses pesanan milik Klien Urban Culture / Aventura. Wajib ditolak dengan 404 Not Found.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "orders",
+                                "{{order_aventura_id}}"
+                            ],
+                            "raw": "{{base_url}}/portal/orders/{{order_aventura_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"ORDER_NOT_FOUND\",\n        \"message\": \"pesanan tidak ditemukan atau bukan milik klien Anda\"\n    },\n    \"success\": false\n}",
+                            "code": 404,
+                            "name": "Data Isolation Protected 404 Not Found",
+                            "status": "Not Found"
+                        }
+                    ]
+                },
+                {
+                    "name": "06. GET /portal/orders/:id/quality - Laporan Mutu QC Pesanan Klien (200 OK)",
+                    "request": {
+                        "description": "Laporan transparansi mutu QC untuk pesanan klien: total diperiksa, lolos, repair, reject, dan persentase tingkat kelolosan (pass rate).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "orders",
+                                "{{order_snohund_id}}",
+                                "quality"
+                            ],
+                            "raw": "{{base_url}}/portal/orders/{{order_snohund_id}}/quality"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderNumber\": \"PO-2026-10-001\",\n        \"targetQuantity\": 1000,\n        \"totalChecked\": 3360,\n        \"passedQuantity\": 3336,\n        \"repairQuantity\": 12,\n        \"rejectQuantity\": 12,\n        \"passRate\": 99.3,\n        \"inspectionsCount\": 13\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "07. GET /portal/stocks/materials - Saldo Stok Bahan Baku Titipan Klien (200 OK)",
+                    "request": {
+                        "description": "Melihat saldo stok bahan baku milik klien yang dititipkan di gudang pabrik beserta rincian lot dan lokasi gudang.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "stocks",
+                                "materials"
+                            ],
+                            "raw": "{{base_url}}/portal/stocks/materials"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"materialCode\": \"MAT-CTN-30S-BLK\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"category\": \"FABRIC\",\n            \"defaultUnit\": \"KG\",\n            \"totalAvailableQuantity\": 300,\n            \"lots\": [\n                {\n                    \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                    \"lotNumber\": \"LOT-SNO-20261014-01\",\n                    \"availableQuantity\": 150.5,\n                    \"unit\": \"KG\",\n                    \"location\": \"GUDANG-A-01\",\n                    \"receivedDate\": \"2026-10-14\"\n                },\n                {\n                    \"lotId\": \"1378a140-97b3-4dd6-a128-868fd7dced3a\",\n                    \"lotNumber\": \"LOT-SNO-20261014-02\",\n                    \"availableQuantity\": 149.5,\n                    \"unit\": \"KG\",\n                    \"location\": \"GUDANG-A-02\",\n                    \"receivedDate\": \"2026-10-14\"\n                }\n            ]\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "08. GET /portal/stocks/finished-goods - Saldo Barang Jadi Siap Kirim (200 OK)",
+                    "request": {
+                        "description": "Melihat saldo barang jadi yang telah lolos QC dan berstatus siap kirim / ambil (READY_FOR_DISPATCH).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "stocks",
+                                "finished-goods"
+                            ],
+                            "raw": "{{base_url}}/portal/stocks/finished-goods"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"orderNumber\": \"PO-2026-10-001\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"readyQuantity\": 3336,\n            \"status\": \"READY_FOR_DISPATCH\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 403 Forbidden (Non-client rejected)\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Error code is FORBIDDEN_CLIENT_PORTAL\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(false);",
+                                    "    pm.expect(jsonData.error.code).to.eql(\"FORBIDDEN_CLIENT_PORTAL\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "09. GET /portal/dashboard - Uji RBAC Staf Non-Client Akses Portal (403 Forbidden)",
+                    "request": {
+                        "description": "Memastikan staf internal/eksekutif pabrik yang tidak memiliki profil tenant klien ditolak saat mencoba mengakses rute portal klien.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "dashboard"
+                            ],
+                            "raw": "{{base_url}}/portal/dashboard"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"FORBIDDEN_CLIENT_PORTAL\",\n        \"message\": \"hanya akun klien yang memiliki izin untuk mengakses portal klien\"\n    },\n    \"success\": false\n}",
+                            "code": 403,
+                            "name": "Non-Client Rejected 403 Forbidden",
+                            "status": "Forbidden"
+                        }
+                    ]
+                }
+            ],
+            "name": "12. Tahap 5.1: Portal Klien \u0026 Isolasi Multi-Tenant (BPMN 11)"
         }
     ],
     "variable": [
@@ -6123,6 +6496,11 @@
             "key": "inspection_id",
             "type": "string",
             "value": "68721089-55e6-473f-9ba1-ef155ee32f11"
+        },
+        {
+            "key": "order_snohund_id",
+            "type": "string",
+            "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
         }
     ]
 }
