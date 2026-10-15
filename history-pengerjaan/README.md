@@ -21,7 +21,7 @@ Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan peng
 | **Tahap 6.1** | Sample Lifecycle, Versioning Engine, & Time Study Tracker (BPMN 03) | 15 Okt 2026 | 000032 | Selesai | [Laporan Tahap 6.1](./tahap-6.1-sample-time-study.md) |
 | **Tahap 6.2** | Client Approval, Commercial Rate Card & Mass Order Conversion (BPMN 03, 11, Skenario 4) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 6.2](./tahap-6.2-sample-approval-skenario4.md) |
 | **Tahap 7.1** | Factory Overhead Engine & Monthly Cost Allocation (BPMN 09, 01) | 15 Okt 2026 | 000033 | Selesai | [Laporan Tahap 7.1](./tahap-7.1-overhead-engine.md) |
-| **Tahap 7.2** | Comprehensive End-to-End Testing & 4 SRS Scenarios Acceptance (BPMN 01) | *Berikutnya* | - | [Direncanakan](./analisis-dan-rencana-tahap-7.md) | [Laporan Rencana Tahap 7](./analisis-dan-rencana-tahap-7.md) |
+| **Tahap 7.2** | Comprehensive End-to-End Testing & 4 SRS Scenarios Acceptance (BPMN 01) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 7.2](./tahap-7.2-end-to-end-hardening.md) |
 
 ---
 

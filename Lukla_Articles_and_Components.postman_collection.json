@@ -7477,6 +7477,1204 @@
                                     "    pm.response.to.have.status(200);",
                                     "});",
                                     "var jsonData = pm.response.json();",
+                                    "pm.test(\"Pipeline is operational and all modules verified\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.status).to.eql(\"OPERATIONAL\");",
+                                    "    pm.expect(jsonData.data.modules.length).to.eql(12);",
+                                    "    pm.expect(jsonData.data.scenariosVerified.length).to.eql(4);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.1 GET Audit Kesiapan Manufaktur Pipeline End-to-End (BPMN 01)",
+                    "request": {
+                        "description": "Audit status kesiapan 12 modul operasional engine serta 4 skenario uji SRS.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "health",
+                                "pipeline"
+                            ],
+                            "raw": "{{base_url}}/health/pipeline"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"modulesCount\":12,\"modulesVerified\":[\"sample\",\"inventory\",\"production\",\"quality\",\"qcbonus\",\"payroll\",\"portal\",\"order\",\"notification\",\"masterdata\",\"ratecard\",\"overhead\"],\"overallStatus\":\"HEALTHY\",\"scenariosVerified\":{\"scenario1CrossContaminationBlock\":true,\"scenario2MidWeekSewerPayroll\":true,\"scenario3QCPoolBonus3WaySplit\":true,\"scenario4SampleVersionBinding\":true}},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.data \u0026\u0026 jsonData.data.id) {",
+                                    "    pm.collectionVariables.set('e2e_sample_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.2 POST Skenario 4: Buat Sample Request v1 (BPMN 03)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"sampleCode\": \"{{e2e_sample_code}}\",\n    \"clientId\": \"{{e2e_client_id}}\",\n    \"articleId\": \"{{e2e_article_id}}\",\n    \"sampleType\": \"PROTO\",\n    \"targetDate\": \"2026-11-01\",\n    \"description\": \"Prototipe Jaket Parka Uji End-to-End Tahap 7.2\"\n}"
+                        },
+                        "description": "Membuat permintaan sample pakaian prototipe baru.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples"
+                            ],
+                            "raw": "{{base_url}}/samples"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"6eeb2959-c9d5-4761-a8c7-a5aa1a38407c\",\"sampleCode\":\"SMP-202610-045\",\"clientId\":\"f310f933-4b79-40c4-849d-f0334716d43c\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"status\":\"DRAFT\",\"targetDate\":\"2026-11-01\",\"createdAt\":\"2026-10-15T15:56:19.974291+07:00\",\"updatedAt\":\"2026-10-15T15:56:19.974291+07:00\",\"versions\":[{\"id\":\"574afb1a-f91b-42f6-a502-e9decd293c86\",\"sampleRequestId\":\"6eeb2959-c9d5-4761-a8c7-a5aa1a38407c\",\"versionNumber\":1,\"versionLabel\":\"v1\",\"status\":\"DRAFT\",\"revisionNotes\":\"Versi awal inisiasi spesifikasi sample prototipe\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-15T15:56:19.974291+07:00\",\"updatedAt\":\"2026-10-15T15:56:19.974291+07:00\",\"components\":[]}]},\"message\":\"Permintaan sample v1 berhasil dibuat\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.3 POST Skenario 4: Observasi Time Study Sample v1 (BPMN 03)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"{{e2e_component_id}}\",\n    \"observedSeconds\": 270.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Observasi time study awal prototipe v1\"\n}"
+                        },
+                        "description": "Merekam observasi waktu kerja awal untuk sample versi 1.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "versions",
+                                "1",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/versions/1/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"4f028162-e3c6-4958-b06f-6fb3eabdda53\",\"sampleVersionId\":\"574afb1a-f91b-42f6-a502-e9decd293c86\",\"componentId\":\"1f85022e-b2cb-4044-a97f-cbf9617f6f72\",\"componentName\":\"QC Akhir \\u0026 Labeling\",\"sequenceNumber\":6,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-15T15:56:20.265915+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.4 POST Skenario 4: Ajukan Sample v1 ke Klien (BPMN 03)",
+                    "request": {
+                        "description": "Mengajukan sample versi 1 ke klien untuk proses fitting dan review.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "submit-review"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/submit-review"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Sample berhasil diajukan ke klien dan notifikasi telah dikirim\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.5 POST Skenario 4: Klien Request Revision via Portal (BPMN 11)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"revisionNotes\": \"Pola saku dada dinaikkan 3 cm dan zipper diganti matte black waterproof\"\n}"
+                        },
+                        "description": "Klien mengajukan permintaan revisi pola saku dan zipper via portal klien.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "request-revision"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{e2e_sample_id}}/request-revision"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Permintaan revisi berhasil disampaikan ke tim pabrik\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Version 2 issued\", function () {",
+                                    "    pm.expect(jsonData.data.versionNumber).to.eql(2);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.6 POST Skenario 4: Pabrik Terbitkan Versi 2 (v2)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"revisionNotes\": \"Perbaikan pola saku dada naik 3 cm dan zipper matte black\"\n}"
+                        },
+                        "description": "Pabrik mempublikasikan sample versi 2 mengakomodasi catatan revisi klien.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "versions"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/versions"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"sampleRequestId\":\"6eeb2959-c9d5-4761-a8c7-a5aa1a38407c\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.18,\"currency\":\"IDR\",\"createdAt\":\"2026-10-15T15:56:20.290716+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.290716+07:00\",\"components\":[{\"id\":\"28ea19c8-e280-4f36-8e9f-b7b9a88441ef\",\"sampleVersionId\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"componentId\":\"1f85022e-b2cb-4044-a97f-cbf9617f6f72\",\"componentName\":\"QC Akhir \\u0026 Labeling\",\"sequenceNumber\":6,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-15T15:56:20.290716+07:00\"}]},\"message\":\"Versi revisi sample berhasil diterbitkan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.7 POST Skenario 4: Rekam Time Study Versi 2 (BPMN 03)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"{{e2e_component_id}}\",\n    \"observedSeconds\": 288.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Time study akurat versi 2 final\"\n}"
+                        },
+                        "description": "Perekaman time study final akurat untuk sample versi 2.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "versions",
+                                "2",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/versions/2/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"28ea19c8-e280-4f36-8e9f-b7b9a88441ef\",\"sampleVersionId\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"componentId\":\"1f85022e-b2cb-4044-a97f-cbf9617f6f72\",\"componentName\":\"QC Akhir \\u0026 Labeling\",\"sequenceNumber\":6,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-15T15:56:20.290716+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.8 PUT Skenario 4: Tetapkan Commercial Rate Card (Rp 45.000 / pcs)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"proposedUnitPrice\": 45000.00,\n    \"currency\": \"IDR\",\n    \"priceNotes\": \"Tarif jasa CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \u0026 packing\"\n}"
+                        },
+                        "description": "Menetapkan penawaran harga komersial resmi per unit pakaian untuk sample versi 2.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "versions",
+                                "2",
+                                "commercial-rate"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/versions/2/commercial-rate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"sampleRequestId\":\"6eeb2959-c9d5-4761-a8c7-a5aa1a38407c\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.52,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"priceNotes\":\"Tarif jasa CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \\u0026 packing\",\"createdAt\":\"2026-10-15T15:56:20.290716+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.303012+07:00\",\"components\":[{\"id\":\"28ea19c8-e280-4f36-8e9f-b7b9a88441ef\",\"sampleVersionId\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"componentId\":\"1f85022e-b2cb-4044-a97f-cbf9617f6f72\",\"componentName\":\"QC Akhir \\u0026 Labeling\",\"sequenceNumber\":6,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-15T15:56:20.290716+07:00\"}]},\"message\":\"Commercial rate card berhasil ditetapkan\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.9 POST Skenario 4: Digital Approval Klien via Portal (BPMN 11)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"feedbackNotes\": \"Spesifikasi sample v2 dan penawaran harga Rp 45.000 disetujui\"\n}"
+                        },
+                        "description": "Klien menyetujui secara digital sample versi 2 beserta harga penawaran komersial.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "approve"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{e2e_sample_id}}/approve"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Sample berhasil disetujui dan siap dikonversi ke produksi massal\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.data \u0026\u0026 jsonData.data.orderId) {",
+                                    "    pm.collectionVariables.set('e2e_order_id', jsonData.data.orderId);",
+                                    "}",
+                                    "pm.test(\"Bound to version 2 with correct contract price\", function () {",
+                                    "    pm.expect(jsonData.data.approvedVersion).to.eql(2);",
+                                    "    pm.expect(jsonData.data.unitPrice).to.eql(45000);",
+                                    "    pm.expect(jsonData.data.totalAmount).to.eql(180000000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.10 POST Skenario 4: Konversi Sample v2 Menjadi Order Massal 4.000 Pcs",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"orderNumber\": \"{{e2e_order_number}}\",\n    \"targetQuantity\": 4000,\n    \"targetDate\": \"2026-12-20\",\n    \"notes\": \"Order Produksi Massal 4000 pcs dari Sample v2 Approved\"\n}"
+                        },
+                        "description": "Konversi sample v2 menjadi order massal 4.000 pcs (Total Nilai Kontrak Rp 180.000.000).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{e2e_sample_id}}",
+                                "convert-to-order"
+                            ],
+                            "raw": "{{base_url}}/samples/{{e2e_sample_id}}/convert-to-order"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"orderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderNumber\":\"PO-SNO-E2E-PM-27600\",\"sampleCode\":\"SMP-202610-045\",\"approvedVersion\":2,\"targetQuantity\":4000,\"unitPrice\":45000,\"totalAmount\":180000000,\"currency\":\"IDR\",\"status\":\"IN_PRODUCTION\",\"specSnapshotSAM\":5.52},\"message\":\"Sample berhasil dikonversi menjadi Order Produksi Massal\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 400 Bad Request (Blocked)\", function () {",
+                                    "    pm.response.to.have.status(400);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Cross client contamination strictly prevented\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(false);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.11 POST Skenario 1 (Negatif): Blokade Kontaminasi Silang Antar Klien (400 Bad Request)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"targetOrderId\": \"{{e2e_order_id}}\",\n    \"cuttingTableNumber\": \"MEJA-CUTTING-E2E\",\n    \"issuedDate\": \"2026-10-15\",\n    \"notes\": \"Percobaan kontaminasi silang\",\n    \"items\": [\n        {\n            \"lotId\": \"{{e2e_aventura_lot_id}}\",\n            \"quantity\": 10.0,\n            \"notes\": \"Salah tarik kain Aventura\"\n        }\n    ]\n}"
+                        },
+                        "description": "Pengujian blokade kontaminasi silang gudang: Kain lot milik Aventura ditolak saat hendak dikeluarkan ke Order Snøhund.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"error\":{\"code\":\"INVENTORY_CLIENT_ORDER_MISMATCH\",\"message\":\"BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan: BLOKIR KEAMANAN: Bahan pada lot 'LOT-E2E-PM-AVE-27600' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-SNO-E2E-PM-27600' milik klien 'Snøhund Brand'.\"},\"success\":false}",
+                            "code": 400,
+                            "name": "Bad Request (Blocked Cross-Contamination)",
+                            "status": "Bad Request"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.12 POST Skenario 1 (Positif): Pengeluaran Legal Bahan Baku Snøhund ke Cutting",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"targetOrderId\": \"{{e2e_order_id}}\",\n    \"cuttingTableNumber\": \"MEJA-CUTTING-E2E\",\n    \"issuedDate\": \"2026-10-15\",\n    \"notes\": \"Pengeluaran sah kain Snøhund\",\n    \"items\": [\n        {\n            \"lotId\": \"{{e2e_snohund_lot_id}}\",\n            \"quantity\": 20.0,\n            \"notes\": \"Pengeluaran roll sah\"\n        }\n    ]\n}"
+                        },
+                        "description": "Pengeluaran sah bahan baku kain lot Snøhund untuk pemotongan order jahit.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{warehouse_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "issues"
+                            ],
+                            "raw": "{{base_url}}/inventory/issues"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"11eaab9a-f561-40e3-9ae6-8f1bfdb81178\",\"issueNumber\":\"ISS-20261015-0012\",\"targetOrderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"targetOrderCode\":\"PO-SNO-E2E-PM-27600\",\"targetClientName\":\"Snøhund Brand\",\"cuttingTableNumber\":\"MEJA-CUTTING-E2E\",\"issuedDate\":\"2026-10-15\",\"totalItemsCount\":1,\"createdAt\":\"2026-10-15T15:56:20.337085+07:00\",\"issuedByName\":\"Agus Pratama\",\"notes\":\"Pengeluaran sah kain Snøhund\",\"items\":[{\"id\":\"3a312fb9-d664-4e09-b1fa-2290c03126ea\",\"lotId\":\"a46d4629-f33f-4235-aab0-28e2ea89abc8\",\"lotNumber\":\"LOT-E2E-PM-SNO-27600\",\"materialCode\":\"MAT-CTN-30S-BLK\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"clientName\":\"Snøhund Brand\",\"quantity\":20,\"unit\":\"KG\",\"remainingLotQuantity\":480,\"notes\":\"Pengeluaran roll sah\"}]},\"message\":\"Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-SNO-E2E-PM-27600\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.13 POST Skenario 1: Pencatatan Scrap Pemotongan Kain (Toleransi \u003c 5%)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"orderId\": \"{{e2e_order_id}}\",\n    \"materialId\": \"{{e2e_material_id}}\",\n    \"scrapCategory\": \"PERCA_KECIL\",\n    \"quantity\": 1.00,\n    \"unit\": \"KG\",\n    \"disposition\": \"SIMPAN_GUDANG_SISA\",\n    \"notes\": \"Limbah potongan pinggir pola jaket parka\"\n}"
+                        },
+                        "description": "Pencatatan sisa potongan pinggir pola jaket (2% dari bahan, dalam batas toleransi scrap 5%).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{production_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "inventory",
+                                "scraps"
+                            ],
+                            "raw": "{{base_url}}/inventory/scraps"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"01a65ed6-a4a4-4403-82cf-3fd046cbce46\",\"orderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderCode\":\"PO-SNO-E2E-PM-27600\",\"materialId\":\"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"scrapCategory\":\"PERCA_KECIL\",\"quantity\":1,\"unit\":\"KG\",\"disposition\":\"SIMPAN_GUDANG_SISA\",\"notes\":\"Limbah potongan pinggir pola jaket parka\",\"recordedByName\":\"Bambang Supriyadi\",\"createdAt\":\"2026-10-15T15:56:20.351185+07:00\"},\"message\":\"Data sisa potongan cutting berhasil dicatat\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.data \u0026\u0026 jsonData.data.id) {",
+                                    "    pm.collectionVariables.set('e2e_pay_period_id', jsonData.data.id);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.14 POST Skenario 2: Buka Periode Payroll Mingguan (BPMN 07)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"periodCode\": \"{{e2e_pay_period_code}}\",\n    \"startDate\": \"2026-10-19\",\n    \"endDate\": \"2026-10-25\",\n    \"mealAllowancePercentage\": 10.00,\n    \"notes\": \"Payroll mingguan e2e test\"\n}"
+                        },
+                        "description": "Pembukaan periode payroll mingguan oleh Finance untuk penjahit dan staff.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{finance_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"4ae24cca-aaf1-4fea-8ae6-735d8246285d\",\"periodCode\":\"PAY-E2E-PM-27600\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"DRAFT\",\"totalOperatorsCount\":0,\"totalGrossPieceRate\":0,\"totalMealAllowance\":0,\"totalAdjustments\":0,\"totalNetPayable\":0,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-15T15:56:20.367892+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.367892+07:00\"},\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.15 POST Skenario 2: Kalkulasi Payroll Midweek \u0026 Prorata Uang Makan",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{}"
+                        },
+                        "description": "Menghitung upah borongan operator jahit midweek berdasarkan output aktual per 30 menit.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{finance_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{e2e_pay_period_id}}",
+                                "calculate"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{e2e_pay_period_id}}/calculate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"4ae24cca-aaf1-4fea-8ae6-735d8246285d\",\"periodCode\":\"PAY-E2E-PM-27600\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"CALCULATED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-15T15:56:20.367892+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.378071+07:00\"},\"message\":\"Kalkulasi payroll berhasil dijalankan untuk periode PAY-E2E-PM-27600\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Payroll period is LOCKED\", function () {",
+                                    "    pm.expect(jsonData.data.status).to.eql(\"LOCKED\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.16 POST Skenario 2: Kunci Periode Payroll \u0026 Immutability Guard",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Payroll disetujui \u0026 dikunci\"\n}"
+                        },
+                        "description": "Mengunci periode payroll menjadi LOCKED sehingga data upah tidak dapat diubah lagi.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "payroll",
+                                "periods",
+                                "{{e2e_pay_period_id}}",
+                                "lock"
+                            ],
+                            "raw": "{{base_url}}/payroll/periods/{{e2e_pay_period_id}}/lock"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"4ae24cca-aaf1-4fea-8ae6-735d8246285d\",\"periodCode\":\"PAY-E2E-PM-27600\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"LOCKED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"lockedAt\":\"2026-10-15T15:56:20.384853+07:00\",\"lockedByUserId\":\"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\"notes\":\"Payroll disetujui \\u0026 dikunci\",\"createdAt\":\"2026-10-15T15:56:20.367892+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.384853+07:00\"},\"message\":\"Payroll period PAY-E2E-PM-27600 locked successfully. Data is now finalized.\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.17 POST Skenario 3: Input Hasil Inspeksi Kualitas 3.000 Pcs Lolos QC",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"assemblyId\": \"{{e2e_assembly_id}}\",\n    \"orderId\": \"{{e2e_order_id}}\",\n    \"inspectionDate\": \"2026-10-15\",\n    \"passedQuantity\": 3000,\n    \"repairQuantity\": 0,\n    \"rejectQuantity\": 0,\n    \"notes\": \"Inspeksi massal lolos kualifikasi mutu\",\n    \"defects\": []\n}"
+                        },
+                        "description": "Pencatatan hasil inspeksi mutu: 3.000 pcs rakitan pakaian lolos kualifikasi QC tanpa cacat.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc",
+                                "inspections"
+                            ],
+                            "raw": "{{base_url}}/qc/inspections"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"0a058d14-4594-4390-846f-70f26793f875\",\"inspectionNumber\":\"QC-20261015-0040\",\"assemblyId\":\"b5782bc4-639d-4419-b3d9-f45c53637728\",\"orderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderCode\":\"PO-SNO-E2E-PM-27600\",\"clientName\":\"Snøhund Brand\",\"articleName\":\"Snøhund Arctic Expedition Parka 2026\",\"inspectorId\":\"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\"inspectorName\":\"Budi Santoso\",\"inspectionDate\":\"2026-10-15\",\"passedQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"totalChecked\":3000,\"notes\":\"Inspeksi massal lolos kualifikasi mutu\",\"createdAt\":\"2026-10-15T15:56:20.388238+07:00\",\"defects\":[]},\"message\":\"Pemeriksaan QC berhasil dicatat\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Total pool bonus calculated\", function () {",
+                                    "    pm.expect(jsonData.data.totalPoolAmount).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.18 POST Skenario 3: Kalkulasi Pool Bonus Mutu 3-Arah (Rp 1.470.000)",
+                    "request": {
+                        "description": "Menghitung pool bonus QC untuk 3.000 pcs produk lolos mutu (3.000 x Rp 500 = Rp 1.500.000 minus defect).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{e2e_qc_bonus_period_id}}",
+                                "calculate"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{e2e_qc_bonus_period_id}}/calculate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"21a0f458-43fb-48d1-b44d-31a44b1640a3\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 27600\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"CALCULATED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":24896,\"totalPoolAmount\":37344000,\"recipientCount\":3,\"amountPerRecipient\":12448000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"f5d8de29-e94c-441a-a124-96b2540e2c56\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-15T15:56:20.423533+07:00\"},\"message\":\"Kalkulasi pool bonus berhasil: 24896 pcs lolos x Rp 1500 = Rp 37344000, dibagi rata ke 3 orang (Rp 12448000/orang)\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"QC bonus period is LOCKED\", function () {",
+                                    "    pm.expect(jsonData.data.status).to.eql(\"LOCKED\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.19 POST Skenario 3: Kunci Periode Pool Bonus QC",
+                    "request": {
+                        "description": "Mengunci periode bonus QC secara permanen.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "qc-bonus",
+                                "periods",
+                                "{{e2e_qc_bonus_period_id}}",
+                                "lock"
+                            ],
+                            "raw": "{{base_url}}/qc-bonus/periods/{{e2e_qc_bonus_period_id}}/lock"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"21a0f458-43fb-48d1-b44d-31a44b1640a3\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 27600\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":24896,\"totalPoolAmount\":37344000,\"recipientCount\":3,\"amountPerRecipient\":12448000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"3af11b6e-ed26-4ff7-b91a-6246b3924ad0\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"f5d8de29-e94c-441a-a124-96b2540e2c56\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12448000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-15T15:56:20.423533+07:00\"},\"message\":\"Periode bonus QC berhasil dikunci\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Order marked as completed\", function () {",
+                                    "    pm.expect(jsonData.data.status).to.eql(\"COMPLETED\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.20 POST Selesaikan Order Massal \u0026 Idempotency Guard (BPMN 01)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Pesanan massal 3000 pcs selesai diproduksi \u0026 siap kirim ke warehouse klien\"\n}"
+                        },
+                        "description": "Penyelesaian pesanan massal 3.000 pcs dan pengujian idempotensi guard pencegahan penyelesaian ganda.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "{{e2e_order_id}}",
+                                "complete"
+                            ],
+                            "raw": "{{base_url}}/orders/{{e2e_order_id}}/complete"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderNumber\":\"PO-SNO-E2E-PM-27600\",\"clientId\":\"f310f933-4b79-40c4-849d-f0334716d43c\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"sampleVersionId\":\"0667e6ad-5cf4-4c27-8bac-d464c508abdd\",\"unitPrice\":45000,\"totalAmount\":180000000,\"targetQuantity\":4000,\"passedQuantity\":3000,\"status\":\"COMPLETED\",\"startDate\":\"2026-10-15\",\"targetDate\":\"2026-12-20\",\"completedAt\":\"2026-10-15T15:56:20.486872+07:00\",\"createdAt\":\"2026-10-15T15:56:20.317214+07:00\",\"notes\":\"Pesanan massal 3000 pcs selesai diproduksi \\u0026 siap kirim ke warehouse klien\",\"cuttingQuantity\":4000,\"sewingQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"passRate\":100},\"message\":\"Pesanan berhasil ditandai selesai dan notifikasi telah dikirim ke klien\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Comprehensive COGS report returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.contractPricePerUnit).to.eql(45000);",
+                                    "    pm.expect(jsonData.data.costComponents.directLaborPerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.costComponents.qcBonusPerUnit).to.eql(500);",
+                                    "    pm.expect(jsonData.data.costComponents.overheadPerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.grossMarginPerUnit).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "17.21 GET Laporan HPP / COGS Komprehensif Order Massal \u0026 Margin (BPMN 01)",
+                    "request": {
+                        "description": "Laporan ringkasan analisis HPP utuh per order mengintegrasikan Direct Labor, QC Bonus, dan Overhead Pabrik.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "cogs",
+                                "{{e2e_order_id}}"
+                            ],
+                            "raw": "{{base_url}}/reports/cogs/{{e2e_order_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"orderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderNumber\":\"PO-SNO-E2E-PM-27600\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":3809.52,\"totalOverhead\":15238080},\"totalCostPerUnit\":27509.52,\"totalCOGS\":110038080,\"grossMarginPerUnit\":17490.48,\"totalGrossMargin\":69961920,\"grossMarginPercentage\":38.87},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "17. Tahap 7.2: Comprehensive End-to-End Testing \u0026 4 SRS Scenarios Acceptance (BPMN 01)",
+            "response": null
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
                                     "pm.test(\"Overhead categories list returned\", function () {",
                                     "    pm.expect(jsonData.success).to.eql(true);",
                                     "    pm.expect(jsonData.data.length).to.be.above(0);",
@@ -7515,7 +8713,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":[{\"id\":\"f33fe467-c5c7-401e-b2fa-a926aeb7226b\",\"code\":\"WATER\",\"name\":\"Air \\u0026 Sanitasi Pabrik\",\"description\":\"Biaya utilitas air bersih dan sanitasi workshop\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"code\":\"INDIRECT_MATERIALS\",\"name\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"description\":\"Kertas pola, kapur jahit, plastik pelindung, dan ATK mandor/QC\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"7dc0f1ca-845f-4066-89d6-2d06bc64858a\",\"code\":\"CUSTOM_PACK_850\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:10.985879+07:00\",\"updatedAt\":\"2026-10-15T14:54:10.985879+07:00\"},{\"id\":\"7beea11c-3219-4abd-91ec-ee655a839e56\",\"code\":\"CUSTOM_PACK_114\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:41:54.707131+07:00\",\"updatedAt\":\"2026-10-15T14:41:54.707131+07:00\"},{\"id\":\"6a88518d-8c5a-4397-88e2-b0d9caef08fd\",\"code\":\"CUSTOM_PACK_213\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:43:33.814182+07:00\",\"updatedAt\":\"2026-10-15T14:43:33.814182+07:00\"},{\"id\":\"81006325-4fdc-4759-a7c3-44dead26ed0a\",\"code\":\"CUSTOM_PACK_290\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:44:50.08654+07:00\",\"updatedAt\":\"2026-10-15T14:44:50.08654+07:00\"},{\"id\":\"fb2b7a74-2d67-4830-8f78-8953dba1d9cf\",\"code\":\"CUSTOM_PACK_333\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:45:33.95632+07:00\",\"updatedAt\":\"2026-10-15T14:45:33.95632+07:00\"},{\"id\":\"15fa69e2-63d4-4723-9990-0651616af052\",\"code\":\"INTERNET\",\"name\":\"Internet \\u0026 Telekomunikasi Operasional\",\"description\":\"Biaya jaringan internet WiFi dan komunikasi operasional\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fd87dc34-764a-4506-8606-6532b087a779\",\"code\":\"SECURITY_SERVICES_724\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:52:04.80645+07:00\",\"updatedAt\":\"2026-10-15T14:52:04.80645+07:00\"},{\"id\":\"472ad5d3-20a4-4ef6-8afa-ff06126af6a6\",\"code\":\"SECURITY_SERVICES_793\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:53:13.533193+07:00\",\"updatedAt\":\"2026-10-15T14:53:13.533193+07:00\"},{\"id\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"code\":\"ELECTRICITY\",\"name\":\"Listrik PLN Pabrik\",\"description\":\"Biaya konsumsi daya listrik mesin jahit, kompresor dan penerangan lini produksi\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"9a9a616b-7ef6-4caa-a1b6-1318da4a593e\",\"code\":\"OPERATIONAL_OTHERS\",\"name\":\"Operasional Umum Lainnya\",\"description\":\"Biaya pendukung kebersihan, keamanan, dan logistik lokal\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"c40e1fb9-75e4-4e48-89cb-b594a72a9f18\",\"code\":\"MACHINE_MAINTENANCE\",\"name\":\"Pemeliharaan Mesin \\u0026 Spareparts\",\"description\":\"Servis rutin mesin jahit, penggantian jarum, sekoci, dan minyak mesin\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fe7d8f40-179a-4bf7-a92f-a0bc56f7ebc6\",\"code\":\"FACTORY_RENT\",\"name\":\"Sewa Gedung Pabrik \\u0026 Workshop\",\"description\":\"Alokasi bulanan sewa tempat workshop manufaktur\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"}],\"success\":true}",
+                            "body": "{\"data\":[{\"id\":\"f33fe467-c5c7-401e-b2fa-a926aeb7226b\",\"code\":\"WATER\",\"name\":\"Air \\u0026 Sanitasi Pabrik\",\"description\":\"Biaya utilitas air bersih dan sanitasi workshop\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"code\":\"INDIRECT_MATERIALS\",\"name\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"description\":\"Kertas pola, kapur jahit, plastik pelindung, dan ATK mandor/QC\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"783be40e-6c82-4fbd-95e7-20358f189807\",\"code\":\"CUSTOM_PACK_4577\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:56:17.962685+07:00\",\"updatedAt\":\"2026-10-15T15:56:17.962685+07:00\"},{\"id\":\"7beea11c-3219-4abd-91ec-ee655a839e56\",\"code\":\"CUSTOM_PACK_114\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:41:54.707131+07:00\",\"updatedAt\":\"2026-10-15T14:41:54.707131+07:00\"},{\"id\":\"6a88518d-8c5a-4397-88e2-b0d9caef08fd\",\"code\":\"CUSTOM_PACK_213\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:43:33.814182+07:00\",\"updatedAt\":\"2026-10-15T14:43:33.814182+07:00\"},{\"id\":\"81006325-4fdc-4759-a7c3-44dead26ed0a\",\"code\":\"CUSTOM_PACK_290\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:44:50.08654+07:00\",\"updatedAt\":\"2026-10-15T14:44:50.08654+07:00\"},{\"id\":\"fb2b7a74-2d67-4830-8f78-8953dba1d9cf\",\"code\":\"CUSTOM_PACK_333\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:45:33.95632+07:00\",\"updatedAt\":\"2026-10-15T14:45:33.95632+07:00\"},{\"id\":\"7dc0f1ca-845f-4066-89d6-2d06bc64858a\",\"code\":\"CUSTOM_PACK_850\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:10.985879+07:00\",\"updatedAt\":\"2026-10-15T14:54:10.985879+07:00\"},{\"id\":\"1b74cecf-b96c-496a-b70b-fa9c16a96cc6\",\"code\":\"CUSTOM_PACK_3705\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:41:46.002048+07:00\",\"updatedAt\":\"2026-10-15T15:41:46.002048+07:00\"},{\"id\":\"ad22a901-24ad-4f94-9a74-cc425967b800\",\"code\":\"CUSTOM_PACK_3748\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:42:28.670832+07:00\",\"updatedAt\":\"2026-10-15T15:42:28.670832+07:00\"},{\"id\":\"15fa69e2-63d4-4723-9990-0651616af052\",\"code\":\"INTERNET\",\"name\":\"Internet \\u0026 Telekomunikasi Operasional\",\"description\":\"Biaya jaringan internet WiFi dan komunikasi operasional\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fd87dc34-764a-4506-8606-6532b087a779\",\"code\":\"SECURITY_SERVICES_724\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:52:04.80645+07:00\",\"updatedAt\":\"2026-10-15T14:52:04.80645+07:00\"},{\"id\":\"472ad5d3-20a4-4ef6-8afa-ff06126af6a6\",\"code\":\"SECURITY_SERVICES_793\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:53:13.533193+07:00\",\"updatedAt\":\"2026-10-15T14:53:13.533193+07:00\"},{\"id\":\"d3109322-bbe4-48b1-a6cf-512f4a78680b\",\"code\":\"SECURITY_SERVICES_3708\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:41:48.650068+07:00\",\"updatedAt\":\"2026-10-15T15:41:48.650068+07:00\"},{\"id\":\"4fee78e3-7e36-473c-8bb4-31afda48a25d\",\"code\":\"SECURITY_SERVICES_851\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:11.387664+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.387664+07:00\"},{\"id\":\"6bf7456f-d71e-48f8-add2-2e775fa5f3cd\",\"code\":\"SECURITY_SERVICES\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:04:07.222145+07:00\",\"updatedAt\":\"2026-10-15T15:04:07.222145+07:00\"},{\"id\":\"212b417a-a940-409b-a431-f55eefd40e5d\",\"code\":\"SECURITY_SERVICES_3750\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:42:30.902381+07:00\",\"updatedAt\":\"2026-10-15T15:42:30.902381+07:00\"},{\"id\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"code\":\"ELECTRICITY\",\"name\":\"Listrik PLN Pabrik\",\"description\":\"Biaya konsumsi daya listrik mesin jahit, kompresor dan penerangan lini produksi\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"9a9a616b-7ef6-4caa-a1b6-1318da4a593e\",\"code\":\"OPERATIONAL_OTHERS\",\"name\":\"Operasional Umum Lainnya\",\"description\":\"Biaya pendukung kebersihan, keamanan, dan logistik lokal\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"c40e1fb9-75e4-4e48-89cb-b594a72a9f18\",\"code\":\"MACHINE_MAINTENANCE\",\"name\":\"Pemeliharaan Mesin \\u0026 Spareparts\",\"description\":\"Servis rutin mesin jahit, penggantian jarum, sekoci, dan minyak mesin\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fe7d8f40-179a-4bf7-a92f-a0bc56f7ebc6\",\"code\":\"FACTORY_RENT\",\"name\":\"Sewa Gedung Pabrik \\u0026 Workshop\",\"description\":\"Alokasi bulanan sewa tempat workshop manufaktur\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"}],\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -7575,7 +8773,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"4fee78e3-7e36-473c-8bb4-31afda48a25d\",\"code\":\"SECURITY_SERVICES_851\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:11.387664+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.387664+07:00\"},\"message\":\"Kategori overhead berhasil ditambahkan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"4578bbf5-72e1-4bef-855f-fe80f9919eb4\",\"code\":\"SECURITY_SERVICES_4580\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T15:56:20.779413+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.779413+07:00\"},\"message\":\"Kategori overhead berhasil ditambahkan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7636,7 +8834,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.406361+07:00\",\"expenses\":[]},\"message\":\"Periode overhead bulanan berhasil dibuka\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T15:56:20.796645+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.796645+07:00\",\"expenses\":[]},\"message\":\"Periode overhead bulanan berhasil dibuka\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7688,7 +8886,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":[{\"id\":\"69a3e08b-baad-4834-bd2a-7aa99e1078b3\",\"periodCode\":\"OH-202611\",\"periodMonth\":11,\"periodYear\":2026,\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-30\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":3000,\"flatRatePerUnit\":8333.33,\"garmentRatePerUnit\":8333.33,\"bagRatePerUnit\":10416.67,\"currency\":\"IDR\",\"notes\":\"Kalkulasi akhir bulan November 2026\",\"createdAt\":\"2026-10-15T14:54:11.000656+07:00\"},{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\"}],\"success\":true}",
+                            "body": "{\"data\":[{\"id\":\"510022d8-f1ae-4c7e-aca9-4c07902afa98\",\"periodCode\":\"OH-202612\",\"periodMonth\":12,\"periodYear\":2026,\"startDate\":\"2026-12-01\",\"endDate\":\"2026-12-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":20000000,\"totalProducedUnits\":5000,\"flatRatePerUnit\":4000,\"garmentRatePerUnit\":3809.52,\"bagRatePerUnit\":4761.9,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead final Desember\",\"createdAt\":\"2026-10-15T15:56:19.284185+07:00\"},{\"id\":\"8b6bbe1b-b935-4e80-95d4-10ff2ea1ddd7\",\"periodCode\":\"OH-202611\",\"periodMonth\":11,\"periodYear\":2026,\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-30\",\"status\":\"LOCKED\",\"totalExpenseAmount\":16000000,\"totalProducedUnits\":3000,\"flatRatePerUnit\":5333.33,\"garmentRatePerUnit\":5333.33,\"bagRatePerUnit\":6666.67,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead November\",\"createdAt\":\"2026-10-15T15:56:20.467127+07:00\"},{\"id\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T15:56:20.796645+07:00\"}],\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -7735,7 +8933,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.406361+07:00\",\"expenses\":[]},\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T15:56:20.796645+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.796645+07:00\",\"expenses\":[]},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -7798,7 +8996,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"eea791e9-1821-4ff0-8893-35a034d7ee46\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T14:54:11.412585+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.412585+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"f2cacb2a-4194-41c8-80cb-c03fb4a3edbd\",\"overheadPeriodId\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T15:56:20.802518+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.802518+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7860,7 +9058,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"19e16aef-eddb-4186-9098-748c0bfebabf\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T14:54:11.41818+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.41818+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"8c62303e-fab0-4fa6-9a68-f53076ca2f8d\",\"overheadPeriodId\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T15:56:20.80635+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.80635+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7925,7 +9123,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"periodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":728,\"garmentUnits\":728,\"bagUnits\":0,\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82,\"currency\":\"IDR\",\"calculatedAt\":\"2026-10-15T14:54:11.4437814+07:00\"},\"message\":\"Kalkulasi alokasi overhead per unit berhasil dihitung\",\"success\":true}",
+                            "body": "{\"data\":{\"periodId\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"periodCode\":\"OH-202610\",\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":24896,\"garmentUnits\":24896,\"bagUnits\":0,\"flatRatePerUnit\":1004.18,\"garmentRatePerUnit\":1004.18,\"bagRatePerUnit\":1255.22,\"currency\":\"IDR\",\"calculatedAt\":\"2026-10-15T15:56:20.8309903+07:00\"},\"message\":\"Kalkulasi alokasi overhead per unit berhasil dihitung\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -7979,7 +9177,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"expenseBreakdown\":[{\"categoryCode\":\"ELECTRICITY\",\"categoryName\":\"Listrik PLN Pabrik\",\"totalAmount\":15000000,\"percentage\":60},{\"categoryCode\":\"INDIRECT_MATERIALS\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"totalAmount\":10000000,\"percentage\":40}],\"productionBreakdown\":{\"totalUnits\":728,\"garmentUnits\":728,\"bagUnits\":0},\"rates\":{\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82}},\"success\":true}",
+                            "body": "{\"data\":{\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"expenseBreakdown\":[{\"categoryCode\":\"ELECTRICITY\",\"categoryName\":\"Listrik PLN Pabrik\",\"totalAmount\":15000000,\"percentage\":60},{\"categoryCode\":\"INDIRECT_MATERIALS\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"totalAmount\":10000000,\"percentage\":40}],\"productionBreakdown\":{\"totalUnits\":24896,\"garmentUnits\":24896,\"bagUnits\":0},\"rates\":{\"flatRatePerUnit\":1004.18,\"garmentRatePerUnit\":1004.18,\"bagRatePerUnit\":1255.22}},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8032,7 +9230,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":728,\"garmentUnits\":728,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82,\"currency\":\"IDR\",\"notes\":\"Kalkulasi final alokasi overhead periode Oktober 2026\",\"calculatedAt\":\"2026-10-15T14:54:11.443874+07:00\",\"lockedAt\":\"2026-10-15T14:54:11.453814+07:00\",\"lockedBy\":\"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\"lockedByName\":\"Budi Santoso\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.453814+07:00\",\"expenses\":[{\"id\":\"19e16aef-eddb-4186-9098-748c0bfebabf\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T14:54:11.41818+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.41818+07:00\"},{\"id\":\"eea791e9-1821-4ff0-8893-35a034d7ee46\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T14:54:11.412585+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.412585+07:00\"}]},\"message\":\"Periode overhead bulanan berhasil dikunci\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":24896,\"garmentUnits\":24896,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":1004.18,\"garmentRatePerUnit\":1004.18,\"bagRatePerUnit\":1255.22,\"currency\":\"IDR\",\"notes\":\"Kalkulasi final alokasi overhead periode Oktober 2026\",\"calculatedAt\":\"2026-10-15T15:56:20.831115+07:00\",\"lockedAt\":\"2026-10-15T15:56:20.843169+07:00\",\"lockedBy\":\"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\"lockedByName\":\"Budi Santoso\",\"createdAt\":\"2026-10-15T15:56:20.796645+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.843169+07:00\",\"expenses\":[{\"id\":\"8c62303e-fab0-4fa6-9a68-f53076ca2f8d\",\"overheadPeriodId\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T15:56:20.80635+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.80635+07:00\"},{\"id\":\"f2cacb2a-4194-41c8-80cb-c03fb4a3edbd\",\"overheadPeriodId\":\"48693538-5f18-4b39-9aa2-f5d5e2666152\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T15:56:20.802518+07:00\",\"updatedAt\":\"2026-10-15T15:56:20.802518+07:00\"}]},\"message\":\"Periode overhead bulanan berhasil dikunci\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8087,7 +9285,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"orderId\":\"2b07e483-7a05-40fd-bf84-81be672f2ad2\",\"orderNumber\":\"PO-SNO-TEST4-1792050850\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":2000,\"contractPricePerUnit\":45000,\"totalRevenue\":90000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":46400000,\"qcBonusPerUnit\":500,\"totalQCBonus\":1000000,\"overheadPerUnit\":34340.66,\"totalOverhead\":68681320},\"totalCostPerUnit\":58040.66,\"totalCOGS\":116081320,\"grossMarginPerUnit\":-13040.66,\"totalGrossMargin\":-26081320,\"grossMarginPercentage\":-28.98},\"success\":true}",
+                            "body": "{\"data\":{\"orderId\":\"1191cf3e-1976-49d8-b41f-ecb0911de751\",\"orderNumber\":\"PO-SNO-E2E-PM-27600\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":1004.18,\"totalOverhead\":4016720},\"totalCostPerUnit\":24704.18,\"totalCOGS\":98816720,\"grossMarginPerUnit\":20295.82,\"totalGrossMargin\":81183280,\"grossMarginPercentage\":45.1},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8113,7 +9311,7 @@
         {
             "key": "client_token",
             "type": "string",
-            "value": ""
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTIwNTU0NzksImlhdCI6MTc5MjA1NDU3OSwic3ViIjoiZWRkMTI0MjMtMGY0MC00MTc5LWE4OGYtYTkxNzIyNmRiYTRiIn0.a7LB_pLqaT4v0jvfmg-0BTlagxnrt8XDgpW0QV_SJZA"
         },
         {
             "key": "client_snohund_id",
@@ -8143,7 +9341,7 @@
         {
             "key": "production_token",
             "type": "string",
-            "value": ""
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTIwNTU0NzksImlhdCI6MTc5MjA1NDU3OSwic3ViIjoiZTY0NDdiNmMtN2ZmYy00NjJmLWEwZDYtYTJlZjZhMzg3NjM0In0.-FJWinpXLgaAIjVe6wplnjRlKJ_sYY7lVnvUPgdKchA"
         },
         {
             "key": "rate_card_id",
@@ -8198,7 +9396,7 @@
         {
             "key": "warehouse_token",
             "type": "string",
-            "value": ""
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTIwNTU0NzksImlhdCI6MTc5MjA1NDU3OSwic3ViIjoiYmZlOWM1MmQtNzY5ZC00NjQ1LWI2MjEtMDZhZDdhYTBjNzE2In0.x73KTMrykPlZz2LGVV08lWaF2gKnZKZe__oHad74fdM"
         },
         {
             "key": "material_id",
@@ -8278,7 +9476,7 @@
         {
             "key": "overhead_period_id",
             "type": "string",
-            "value": "8a3e2768-1bd2-4579-a68b-46b7c700fa79"
+            "value": "48693538-5f18-4b39-9aa2-f5d5e2666152"
         },
         {
             "key": "overhead_category_id",
@@ -8294,6 +9492,81 @@
             "key": "overhead_expense_id",
             "type": "string",
             "value": "37a1ce18-dd5f-4765-ad2c-a335994b2117"
+        },
+        {
+            "key": "finance_token",
+            "type": "string",
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTIwNTU0NzksImlhdCI6MTc5MjA1NDU3OSwic3ViIjoiZDk2OTU2MTYtZGIzMC00NGM3LWFjMzUtOWE5MDhlYjc3ZDlkIn0.JYLdM4idy12oM56WKwgiZ1HwG5EHUaP8wZZFheNtVfY"
+        },
+        {
+            "key": "e2e_sample_code",
+            "type": "string",
+            "value": "SMP-E2E-PM-27600"
+        },
+        {
+            "key": "e2e_sample_id",
+            "type": "string",
+            "value": "6eeb2959-c9d5-4761-a8c7-a5aa1a38407c"
+        },
+        {
+            "key": "e2e_article_id",
+            "type": "string",
+            "value": "e084fffd-2b54-4027-85b5-7bfc1a4070d1"
+        },
+        {
+            "key": "e2e_component_id",
+            "type": "string",
+            "value": "1f85022e-b2cb-4044-a97f-cbf9617f6f72"
+        },
+        {
+            "key": "e2e_client_id",
+            "type": "string",
+            "value": "f310f933-4b79-40c4-849d-f0334716d43c"
+        },
+        {
+            "key": "e2e_order_number",
+            "type": "string",
+            "value": "PO-SNO-E2E-PM-27600"
+        },
+        {
+            "key": "e2e_order_id",
+            "type": "string",
+            "value": "1191cf3e-1976-49d8-b41f-ecb0911de751"
+        },
+        {
+            "key": "e2e_material_id",
+            "type": "string",
+            "value": "a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d"
+        },
+        {
+            "key": "e2e_aventura_lot_id",
+            "type": "string",
+            "value": "f937e7cc-45b2-4594-a27a-20dff55417df"
+        },
+        {
+            "key": "e2e_snohund_lot_id",
+            "type": "string",
+            "value": "a46d4629-f33f-4235-aab0-28e2ea89abc8"
+        },
+        {
+            "key": "e2e_assembly_id",
+            "type": "string",
+            "value": "b5782bc4-639d-4419-b3d9-f45c53637728"
+        },
+        {
+            "key": "e2e_pay_period_code",
+            "type": "string",
+            "value": "PAY-E2E-PM-27600"
+        },
+        {
+            "key": "e2e_pay_period_id",
+            "type": "string",
+            "value": "4ae24cca-aaf1-4fea-8ae6-735d8246285d"
+        },
+        {
+            "key": "e2e_qc_bonus_period_id",
+            "type": "string",
+            "value": "21a0f458-43fb-48d1-b44d-31a44b1640a3"
         }
     ]
 }
