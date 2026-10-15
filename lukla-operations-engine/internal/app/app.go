@@ -25,6 +25,7 @@ import (
 	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/authz"
 	"github.com/lukla/operations-engine/internal/platform/database"
+	"github.com/lukla/operations-engine/internal/platform/httpx"
 )
 
 // App holds the wired application.
@@ -127,6 +128,7 @@ func New(ctx context.Context) (*App, error) {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.Use(httpx.CORS())
 	registerRoutes(
 		router,
 		identityHandler,
