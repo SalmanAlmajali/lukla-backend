@@ -1,0 +1,1023 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 5: Portal Klien & Notifikasi)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 5 (Portal Klien, Multi-Tenant Isolation, Order Completion & Notifikasi)** Lukla Operations Engine.
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 11 & BPMN 01), serta kebutuhan isolasi tenant klien:
+    - **BPMN 11 (Portal Klien & Multi-Tenant Isolation)**:
+      - Klien eksternal (role `client`) login dan hanya memiliki akses melihat data yang terikat pada `client_id` miliknya sendiri.
+      - **Dashboard Ringkasan Portal**: Metrik order aktif, progres rata-rata, jumlah barang jadi siap kirim, dan notifikasi yang belum dibaca.
+      - **Order Tracking & Monitoring**: Melihat status pesanan, tanggal target selesai, dan progres real-time per tahapan kerja (Cutting, Sewing/Assembly, QC Lolos).
+      - **Quality Transparency**: Melihat transparansi ringkasan mutu hasil inspeksi QC (kuantitas lolos, repair, reject, dan pass rate) tanpa membocorkan data internal penjahit/mandor.
+      - **Stok Titipan Bahan Baku & Barang Jadi**: Melihat saldo lot bahan baku yang dititipkan di gudang serta stok barang jadi yang siap diambil/dikirim.
+    - **BPMN 11 & Bagian Akhir BPMN 01 (Order Selesai & Notifikasi)**:
+      - **Otomasi Order Selesai**: Ketika kuantitas barang lolos QC mencapai target pesanan (`passed_quantity >= target_quantity`), status order bertransisi menjadi `COMPLETED` dan sistem mencatat waktu penyelesaian (`completed_at`).
+      - **In-App Notification Engine**: Sistem secara otomatis membuat rekaman notifikasi saat terjadi event penting (`ORDER_COMPLETED`, `MATERIAL_RECEIVED`, `PRODUCTION_MILESTONE`).
+      - Klien dapat membaca notifikasi, melihat jumlah belum dibaca, dan menandai notifikasi sebagai sudah dibaca (`mark-read`).
+      - Staf pabrik (Owner/Kepala Produksi) memiliki API untuk memicu notifikasi manual/pengumuman ke klien.
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Engine (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Client Portal - Dashboard & Orders (BPMN 11)
+    description: Endpoint portal bagi klien eksternal untuk melacak status pesanan dan progres produksi dengan isolasi multi-tenant ketat
+  - name: Client Portal - Inventory & Quality (BPMN 11)
+    description: Endpoint portal bagi klien untuk memantau stok bahan baku titipan, stok barang jadi, dan laporan mutu QC
+  - name: Notifications (BPMN 11)
+    description: Sistem notifikasi in-app untuk mengabarkan kejadian penting (Order Selesai, Penerimaan Bahan, Update Produksi)
+  - name: Order Lifecycle & Management (BPMN 01 / BPMN 11)
+    description: Manajemen status siklus hidup pesanan pabrik dan otomasi transisi status order selesai
+
+paths:
+  # ==========================================================
+  # 1. CLIENT PORTAL - DASHBOARD & ORDERS (BPMN 11)
+  # ==========================================================
+  /portal/dashboard:
+    get:
+      tags:
+        - Client Portal - Dashboard & Orders (BPMN 11)
+      summary: Ringkasan dashboard portal klien (Multi-Tenant)
+      description: |
+        Menyajikan metrik utama portal khusus untuk klien yang sedang login (berdasarkan `client_id` pada token JWT):
+        jumlah order aktif, order selesai, total barang jadi siap kirim, dan jumlah notifikasi yang belum dibaca.
+      responses:
+        "200":
+          description: Data ringkasan portal berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ClientPortalDashboard"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /portal/orders:
+    get:
+      tags:
+        - Client Portal - Dashboard & Orders (BPMN 11)
+      summary: Daftar pesanan milik klien (Order Tracking)
+      description: |
+        Mengambil daftar seluruh order yang dimiliki oleh klien yang sedang login.
+        Mendukung filter status pesanan (`IN_PRODUCTION`, `COMPLETED`, `DRAFT`) dan pencarian nomor PO/artikel.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, DRAFT, IN_PRODUCTION, COMPLETED, CANCELLED]
+            default: ALL
+          description: Filter status pesanan
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Kata kunci nomor PO atau nama artikel
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Daftar pesanan klien berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientPortalOrderSummary"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /portal/orders/{id}:
+    get:
+      tags:
+        - Client Portal - Dashboard & Orders (BPMN 11)
+      summary: Detail pesanan dan progres produksi per tahapan
+      description: |
+        Mengambil rincian pesanan tertentu lengkap dengan progres tahapan kerja:
+        Cutting (output pcs terpotong), Sewing (output rakitan jahit), dan QC (kuantitas lolos QC).
+        Akses diblokir jika ID pesanan bukan milik `client_id` pengguna yang login (404/403).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID pesanan
+      responses:
+        "200":
+          description: Detail pesanan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ClientPortalOrderDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================================
+  # 2. CLIENT PORTAL - INVENTORY & QUALITY (BPMN 11)
+  # ==========================================================
+  /portal/orders/{id}/quality:
+    get:
+      tags:
+        - Client Portal - Inventory & Quality (BPMN 11)
+      summary: Laporan mutu QC untuk pesanan klien
+      description: |
+        Menyajikan transparansi mutu hasil inspeksi produk untuk pesanan klien:
+        Total kuantitas diperiksa, kuantitas lolos sempurna, kuantitas dalam perbaikan (rework),
+        kuantitas reject (afkir), dan persentase tingkat kelulusan (pass rate).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID pesanan
+      responses:
+        "200":
+          description: Laporan mutu QC berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ClientPortalOrderQuality"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /portal/stocks/materials:
+    get:
+      tags:
+        - Client Portal - Inventory & Quality (BPMN 11)
+      summary: Saldo stok bahan baku titipan klien di gudang
+      description: |
+        Menampilkan daftar sisa bahan baku titipan milik klien (kain, rib, benang, aksesoris)
+        beserta nomor lot dan lokasi rak penyimpanan di gudang pabrik.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [FABRIC, ACCESSORY, SEWING_THREAD, PACKAGING]
+          description: Filter kategori material
+      responses:
+        "200":
+          description: Daftar stok material titipan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientPortalMaterialStock"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /portal/stocks/finished-goods:
+    get:
+      tags:
+        - Client Portal - Inventory & Quality (BPMN 11)
+      summary: Saldo barang jadi siap kirim milik klien
+      description: |
+        Menampilkan rekapitulasi garmen jadi yang telah dinyatakan lolos 100% QC
+        dan siap untuk dilakukan serah terima / pengiriman ke klien.
+      responses:
+        "200":
+          description: Daftar barang jadi siap kirim berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientPortalFinishedGoodsStock"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  # ==========================================================
+  # 3. NOTIFICATIONS ENGINE (BPMN 11)
+  # ==========================================================
+  /portal/notifications:
+    get:
+      tags:
+        - Notifications (BPMN 11)
+      summary: Daftar notifikasi milik klien
+      description: Mengambil seluruh riwayat notifikasi in-app untuk klien yang sedang login.
+      parameters:
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Hanya tampilkan notifikasi yang belum dibaca
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Daftar notifikasi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  unreadCount:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NotificationItem"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /portal/notifications/{id}/read:
+    put:
+      tags:
+        - Notifications (BPMN 11)
+      summary: Tandai notifikasi sebagai sudah dibaca
+      description: Mengubah status notifikasi spesifik menjadi sudah dibaca (`is_read = true`).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID notifikasi
+      responses:
+        "200":
+          description: Notifikasi berhasil ditandai sebagai dibaca
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Notifikasi telah ditandai sebagai dibaca
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /portal/notifications/read-all:
+    put:
+      tags:
+        - Notifications (BPMN 11)
+      summary: Tandai seluruh notifikasi sebagai sudah dibaca
+      description: Mengubah seluruh notifikasi milik klien yang berstatus belum dibaca menjadi sudah dibaca.
+      responses:
+        "200":
+          description: Seluruh notifikasi berhasil ditandai sebagai dibaca
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Seluruh notifikasi berhasil ditandai sebagai dibaca
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /notifications/send:
+    post:
+      tags:
+        - Notifications (BPMN 11)
+      summary: Kirim notifikasi manual / broadcast ke klien (Internal Pabrik)
+      description: |
+        Digunakan oleh tim internal (Owner, Kepala Produksi, atau Admin CS) untuk mengirim notifikasi
+        pengumuman atau update status khusus kepada akun klien tertentu.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNotificationRequest"
+      responses:
+        "201":
+          description: Notifikasi berhasil dibuat dan dikirim ke klien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Notifikasi berhasil dikirim
+                  data:
+                    $ref: "#/components/schemas/NotificationItem"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  # ==========================================================
+  # 4. ORDER LIFECYCLE & MANAGEMENT (BPMN 01 / BPMN 11)
+  # ==========================================================
+  /orders:
+    get:
+      tags:
+        - Order Lifecycle & Management (BPMN 01 / BPMN 11)
+      summary: Daftar seluruh pesanan pabrik (Internal Operasional)
+      description: Mengambil seluruh pesanan dari seluruh klien untuk pengawasan lini produksi internal pabrik.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, DRAFT, IN_PRODUCTION, COMPLETED, CANCELLED]
+      responses:
+        "200":
+          description: Daftar order pabrik berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InternalOrderSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /orders/{id}:
+    get:
+      tags:
+        - Order Lifecycle & Management (BPMN 01 / BPMN 11)
+      summary: Detail lengkap pesanan internal pabrik
+      description: Mengambil rincian teknis pesanan internal pabrik, mencakup breakdown progres dan riwayat status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail order berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/InternalOrderDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /orders/{id}/complete:
+    post:
+      tags:
+        - Order Lifecycle & Management (BPMN 01 / BPMN 11)
+      summary: Selesaikan pesanan secara resmi (Manual Completion / Verifikasi Akhir)
+      description: |
+        Menutup status order menjadi `COMPLETED` dan menetapkan timestamp `completed_at`.
+        Memicu pengiriman notifikasi otomatis `ORDER_COMPLETED` ke klien terkait.
+        Dibatasi hanya untuk peran `owner_executive` dan `production_head`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: Pesanan selesai diproduksi dan siap diserahterimakan ke klien
+      responses:
+        "200":
+          description: Order berhasil diselesaikan dan status ditutup
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pesanan berhasil ditandai selesai dan notifikasi telah dikirim ke klien
+                  data:
+                    $ref: "#/components/schemas/InternalOrderDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          description: Order sudah berstatus COMPLETED sebelumnya
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ----------------- PORTAL SCHEMAS -----------------
+    ClientPortalDashboard:
+      type: object
+      properties:
+        client:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              example: Snøhund Brand
+            code:
+              type: string
+              example: CLIENT-SNOHUND-01
+        activeOrdersCount:
+          type: integer
+          example: 3
+        completedOrdersCount:
+          type: integer
+          example: 12
+        readyFinishedGoodsCount:
+          type: integer
+          description: Total pcs produk jadi lolos QC siap kirim
+          example: 3000
+        activeMaterialsCount:
+          type: integer
+          description: Jumlah jenis material titipan yang masih memiliki saldo stok
+          example: 4
+        unreadNotificationsCount:
+          type: integer
+          example: 2
+
+    ClientPortalOrderSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        articleName:
+          type: string
+          example: Jaket Parka Waterproof Extreme
+        articleCode:
+          type: string
+          example: ART-PARKA-01
+        category:
+          type: string
+          example: JACKET
+        targetQuantity:
+          type: integer
+          example: 3000
+        passedQuantity:
+          type: integer
+          example: 3000
+        progressPercentage:
+          type: number
+          format: float
+          example: 100.0
+        status:
+          type: string
+          enum: [DRAFT, IN_PRODUCTION, COMPLETED, CANCELLED]
+          example: COMPLETED
+        targetDate:
+          type: string
+          format: date
+          example: "2026-11-15"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-11-07T14:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-14T08:00:00Z"
+
+    ClientPortalOrderDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        article:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            code:
+              type: string
+              example: ART-PARKA-01
+            name:
+              type: string
+              example: Jaket Parka Waterproof Extreme
+            category:
+              type: string
+              example: JACKET
+        targetQuantity:
+          type: integer
+          example: 3000
+        status:
+          type: string
+          enum: [DRAFT, IN_PRODUCTION, COMPLETED, CANCELLED]
+          example: COMPLETED
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        targetDate:
+          type: string
+          format: date
+          example: "2026-11-15"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-11-07T14:30:00Z"
+        notes:
+          type: string
+          example: Batch pertama pesanan musim dingin 3.000 pcs
+        progress:
+          type: object
+          properties:
+            cuttingQuantity:
+              type: integer
+              description: Total panel kain selesai dipotong
+              example: 3000
+            sewingQuantity:
+              type: integer
+              description: Total unit rakitan jahit selesai (Assembly)
+              example: 3000
+            passedQCQuantity:
+              type: integer
+              description: Total unit produk lulus inspeksi QC fisik
+              example: 3000
+            repairQCQuantity:
+              type: integer
+              description: Unit sedang diperbaiki
+              example: 0
+            rejectQCQuantity:
+              type: integer
+              description: Unit afkir cacat permanen
+              example: 0
+            overallPercentage:
+              type: number
+              format: float
+              example: 100.0
+
+    ClientPortalOrderQuality:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        targetQuantity:
+          type: integer
+          example: 3000
+        totalChecked:
+          type: integer
+          example: 3000
+        passedQuantity:
+          type: integer
+          example: 3000
+        repairQuantity:
+          type: integer
+          example: 0
+        rejectQuantity:
+          type: integer
+          example: 0
+        passRate:
+          type: number
+          format: float
+          description: Persentase kelulusan QC
+          example: 100.0
+        inspectionsCount:
+          type: integer
+          example: 3
+
+    ClientPortalMaterialStock:
+      type: object
+      properties:
+        materialId:
+          type: string
+          format: uuid
+        materialCode:
+          type: string
+          example: MAT-FAB-CORDURA-01
+        materialName:
+          type: string
+          example: Kain Cordura 500D Waterproof
+        category:
+          type: string
+          example: FABRIC
+        defaultUnit:
+          type: string
+          example: METER
+        totalAvailableQuantity:
+          type: number
+          format: float
+          example: 300.0
+        lots:
+          type: array
+          items:
+            type: object
+            properties:
+              lotId:
+                type: string
+                format: uuid
+              lotNumber:
+                type: string
+                example: LOT-20261014-001
+              availableQuantity:
+                type: number
+                format: float
+                example: 150.5
+              unit:
+                type: string
+                example: METER
+              location:
+                type: string
+                example: GUDANG-A-01
+              receivedDate:
+                type: string
+                format: date
+                example: "2026-10-14"
+
+    ClientPortalFinishedGoodsStock:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        articleCode:
+          type: string
+          example: ART-PARKA-01
+        articleName:
+          type: string
+          example: Jaket Parka Waterproof Extreme
+        readyQuantity:
+          type: integer
+          description: Kuantitas barang jadi lolos QC siap diambil/dikirim
+          example: 3000
+        status:
+          type: string
+          example: READY_FOR_DISPATCH
+
+    # ----------------- NOTIFICATION SCHEMAS -----------------
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Pesanan PO-2026-10-001 Selesai
+        message:
+          type: string
+          example: Seluruh kuantitas 3.000 pcs Jaket Parka telah selesai diproduksi dan lolos QC 100%.
+        eventType:
+          type: string
+          enum: [ORDER_COMPLETED, MATERIAL_RECEIVED, PRODUCTION_MILESTONE, GENERAL_ANNOUNCEMENT]
+          example: ORDER_COMPLETED
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID referensi order atau receipt penerimaan
+        isRead:
+          type: boolean
+          example: false
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-15T07:30:00Z"
+
+    SendNotificationRequest:
+      type: object
+      required:
+        - clientId
+        - title
+        - message
+        - eventType
+      properties:
+        clientId:
+          type: string
+          format: uuid
+          description: UUID klien target penerima
+        title:
+          type: string
+          example: Update Jadwal Serah Terima Pesanan
+        message:
+          type: string
+          example: Pesanan PO-2026-10-001 siap dikirimkan mulai besok pagi pukul 09:00 WIB.
+        eventType:
+          type: string
+          enum: [ORDER_COMPLETED, MATERIAL_RECEIVED, PRODUCTION_MILESTONE, GENERAL_ANNOUNCEMENT]
+          example: GENERAL_ANNOUNCEMENT
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+
+    # ----------------- INTERNAL ORDER SCHEMAS -----------------
+    InternalOrderSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        clientId:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+          example: Snøhund Brand
+        articleName:
+          type: string
+          example: Jaket Parka Waterproof Extreme
+        targetQuantity:
+          type: integer
+          example: 3000
+        passedQuantity:
+          type: integer
+          example: 3000
+        status:
+          type: string
+          example: COMPLETED
+        targetDate:
+          type: string
+          format: date
+          example: "2026-11-15"
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    InternalOrderDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-001
+        client:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              example: Snøhund Brand
+            code:
+              type: string
+              example: CLIENT-SNOHUND-01
+        article:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              example: Jaket Parka Waterproof Extreme
+            code:
+              type: string
+              example: ART-PARKA-01
+        targetQuantity:
+          type: integer
+          example: 3000
+        passedQuantity:
+          type: integer
+          example: 3000
+        status:
+          type: string
+          enum: [DRAFT, IN_PRODUCTION, COMPLETED, CANCELLED]
+          example: COMPLETED
+        notes:
+          type: string
+        startDate:
+          type: string
+          format: date
+        targetDate:
+          type: string
+          format: date
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 45
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 5
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+              example: Resource tidak ditemukan
+
+  responses:
+    ValidationError:
+      description: Payload request tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: Token autentikasi hilang atau kadaluarsa
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ForbiddenError:
+      description: Hak akses ditolak (bukan akun klien berhak atau pelanggaran tenant)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: Data tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
