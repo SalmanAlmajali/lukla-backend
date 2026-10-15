@@ -1,0 +1,1037 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 6: Sample, Time Study & Konversi Order Massal)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 6 (Sample Lifecycle, Versioning, Time Study Tracker, Commercial Rate Card, Client Approval & Konversi Order Massal)** Lukla Operations Engine.
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 03 & BPMN 11), serta pembuktian **Skenario Uji 4**:
+    - **BPMN 03 (Sample ke Order Massal)**:
+      - Pembuatan permintaan pembuatan sample (`sample_requests`).
+      - Versioning sample secara berulang (`v1`, `v2`, `v3`): saat ada revisi desain/ukuran dari klien, versi lama dikunci (`REVISED`) dan versi baru dibuat (`v2`).
+      - Time Study Tracker: Pengukuran waktu pengerjaan per komponen (durasi detik, Standard Allowed Minute / SAM) dan estimasi konsumsi bahan baku (BOM).
+      - Commercial Rate Card (Tahap 6.2): Penetapan harga jasa maklon per artikel ke klien (`proposedUnitPrice`) berdasarkan durasi SAM Time Study dan margin pabrik.
+      - Persetujuan Klien (*Client Approval*): Klien mereview fisik sample dan penawaran harga komersial di portal, memberikan catatan perbaikan, atau menyetujui versi final (`APPROVED`).
+      - Konversi Order Massal: Sample yang disetujui dikonversi secara resmi menjadi Order Produksi Massal (`orders`), dengan snapshot spesifikasi teknis dan pengikatan harga maklon (`unitPrice` & `totalAmount = quantity * unitPrice`) yang merujuk tepat pada versi sample yang disetujui (Skenario Uji 4).
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Engine (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Samples - Internal Management (BPMN 03)
+    description: Manajemen pembuatan sample, versioning desain (v1 -> v2), time study SAM, dan konversi ke order massal oleh staf internal pabrik
+  - name: Samples - Client Portal Review & Approval (BPMN 03 / BPMN 11)
+    description: Endpoint portal bagi klien untuk meninjau fisik/foto sample, meminta revisi spesifikasi, atau menyetujui sample
+
+paths:
+  # ==========================================================
+  # 1. SAMPLES - INTERNAL MANAGEMENT (BPMN 03)
+  # ==========================================================
+  /samples:
+    get:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Daftar permintaan sample pabrik
+      description: Mengambil seluruh daftar sample request dengan opsi filter clientId, status, dan pencarian artikel.
+      parameters:
+        - name: clientId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, DRAFT, IN_DEVELOPMENT, IN_REVIEW, REVISED, APPROVED, REJECTED, CONVERTED_TO_ORDER]
+            default: ALL
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Daftar sample berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SampleRequestSummary"
+                  pagination:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+    post:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Buat permintaan sample baru (Versi 1)
+      description: |
+        Membuat sample request baru untuk klien dan artikel tertentu. Secara otomatis menginisialisasi versi awal `v1` (Draft).
+        Dibatasi untuk peran internal `owner_executive`, `production_head`, dan `supervisor`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSampleRequestPayload"
+      responses:
+        "201":
+          description: Permintaan sample dan versi 1 berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Permintaan sample v1 berhasil dibuat
+                  data:
+                    $ref: "#/components/schemas/SampleRequestDetail"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /samples/{id}:
+    get:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Detail lengkap permintaan sample dan riwayat seluruh versi
+      description: Mengambil detail sample request mencakup seluruh riwayat versi (`v1`, `v2`, dst), status approval, time study, dan hasil konversi order.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail sample berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/SampleRequestDetail"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /samples/{id}/versions:
+    post:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Buat revisi versi sample baru (v1 -> v2)
+      description: |
+        Menerbitkan versi revisi baru (misalnya dari `v1` ke `v2`) berdasarkan catatan masukan klien.
+        Versi sebelumnya otomatis dikunci dengan status `REVISED` dan versi baru berstatus `DRAFT`/`IN_DEVELOPMENT`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSampleVersionPayload"
+      responses:
+        "201":
+          description: Versi revisi baru berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Versi revisi sample berhasil diterbitkan
+                  data:
+                    $ref: "#/components/schemas/SampleVersionDetail"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /samples/{id}/versions/{versionNumber}/time-studies:
+    get:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Rekapitulasi Time Study (SAM) untuk versi sample tertentu
+      description: Mengambil data pengukuran waktu kerja (Standard Allowed Minutes / SAM) per komponen pada versi sample tertentu.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: Data time study berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SampleTimeStudyItem"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+    post:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Input pencatatan Time Study (SAM) per komponen
+      description: Mencatat hasil observasi stopwatch (detik teramati, allowance faktor, hasil SAM) untuk komponen spesifik pada versi sample.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordTimeStudyPayload"
+      responses:
+        "201":
+          description: Data time study berhasil dicatat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pencatatan time study berhasil disimpan
+                  data:
+                    $ref: "#/components/schemas/SampleTimeStudyItem"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /samples/{id}/versions/{versionNumber}/commercial-rate:
+    put:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Tetapkan / perbarui Commercial Rate Card (harga jasa maklon per pcs ke klien)
+      description: |
+        Menetapkan penawaran harga jasa maklon per potong (CMT unit price) untuk versi sample tertentu berdasarkan kalkulasi SAM time study dan margin pabrik.
+        Harga ini akan ditampilkan kepada klien di portal untuk ditinjau dan disetujui bersama spesifikasi teknis sample.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetCommercialRatePayload"
+      responses:
+        "200":
+          description: Commercial rate card versi sample berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Commercial rate card berhasil ditetapkan
+                  data:
+                    $ref: "#/components/schemas/SampleVersionDetail"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /samples/{id}/submit-review:
+    post:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Kirim sample ke klien untuk peninjauan (Submit to Client Review)
+      description: |
+        Menandai pembuatan fisik sample versi aktif telah selesai di pabrik dan mengajukannya ke portal klien.
+        Otomatis memicu notifikasi `SAMPLE_READY_FOR_REVIEW` ke akun klien terkait.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notes:
+                  type: string
+                  example: Sample fisik v2 telah dikirim ke kantor brand via ekspedisi resi JNE 123456
+      responses:
+        "200":
+          description: Sample berhasil diajukan untuk review klien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sample berhasil diajukan ke klien dan notifikasi telah dikirim
+
+  /samples/{id}/convert-to-order:
+    post:
+      tags:
+        - Samples - Internal Management (BPMN 03)
+      summary: Konversi sample yang disetujui menjadi Order Produksi Massal (BPMN 03 / Skenario Uji 4)
+      description: |
+        Menerbitkan Order Produksi Massal (`orders`) baru berdasarkan spesifikasi sample versi yang berstatus `APPROVED`.
+        Order massal secara absolut mengikat spesifikasi komponen dan rate card dari versi sample yang disetujui (misal: v2, bukan v1).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertSampleToOrderPayload"
+      responses:
+        "201":
+          description: Order produksi massal berhasil dibuat dari sample approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sample berhasil dikonversi menjadi Order Produksi Massal
+                  data:
+                    $ref: "#/components/schemas/ConvertedMassOrderResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================================
+  # 2. SAMPLES - CLIENT PORTAL REVIEW & APPROVAL (BPMN 03 / BPMN 11)
+  # ==========================================================
+  /portal/samples:
+    get:
+      tags:
+        - Samples - Client Portal Review & Approval (BPMN 03 / BPMN 11)
+      summary: Daftar sample milik klien di portal
+      description: Mengambil seluruh riwayat pengajuan sample yang terikat pada `client_id` akun klien yang sedang login.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, IN_DEVELOPMENT, IN_REVIEW, APPROVED, REJECTED]
+            default: ALL
+      responses:
+        "200":
+          description: Daftar sample klien berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientPortalSampleSummary"
+
+  /portal/samples/{id}:
+    get:
+      tags:
+        - Samples - Client Portal Review & Approval (BPMN 03 / BPMN 11)
+      summary: Detail sample dan riwayat versi untuk peninjauan klien
+      description: Menampilkan detail spesifikasi sample, daftar komponen, catatan fitting, dan status approval untuk klien pemilik sample.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail sample berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/ClientPortalSampleDetail"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /portal/samples/{id}/approve:
+    post:
+      tags:
+        - Samples - Client Portal Review & Approval (BPMN 03 / BPMN 11)
+      summary: Klien menyetujui versi sample (Approve Sample)
+      description: |
+        Klien menandatangani/menyetujui sample versi aktif (`APPROVED`).
+        Mengunci versi tersebut sebagai acuan definitif untuk produksi massal, dan memicu notifikasi ke tim internal pabrik.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                feedbackNotes:
+                  type: string
+                  example: Sample v2 sempurna, jahitan rapi dan ukuran sesuai standar brand. Disetujui untuk PO massal.
+      responses:
+        "200":
+          description: Sample berhasil disetujui klien
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Sample berhasil disetujui dan siap dikonversi ke produksi massal
+
+  /portal/samples/{id}/request-revision:
+    post:
+      tags:
+        - Samples - Client Portal Review & Approval (BPMN 03 / BPMN 11)
+      summary: Klien meminta revisi sample (Request Revision)
+      description: |
+        Klien menolak versi sample aktif dan meminta perbaikan teknis/pola tertentu.
+        Status sample beralih menjadi `REVISION_REQUESTED` dan memicu notifikasi ke tim produksi pabrik.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revisionNotes]
+              properties:
+                revisionNotes:
+                  type: string
+                  example: Mohon saku depan dinaikkan 3 cm dan zipper diganti warna hitam matte.
+      responses:
+        "200":
+          description: Permintaan revisi berhasil dikirim ke pabrik
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Permintaan revisi berhasil disampaikan ke tim pabrik
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 25
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 3
+
+    SampleRequestSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sampleCode:
+          type: string
+          example: SMP-202610-001
+        clientId:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+          example: Snøhund Brand
+        articleId:
+          type: string
+          format: uuid
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        articleCode:
+          type: string
+          example: ART-SNO-PK01
+        currentVersion:
+          type: integer
+          example: 2
+        status:
+          type: string
+          example: APPROVED
+        targetDate:
+          type: string
+          format: date
+          example: 2026-10-25
+        createdAt:
+          type: string
+          format: date-time
+
+    SampleRequestDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sampleCode:
+          type: string
+          example: SMP-202610-001
+        clientId:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+          example: Snøhund Brand
+        articleId:
+          type: string
+          format: uuid
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        articleCode:
+          type: string
+          example: ART-SNO-PK01
+        status:
+          type: string
+          example: APPROVED
+        convertedOrderId:
+          type: string
+          format: uuid
+          nullable: true
+        convertedOrderNumber:
+          type: string
+          nullable: true
+          example: PO-2026-10-003
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SampleVersionDetail"
+
+    SampleVersionDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          example: 2
+        versionLabel:
+          type: string
+          example: v2
+        status:
+          type: string
+          enum: [DRAFT, IN_DEVELOPMENT, IN_REVIEW, REVISED, APPROVED, REJECTED]
+          example: APPROVED
+        revisionNotes:
+          type: string
+          example: Revisi saku dada dan zipper waterproof
+        clientFeedback:
+          type: string
+          nullable: true
+          example: Disetujui untuk PO massal
+        totalSAM:
+          type: number
+          format: float
+          example: 42.5
+        proposedUnitPrice:
+          type: number
+          format: float
+          nullable: true
+          example: 45000.00
+        currency:
+          type: string
+          example: IDR
+        priceNotes:
+          type: string
+          nullable: true
+          example: Tarif jasa maklon per pcs (CMT) mencakup cutting, sewing, finishing & packing
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/SampleTimeStudyItem"
+
+    SampleTimeStudyItem:
+      type: object
+      properties:
+        componentId:
+          type: string
+          format: uuid
+        componentName:
+          type: string
+          example: Jahit Badan Utama & Furing
+        sequenceNumber:
+          type: integer
+          example: 1
+        observedSeconds:
+          type: number
+          format: float
+          example: 480.0
+        allowancePercentage:
+          type: number
+          format: float
+          example: 15.0
+        calculatedSAM:
+          type: number
+          format: float
+          example: 9.2
+        targetPerHour:
+          type: integer
+          example: 6
+        operatorName:
+          type: string
+          example: Siti Aminah
+        notes:
+          type: string
+
+    CreateSampleRequestPayload:
+      type: object
+      required: [clientId, articleId]
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        articleId:
+          type: string
+          format: uuid
+        initialNotes:
+          type: string
+          example: Pembuatan prototipe jaket parka ekspor tahan air
+        targetDate:
+          type: string
+          format: date
+          example: 2026-10-25
+
+    CreateSampleVersionPayload:
+      type: object
+      required: [revisionNotes]
+      properties:
+        revisionNotes:
+          type: string
+          example: Revisi pola v2: perbaikan lingkar pinggang dan tambahan saku dalam
+        copyTimeStudiesFromPrevious:
+          type: boolean
+          default: true
+        proposedUnitPrice:
+          type: number
+          format: float
+          nullable: true
+          example: 45000.00
+        currency:
+          type: string
+          default: IDR
+          example: IDR
+        priceNotes:
+          type: string
+          nullable: true
+          example: Estimasi awal tarif maklon per pcs
+
+    SetCommercialRatePayload:
+      type: object
+      required: [proposedUnitPrice]
+      properties:
+        proposedUnitPrice:
+          type: number
+          format: float
+          minimum: 0
+          example: 45000.00
+        currency:
+          type: string
+          default: IDR
+          example: IDR
+        priceNotes:
+          type: string
+          example: Tarif jasa CMT per pcs mencakup cutting, sewing, finishing, & steam packing
+
+    RecordTimeStudyPayload:
+      type: object
+      required: [componentId, observedSeconds]
+      properties:
+        componentId:
+          type: string
+          format: uuid
+        observedSeconds:
+          type: number
+          format: float
+          example: 450.0
+        allowancePercentage:
+          type: number
+          format: float
+          default: 15.0
+          example: 15.0
+        operatorId:
+          type: string
+          format: uuid
+        notes:
+          type: string
+          example: Menggunakan mesin jahit jarum ganda
+
+    ConvertSampleToOrderPayload:
+      type: object
+      required: [orderNumber, targetQuantity, targetDate]
+      properties:
+        orderNumber:
+          type: string
+          example: PO-2026-10-003
+        targetQuantity:
+          type: integer
+          minimum: 1
+          example: 2000
+        targetDate:
+          type: string
+          format: date
+          example: 2026-12-01
+        unitPrice:
+          type: number
+          format: float
+          description: Harga satuan CMT per potong (opsional, jika tidak diisi akan otomatis mengambil proposedUnitPrice dari versi sample approved)
+          example: 45000.00
+        notes:
+          type: string
+          example: Produksi massal merujuk pada spesifikasi Sample v2 yang telah disetujui
+
+    ConvertedMassOrderResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: PO-2026-10-003
+        sampleCode:
+          type: string
+          example: SMP-202610-001
+        approvedVersion:
+          type: integer
+          example: 2
+        targetQuantity:
+          type: integer
+          example: 2000
+        unitPrice:
+          type: number
+          format: float
+          example: 45000.00
+        totalAmount:
+          type: number
+          format: float
+          example: 90000000.00
+        currency:
+          type: string
+          example: IDR
+        status:
+          type: string
+          example: IN_PRODUCTION
+        specSnapshotSAM:
+          type: number
+          format: float
+          example: 42.5
+
+    ClientPortalSampleSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sampleCode:
+          type: string
+          example: SMP-202610-001
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        currentVersion:
+          type: integer
+          example: 2
+        proposedUnitPrice:
+          type: number
+          format: float
+          nullable: true
+          example: 45000.00
+        currency:
+          type: string
+          example: IDR
+        status:
+          type: string
+          example: IN_REVIEW
+        targetDate:
+          type: string
+          format: date
+          example: 2026-10-25
+        createdAt:
+          type: string
+          format: date-time
+
+    ClientPortalSampleDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sampleCode:
+          type: string
+          example: SMP-202610-001
+        articleTitle:
+          type: string
+          example: Snøhund Arctic Expedition Parka 2026
+        articleCode:
+          type: string
+          example: ART-SNO-PK01
+        status:
+          type: string
+          example: IN_REVIEW
+        currentVersionNumber:
+          type: integer
+          example: 2
+        latestProposedUnitPrice:
+          type: number
+          format: float
+          nullable: true
+          example: 45000.00
+        currency:
+          type: string
+          example: IDR
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SampleVersionDetail"
+
+  responses:
+    UnauthorizedError:
+      description: Autentikasi token tidak valid atau kadaluarsa
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: UNAUTHORIZED
+                  message:
+                    type: string
+                    example: Token tidak valid atau sesi telah berakhir
+
+    ForbiddenError:
+      description: Akses ditolak karena tidak memiliki wewenang
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: FORBIDDEN
+                  message:
+                    type: string
+                    example: Peran Anda tidak memiliki izin untuk tindakan ini
+
+    NotFoundError:
+      description: Sumber daya tidak ditemukan
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: NOT_FOUND
+                  message:
+                    type: string
+                    example: Data sample tidak ditemukan
+
+    ValidationError:
+      description: Payload request tidak valid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                    example: Field wajib tidak boleh kosong
+
