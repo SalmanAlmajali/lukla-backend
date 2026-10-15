@@ -6773,6 +6773,608 @@
                 }
             ],
             "name": "13. Tahap 5.2: Order Completion \u0026 Notification Engine (BPMN 11 \u0026 01)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Sample code generated \u0026 v1 initialized\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.id).to.be.a('string');",
+                                    "    pm.expect(jsonData.data.sampleCode).to.include('SMP-');",
+                                    "    pm.expect(jsonData.data.versions.length).to.eql(1);",
+                                    "    pm.expect(jsonData.data.versions[0].versionNumber).to.eql(1);",
+                                    "    pm.expect(jsonData.data.versions[0].versionLabel).to.eql('v1');",
+                                    "    pm.collectionVariables.set(\"sample_id\", jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.1 Buat Permintaan Sample Baru (Inisialisasi v1)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n    \"initialNotes\": \"Pembuatan prototipe jaket parka ekspor v1 tahan air\",\n    \"targetDate\": \"2026-10-25\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples"
+                            ],
+                            "raw": "{{base_url}}/samples"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n        \"sampleCode\": \"SMP-202610-005\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n        \"articleCode\": \"ART-SNO-PK01\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"status\": \"DRAFT\",\n        \"targetDate\": \"2026-10-25\",\n        \"initialNotes\": \"Pembuatan prototipe jaket parka ekspor v1 tahan air\",\n        \"createdAt\": \"2026-10-15T10:31:06.126837+07:00\",\n        \"updatedAt\": \"2026-10-15T10:31:06.126837+07:00\",\n        \"versions\": [\n            {\n                \"id\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n                \"sampleRequestId\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n                \"versionNumber\": 1,\n                \"versionLabel\": \"v1\",\n                \"status\": \"DRAFT\",\n                \"revisionNotes\": \"Versi awal inisiasi spesifikasi sample prototipe\",\n                \"totalSAM\": 0,\n                \"currency\": \"IDR\",\n                \"createdAt\": \"2026-10-15T10:31:06.126837+07:00\",\n                \"updatedAt\": \"2026-10-15T10:31:06.126837+07:00\",\n                \"components\": []\n            }\n        ]\n    },\n    \"message\": \"Permintaan sample v1 berhasil dibuat\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Daftar sample berhasil diambil\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.2 Daftar Seluruh Permintaan Sample Pabrik",
+                    "request": {
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "ALL"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ],
+                            "raw": "{{base_url}}/samples?status=ALL\u0026limit=10"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n            \"sampleCode\": \"SMP-202610-005\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"currentVersion\": 1,\n            \"status\": \"DRAFT\",\n            \"targetDate\": \"2026-10-25\",\n            \"createdAt\": \"2026-10-15T10:31:06.126837+07:00\"\n        },\n        {\n            \"id\": \"6b19f6c0-fac5-407b-a288-382958e5c765\",\n            \"sampleCode\": \"SMP-202610-004\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"currentVersion\": 1,\n            \"status\": \"DRAFT\",\n            \"targetDate\": \"2026-10-25\",\n            \"createdAt\": \"2026-10-15T10:24:01.080072+07:00\"\n        },\n        {\n            \"id\": \"0861405e-3630-4987-8b4b-a0718f5f7608\",\n            \"sampleCode\": \"SMP-202610-003\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"currentVersion\": 2,\n            \"status\": \"IN_REVIEW\",\n            \"targetDate\": \"2026-10-25\",\n            \"createdAt\": \"2026-10-15T10:12:08.613289+07:00\"\n        },\n        {\n            \"id\": \"b8eb6fa5-0145-4d6b-bcb5-b31a13d739fd\",\n            \"sampleCode\": \"SMP-202610-002\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"currentVersion\": 2,\n            \"status\": \"IN_REVIEW\",\n            \"targetDate\": \"2026-10-25\",\n            \"createdAt\": \"2026-10-15T10:11:25.311351+07:00\"\n        },\n        {\n            \"id\": \"43b366b4-4a00-4ac8-b6c5-bf2735018a2e\",\n            \"sampleCode\": \"SMP-202610-001\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"currentVersion\": 2,\n            \"status\": \"IN_REVIEW\",\n            \"targetDate\": \"2026-10-25\",\n            \"createdAt\": \"2026-10-15T10:10:38.748451+07:00\"\n        }\n    ],\n    \"pagination\": {\n        \"limit\": 10,\n        \"page\": 1,\n        \"total\": 5,\n        \"totalPages\": 1\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Detail sample dan riwayat versi sesuai\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.id).to.be.a('string');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.3 Detail Lengkap Permintaan Sample \u0026 Riwayat Versi",
+                    "request": {
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n        \"sampleCode\": \"SMP-202610-005\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n        \"articleCode\": \"ART-SNO-PK01\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"status\": \"DRAFT\",\n        \"targetDate\": \"2026-10-25\",\n        \"initialNotes\": \"Pembuatan prototipe jaket parka ekspor v1 tahan air\",\n        \"createdAt\": \"2026-10-15T10:31:06.126837+07:00\",\n        \"updatedAt\": \"2026-10-15T10:31:06.126837+07:00\",\n        \"versions\": [\n            {\n                \"id\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n                \"sampleRequestId\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n                \"versionNumber\": 1,\n                \"versionLabel\": \"v1\",\n                \"status\": \"DRAFT\",\n                \"revisionNotes\": \"Versi awal inisiasi spesifikasi sample prototipe\",\n                \"totalSAM\": 0,\n                \"currency\": \"IDR\",\n                \"createdAt\": \"2026-10-15T10:31:06.126837+07:00\",\n                \"updatedAt\": \"2026-10-15T10:31:06.126837+07:00\",\n                \"components\": []\n            }\n        ]\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"SAM dihitung akurat (480s + 15% allowance = 9.20 SAM)\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.calculatedSAM).to.be.closeTo(9.20, 0.05);",
+                                    "    pm.expect(jsonData.data.targetPerHour).to.eql(6);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.4 Input Observasi Time Study Komponen 1 (SAM)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n    \"observedSeconds\": 480.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Pengukuran stopwatch jahit komponen badan utama v1\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "1",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/1/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"02d3f6ad-a806-4554-94ee-00d3da9db1e3\",\n        \"sampleVersionId\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n        \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n        \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n        \"sequenceNumber\": 1,\n        \"observedSeconds\": 480,\n        \"allowancePercentage\": 15,\n        \"calculatedSAM\": 9.2,\n        \"targetPerHour\": 6,\n        \"notes\": \"Pengukuran stopwatch jahit komponen badan utama v1\",\n        \"createdAt\": \"2026-10-15T10:31:06.325739+07:00\"\n    },\n    \"message\": \"Pencatatan time study berhasil disimpan\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"SAM dihitung akurat (300s + 15% allowance = 5.75 SAM)\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.calculatedSAM).to.be.closeTo(5.75, 0.05);",
+                                    "    pm.expect(jsonData.data.targetPerHour).to.eql(10);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.5 Input Observasi Time Study Komponen 2 (SAM)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n    \"observedSeconds\": 300.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Pengukuran stopwatch jahit komponen saku \u0026 furing v1\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "1",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/1/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"6d5b8870-0c96-4b14-9bd9-df2ce8ff4106\",\n        \"sampleVersionId\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n        \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n        \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n        \"sequenceNumber\": 2,\n        \"observedSeconds\": 300,\n        \"allowancePercentage\": 15,\n        \"calculatedSAM\": 5.75,\n        \"targetPerHour\": 10,\n        \"notes\": \"Pengukuran stopwatch jahit komponen saku \\u0026 furing v1\",\n        \"createdAt\": \"2026-10-15T10:31:06.341253+07:00\"\n    },\n    \"message\": \"Pencatatan time study berhasil disimpan\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Daftar time study versi 1 memuat 2 komponen\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.length).to.be.at.least(2);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.6 Rekapitulasi Time Study Versi 1",
+                    "request": {
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "1",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/1/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"id\": \"02d3f6ad-a806-4554-94ee-00d3da9db1e3\",\n            \"sampleVersionId\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sequenceNumber\": 1,\n            \"observedSeconds\": 480,\n            \"allowancePercentage\": 15,\n            \"calculatedSAM\": 9.2,\n            \"targetPerHour\": 6,\n            \"notes\": \"Pengukuran stopwatch jahit komponen badan utama v1\",\n            \"createdAt\": \"2026-10-15T10:31:06.325739+07:00\"\n        },\n        {\n            \"id\": \"6d5b8870-0c96-4b14-9bd9-df2ce8ff4106\",\n            \"sampleVersionId\": \"6d87da9d-67be-4e03-8604-7f7d4bc8f4c5\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sequenceNumber\": 2,\n            \"observedSeconds\": 300,\n            \"allowancePercentage\": 15,\n            \"calculatedSAM\": 5.75,\n            \"targetPerHour\": 10,\n            \"notes\": \"Pengukuran stopwatch jahit komponen saku \\u0026 furing v1\",\n            \"createdAt\": \"2026-10-15T10:31:06.341253+07:00\"\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Versi 2 berhasil diterbitkan dengan komponen dari v1\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.versionNumber).to.eql(2);",
+                                    "    pm.expect(jsonData.data.versionLabel).to.eql('v2');",
+                                    "    pm.expect(jsonData.data.components.length).to.be.at.least(2);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.7 Terbitkan Versi Revisi Baru (v1 -\u003e v2 \u0026 Locking v1)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"revisionNotes\": \"Revisi pola v2: posisi saku dinaikkan 3cm dan zipper matte tahan air\",\n    \"copyTimeStudiesFromPrevious\": true\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n        \"sampleRequestId\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n        \"versionNumber\": 2,\n        \"versionLabel\": \"v2\",\n        \"status\": \"DRAFT\",\n        \"revisionNotes\": \"Revisi pola v2: posisi saku dinaikkan 3cm dan zipper matte tahan air\",\n        \"totalSAM\": 14.95,\n        \"currency\": \"IDR\",\n        \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\",\n        \"updatedAt\": \"2026-10-15T10:31:06.347445+07:00\",\n        \"components\": [\n            {\n                \"id\": \"2862fccf-333b-4012-b090-c75e7cd1b9a8\",\n                \"sampleVersionId\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n                \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n                \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n                \"sequenceNumber\": 1,\n                \"observedSeconds\": 480,\n                \"allowancePercentage\": 15,\n                \"calculatedSAM\": 9.2,\n                \"targetPerHour\": 6,\n                \"notes\": \"Pengukuran stopwatch jahit komponen badan utama v1\",\n                \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\"\n            },\n            {\n                \"id\": \"8f86d54d-a5d1-49ea-b3c1-d4cfea7010ed\",\n                \"sampleVersionId\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n                \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n                \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n                \"sequenceNumber\": 2,\n                \"observedSeconds\": 300,\n                \"allowancePercentage\": 15,\n                \"calculatedSAM\": 5.75,\n                \"targetPerHour\": 10,\n                \"notes\": \"Pengukuran stopwatch jahit komponen saku \\u0026 furing v1\",\n                \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\"\n            }\n        ]\n    },\n    \"message\": \"Versi revisi sample berhasil diterbitkan\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"SAM komponen versi 2 terupdate (420s + 15% allowance = 8.05 SAM)\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.calculatedSAM).to.be.closeTo(8.05, 0.05);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.8 Update Observasi Time Study pada Versi 2",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n    \"observedSeconds\": 420.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Percepatan proses setelah pola saku disederhanakan pada v2\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "2",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/2/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"2862fccf-333b-4012-b090-c75e7cd1b9a8\",\n        \"sampleVersionId\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n        \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n        \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n        \"sequenceNumber\": 1,\n        \"observedSeconds\": 420,\n        \"allowancePercentage\": 15,\n        \"calculatedSAM\": 8.05,\n        \"targetPerHour\": 7,\n        \"notes\": \"Percepatan proses setelah pola saku disederhanakan pada v2\",\n        \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\"\n    },\n    \"message\": \"Pencatatan time study berhasil disimpan\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Commercial rate card berhasil ditetapkan\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.proposedUnitPrice).to.eql(45000);",
+                                    "    pm.expect(jsonData.data.currency).to.eql('IDR');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.9 Tetapkan Commercial Rate Card (Harga Jasa Maklon ke Klien)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"proposedUnitPrice\": 45000.00,\n    \"currency\": \"IDR\",\n    \"priceNotes\": \"Tarif CMT Jaket Parka Snøhund mencakup cutting, sewing, finishing \u0026 packing\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "2",
+                                "commercial-rate"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/2/commercial-rate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n        \"sampleRequestId\": \"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\n        \"versionNumber\": 2,\n        \"versionLabel\": \"v2\",\n        \"status\": \"DRAFT\",\n        \"revisionNotes\": \"Revisi pola v2: posisi saku dinaikkan 3cm dan zipper matte tahan air\",\n        \"totalSAM\": 13.8,\n        \"proposedUnitPrice\": 45000,\n        \"currency\": \"IDR\",\n        \"priceNotes\": \"Tarif CMT Jaket Parka Snøhund mencakup cutting, sewing, finishing \\u0026 packing\",\n        \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\",\n        \"updatedAt\": \"2026-10-15T10:31:06.358324+07:00\",\n        \"components\": [\n            {\n                \"id\": \"2862fccf-333b-4012-b090-c75e7cd1b9a8\",\n                \"sampleVersionId\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n                \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n                \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n                \"sequenceNumber\": 1,\n                \"observedSeconds\": 420,\n                \"allowancePercentage\": 15,\n                \"calculatedSAM\": 8.05,\n                \"targetPerHour\": 7,\n                \"notes\": \"Percepatan proses setelah pola saku disederhanakan pada v2\",\n                \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\"\n            },\n            {\n                \"id\": \"8f86d54d-a5d1-49ea-b3c1-d4cfea7010ed\",\n                \"sampleVersionId\": \"30d307b8-da75-49c3-982c-b4af7449c1d1\",\n                \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n                \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n                \"sequenceNumber\": 2,\n                \"observedSeconds\": 300,\n                \"allowancePercentage\": 15,\n                \"calculatedSAM\": 5.75,\n                \"targetPerHour\": 10,\n                \"notes\": \"Pengukuran stopwatch jahit komponen saku \\u0026 furing v1\",\n                \"createdAt\": \"2026-10-15T10:31:06.347445+07:00\"\n            }\n        ]\n    },\n    \"message\": \"Commercial rate card berhasil ditetapkan\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Sample berhasil diajukan untuk review klien\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "14.10 Ajukan Sample ke Klien (Submit to Review \u0026 Picu Notifikasi)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Sample fisik v2 telah dikirim ke kantor pusat Snøhund via JNE resi JNE889900\"\n}"
+                        },
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "submit-review"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/submit-review"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"message\": \"Sample berhasil diajukan ke klien dan notifikasi telah dikirim\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "14. Tahap 6.1: Sample \u0026 Time Study Engine (BPMN 03)"
         }
     ],
     "variable": [
@@ -6804,7 +7406,7 @@
         {
             "key": "article_parka_id",
             "type": "string",
-            "value": ""
+            "value": "e084fffd-2b54-4027-85b5-7bfc1a4070d1"
         },
         {
             "key": "article_aventura_id",
@@ -6930,6 +7532,21 @@
             "key": "notification_id",
             "type": "string",
             "value": "b13378a4-9953-4fc6-985a-3ac1fb61ddc0"
+        },
+        {
+            "key": "sample_id",
+            "type": "string",
+            "value": "311f04a1-b66f-4826-a8e0-297c6d3bfe0a"
+        },
+        {
+            "key": "component_main_id",
+            "type": "string",
+            "value": "0e5a5433-1be6-4330-aa9d-98e0cfbfb180"
+        },
+        {
+            "key": "component_pocket_id",
+            "type": "string",
+            "value": "369dc3b1-bb75-4394-9605-39f5b42f3463"
         }
     ]
 }

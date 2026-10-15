@@ -19,6 +19,7 @@ import (
 	"github.com/lukla/operations-engine/internal/modules/qcbonus"
 	"github.com/lukla/operations-engine/internal/modules/quality"
 	"github.com/lukla/operations-engine/internal/modules/ratecard"
+	"github.com/lukla/operations-engine/internal/modules/sample"
 	"github.com/lukla/operations-engine/internal/platform/authn"
 	"github.com/lukla/operations-engine/internal/platform/authz"
 	"github.com/lukla/operations-engine/internal/platform/database"
@@ -113,6 +114,10 @@ func New(ctx context.Context) (*App, error) {
 	orderSvc := order.NewService(orderRepo, notificationSvc)
 	orderHandler := order.NewHandler(orderSvc)
 
+	sampleRepo := sample.NewPostgresRepository(db)
+	sampleSvc := sample.NewService(sampleRepo, notificationSvc)
+	sampleHandler := sample.NewHandler(sampleSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
 	registerRoutes(
@@ -128,6 +133,7 @@ func New(ctx context.Context) (*App, error) {
 		portalHandler,
 		notificationHandler,
 		orderHandler,
+		sampleHandler,
 		authnMiddleware,
 		internalAuthz,
 	)
@@ -166,6 +172,11 @@ func (a *App) Run(ctx context.Context) error {
 	}
 }
 
+// Handler mengembalikan HTTP handler server untuk keperluan pengujian dan otomasi.
+func (a *App) Handler() http.Handler {
+	return a.server.Handler
+}
+
 func registerRoutes(
 	r *gin.Engine,
 	identityHandler *identity.Handler,
@@ -179,6 +190,7 @@ func registerRoutes(
 	portalHandler *portal.Handler,
 	notificationHandler *notification.Handler,
 	orderHandler *order.Handler,
+	sampleHandler *sample.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -199,6 +211,7 @@ func registerRoutes(
 	portal.RegisterRoutes(v1, portalHandler, authnMiddleware)
 	notification.RegisterRoutes(v1, notificationHandler, authnMiddleware, internalAuthz)
 	order.RegisterRoutes(v1, orderHandler, authnMiddleware, internalAuthz)
+	sample.RegisterRoutes(v1, sampleHandler, authnMiddleware, internalAuthz)
 }
 
 

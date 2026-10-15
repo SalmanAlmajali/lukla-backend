@@ -27,7 +27,8 @@ func (s *Service) SendNotification(ctx context.Context, req SendNotificationRequ
 	}
 
 	switch eventType {
-	case EventTypeOrderCompleted, EventTypeMaterialReceived, EventTypeProductionMilestone, EventTypeAnnouncement:
+	case EventTypeOrderCompleted, EventTypeMaterialReceived, EventTypeProductionMilestone, EventTypeAnnouncement,
+		EventTypeSampleReadyForReview, EventTypeSampleApproved, EventTypeSampleRevisionRequested:
 		// Valid
 	default:
 		return nil, ErrInvalidEventType

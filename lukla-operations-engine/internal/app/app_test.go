@@ -4530,6 +4530,377 @@ func TestApp_OrderCompletionAndNotificationsLiveDB(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// TAHAP 6.1: SAMPLE LIFECYCLE, VERSIONING ENGINE (v1 -> v2) & TIME STUDY LIVE DB TEST
+// ============================================================================
+func TestApp_SampleLifecycleAndTimeStudyLiveDB(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+	defer application.db.Close()
+
+	// 1. Authenticate Production Head (Internal) & Client Snøhund
+	prodToken := getAuthToken(t, application, "production@lukla.local", "password")
+	clientToken := getAuthToken(t, application, "client@lukla.local", "password")
+
+	// 2. Query Client Snøhund & Article ART-SNO-PK01
+	var snoClientID, articleID string
+	err = application.db.QueryRow("SELECT id FROM clients WHERE code = 'SNOHUND'").Scan(&snoClientID)
+	if err != nil {
+		t.Fatalf("failed to find snohund client id: %v", err)
+	}
+
+	err = application.db.QueryRow("SELECT id FROM articles WHERE code = 'ART-SNO-PK01'").Scan(&articleID)
+	if err != nil {
+		t.Fatalf("failed to find article ART-SNO-PK01 id: %v", err)
+	}
+
+	// Ambil 2 komponen dari artikel untuk pengujian time study
+	rows, err := application.db.Query("SELECT id, name FROM components WHERE article_id = $1 ORDER BY sequence_number ASC LIMIT 2", articleID)
+	if err != nil {
+		t.Fatalf("failed to query components: %v", err)
+	}
+	defer rows.Close()
+
+	var comp1ID, comp1Name, comp2ID, comp2Name string
+	if rows.Next() {
+		_ = rows.Scan(&comp1ID, &comp1Name)
+	}
+	if rows.Next() {
+		_ = rows.Scan(&comp2ID, &comp2Name)
+	}
+	if comp1ID == "" || comp2ID == "" {
+		t.Fatalf("expected at least 2 components for ART-SNO-PK01, got comp1=%s, comp2=%s", comp1ID, comp2ID)
+	}
+
+	// ==========================================
+	// 1. POST /api/v1/samples (Buat Sample Request & Inisialisasi v1)
+	// ==========================================
+	createPayload := map[string]interface{}{
+		"clientId":     snoClientID,
+		"articleId":    articleID,
+		"initialNotes": "Pembuatan prototipe jaket parka ekspor v1 tahan air",
+		"targetDate":   "2026-10-25",
+	}
+	createBytes, _ := json.Marshal(createPayload)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/v1/samples", bytes.NewBuffer(createBytes))
+	reqCreate.Header.Set("Authorization", "Bearer "+prodToken)
+	reqCreate.Header.Set("Content-Type", "application/json")
+	wCreate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreate, reqCreate)
+
+	if wCreate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for create sample, got %d. Body: %s", wCreate.Code, wCreate.Body.String())
+	}
+
+	var createResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			ID         string `json:"id"`
+			SampleCode string `json:"sampleCode"`
+			Status     string `json:"status"`
+			Versions   []struct {
+				ID            string  `json:"id"`
+				VersionNumber int     `json:"versionNumber"`
+				VersionLabel  string  `json:"versionLabel"`
+				Status        string  `json:"status"`
+				TotalSAM      float64 `json:"totalSAM"`
+			} `json:"versions"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wCreate.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("failed to parse create sample resp: %v", err)
+	}
+
+	sampleID := createResp.Data.ID
+	sampleCode := createResp.Data.SampleCode
+	if sampleID == "" || !strings.HasPrefix(sampleCode, "SMP-") {
+		t.Fatalf("invalid sample id or code: id=%s, code=%s", sampleID, sampleCode)
+	}
+	if len(createResp.Data.Versions) != 1 {
+		t.Fatalf("expected exactly 1 initial version (v1), got %d", len(createResp.Data.Versions))
+	}
+	v1 := createResp.Data.Versions[0]
+	if v1.VersionNumber != 1 || v1.VersionLabel != "v1" || v1.Status != "DRAFT" {
+		t.Fatalf("expected version 1 DRAFT, got %+v", v1)
+	}
+	t.Logf("Step 1 PASS: Sample %s created with initial version v1", sampleCode)
+
+	// ==========================================
+	// 2. GET /api/v1/samples (List Samples dengan Filter)
+	// ==========================================
+	reqList, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/samples?clientId=%s&status=DRAFT", snoClientID), nil)
+	reqList.Header.Set("Authorization", "Bearer "+prodToken)
+	wList := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wList, reqList)
+
+	if wList.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list samples, got %d", wList.Code)
+	}
+	var listResp struct {
+		Success    bool `json:"success"`
+		Data       []map[string]interface{} `json:"data"`
+		Pagination struct {
+			Total int `json:"total"`
+		} `json:"pagination"`
+	}
+	_ = json.Unmarshal(wList.Body.Bytes(), &listResp)
+	if listResp.Pagination.Total <= 0 || len(listResp.Data) <= 0 {
+		t.Fatalf("expected sample in list, got total %d", listResp.Pagination.Total)
+	}
+	t.Logf("Step 2 PASS: Listed samples for client %s, found %d", snoClientID, len(listResp.Data))
+
+	// ==========================================
+	// 3. POST /api/v1/samples/:id/versions/1/time-studies (Record SAM Komponen 1)
+	// ==========================================
+	// 480 detik observasi, 15% allowance => SAM = (480 * 1.15) / 60 = 9.20 menit, Target/Jam = 6
+	study1Payload := map[string]interface{}{
+		"componentId":         comp1ID,
+		"observedSeconds":     480.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Pengukuran stopwatch jahit komponen utama v1",
+	}
+	study1Bytes, _ := json.Marshal(study1Payload)
+	reqStudy1, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/1/time-studies", sampleID), bytes.NewBuffer(study1Bytes))
+	reqStudy1.Header.Set("Authorization", "Bearer "+prodToken)
+	reqStudy1.Header.Set("Content-Type", "application/json")
+	wStudy1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wStudy1, reqStudy1)
+
+	if wStudy1.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for time study 1, got %d. Body: %s", wStudy1.Code, wStudy1.Body.String())
+	}
+	var study1Resp struct {
+		Data struct {
+			CalculatedSAM float64 `json:"calculatedSAM"`
+			TargetPerHour int     `json:"targetPerHour"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wStudy1.Body.Bytes(), &study1Resp)
+	if study1Resp.Data.CalculatedSAM < 9.19 || study1Resp.Data.CalculatedSAM > 9.21 {
+		t.Fatalf("expected calculated SAM ~9.20, got %.2f", study1Resp.Data.CalculatedSAM)
+	}
+	if study1Resp.Data.TargetPerHour != 6 {
+		t.Fatalf("expected target per hour 6, got %d", study1Resp.Data.TargetPerHour)
+	}
+	t.Logf("Step 3 PASS: Recorded Time Study 1: SAM=%.2f, Target/Hour=%d", study1Resp.Data.CalculatedSAM, study1Resp.Data.TargetPerHour)
+
+	// ==========================================
+	// 4. POST /api/v1/samples/:id/versions/1/time-studies (Record SAM Komponen 2)
+	// ==========================================
+	// 300 detik observasi, 15% allowance => SAM = (300 * 1.15) / 60 = 5.75 menit, Target/Jam = 10
+	study2Payload := map[string]interface{}{
+		"componentId":         comp2ID,
+		"observedSeconds":     300.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Pengukuran stopwatch jahit komponen saku & furing v1",
+	}
+	study2Bytes, _ := json.Marshal(study2Payload)
+	reqStudy2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/1/time-studies", sampleID), bytes.NewBuffer(study2Bytes))
+	reqStudy2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqStudy2.Header.Set("Content-Type", "application/json")
+	wStudy2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wStudy2, reqStudy2)
+
+	if wStudy2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for time study 2, got %d", wStudy2.Code)
+	}
+
+	// Cek Total SAM pada Sample Request Detail
+	reqDetail, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/samples/%s", sampleID), nil)
+	reqDetail.Header.Set("Authorization", "Bearer "+prodToken)
+	wDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDetail, reqDetail)
+	if wDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for sample detail, got %d", wDetail.Code)
+	}
+	var detailResp struct {
+		Data struct {
+			Versions []struct {
+				VersionNumber int     `json:"versionNumber"`
+				TotalSAM      float64 `json:"totalSAM"`
+				Components    []any   `json:"components"`
+			} `json:"versions"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wDetail.Body.Bytes(), &detailResp)
+	expectedTotalSAM := 9.20 + 5.75 // 14.95
+	if detailResp.Data.Versions[0].TotalSAM < expectedTotalSAM-0.02 || detailResp.Data.Versions[0].TotalSAM > expectedTotalSAM+0.02 {
+		t.Fatalf("expected total SAM ~%.2f, got %.2f", expectedTotalSAM, detailResp.Data.Versions[0].TotalSAM)
+	}
+	t.Logf("Step 4 PASS: Total SAM v1 verified: %.2f (2 components)", detailResp.Data.Versions[0].TotalSAM)
+
+	// ==========================================
+	// 5. POST /api/v1/samples/:id/versions (Terbitkan Versi 2 / v2 & Kunci v1)
+	// ==========================================
+	v2Payload := map[string]interface{}{
+		"revisionNotes":               "Revisi pola v2: posisi saku dinaikkan 3cm dan zipper matte tahan air",
+		"copyTimeStudiesFromPrevious": true,
+	}
+	v2Bytes, _ := json.Marshal(v2Payload)
+	reqV2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions", sampleID), bytes.NewBuffer(v2Bytes))
+	reqV2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqV2.Header.Set("Content-Type", "application/json")
+	wV2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wV2, reqV2)
+
+	if wV2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for version 2, got %d. Body: %s", wV2.Code, wV2.Body.String())
+	}
+	var v2Resp struct {
+		Data struct {
+			VersionNumber int     `json:"versionNumber"`
+			VersionLabel  string  `json:"versionLabel"`
+			Status        string  `json:"status"`
+			TotalSAM      float64 `json:"totalSAM"`
+			Components    []any   `json:"components"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wV2.Body.Bytes(), &v2Resp)
+	if v2Resp.Data.VersionNumber != 2 || v2Resp.Data.VersionLabel != "v2" {
+		t.Fatalf("expected v2, got %+v", v2Resp.Data)
+	}
+	if len(v2Resp.Data.Components) != 2 {
+		t.Fatalf("expected copied 2 components in v2, got %d", len(v2Resp.Data.Components))
+	}
+
+	// Verifikasi versi v1 di database sekarang berstatus REVISED (dikunci!)
+	var v1Status string
+	err = application.db.QueryRow("SELECT status FROM sample_versions WHERE sample_request_id = $1 AND version_number = 1", sampleID).Scan(&v1Status)
+	if err != nil || v1Status != "REVISED" {
+		t.Fatalf("expected v1 status to be locked as REVISED, got %s (err: %v)", v1Status, err)
+	}
+	t.Logf("Step 5 PASS: Version 2 published. Version 1 is locked as REVISED")
+
+	// ==========================================
+	// 6. RECORD TIME STUDY PADA v2 (Penyesuaian Durasi Jahit v2)
+	// ==========================================
+	// Ubah observasi komponen 1 di v2 menjadi 420 detik (SAM: 420 * 1.15 / 60 = 8.05 menit)
+	studyV2Payload := map[string]interface{}{
+		"componentId":         comp1ID,
+		"observedSeconds":     420.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Percepatan proses setelah pola saku disederhanakan pada v2",
+	}
+	studyV2Bytes, _ := json.Marshal(studyV2Payload)
+	reqStudyV2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/2/time-studies", sampleID), bytes.NewBuffer(studyV2Bytes))
+	reqStudyV2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqStudyV2.Header.Set("Content-Type", "application/json")
+	wStudyV2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wStudyV2, reqStudyV2)
+	if wStudyV2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for time study v2, got %d", wStudyV2.Code)
+	}
+
+	// Cek Total SAM v2 sekarang: 8.05 + 5.75 = 13.80
+	var v2TotalSAM float64
+	err = application.db.QueryRow("SELECT total_sam FROM sample_versions WHERE sample_request_id = $1 AND version_number = 2", sampleID).Scan(&v2TotalSAM)
+	if err != nil || v2TotalSAM < 13.79 || v2TotalSAM > 13.81 {
+		t.Fatalf("expected v2 total SAM ~13.80, got %.2f (err: %v)", v2TotalSAM, err)
+	}
+	t.Logf("Step 6 PASS: Updated Time Study on v2. New Total SAM: %.2f", v2TotalSAM)
+
+	// ==========================================
+	// 7. PUT /api/v1/samples/:id/versions/2/commercial-rate (Penetapan Tarif Maklon ke Klien)
+	// ==========================================
+	ratePayload := map[string]interface{}{
+		"proposedUnitPrice": 45000.00,
+		"currency":          "IDR",
+		"priceNotes":        "Tarif CMT Jaket Parka Snøhund mencakup cutting, sewing, finishing & packing",
+	}
+	rateBytes, _ := json.Marshal(ratePayload)
+	reqRate, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/samples/%s/versions/2/commercial-rate", sampleID), bytes.NewBuffer(rateBytes))
+	reqRate.Header.Set("Authorization", "Bearer "+prodToken)
+	reqRate.Header.Set("Content-Type", "application/json")
+	wRate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRate, reqRate)
+
+	if wRate.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for set commercial rate, got %d. Body: %s", wRate.Code, wRate.Body.String())
+	}
+	var rateResp struct {
+		Data struct {
+			ProposedUnitPrice *float64 `json:"proposedUnitPrice"`
+			Currency          string   `json:"currency"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wRate.Body.Bytes(), &rateResp)
+	if rateResp.Data.ProposedUnitPrice == nil || *rateResp.Data.ProposedUnitPrice != 45000.00 {
+		t.Fatalf("expected proposed unit price 45000.00, got %v", rateResp.Data.ProposedUnitPrice)
+	}
+	t.Logf("Step 7 PASS: Commercial Rate Card set to Rp 45.000 for version 2")
+
+	// ==========================================
+	// 8. POST /api/v1/samples/:id/submit-review (Ajukan Sample ke Klien)
+	// ==========================================
+	submitPayload := map[string]interface{}{
+		"notes": "Sample fisik v2 telah dikirim ke kantor pusat Snøhund via JNE resi JNE889900",
+	}
+	submitBytes, _ := json.Marshal(submitPayload)
+	reqSubmit, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/submit-review", sampleID), bytes.NewBuffer(submitBytes))
+	reqSubmit.Header.Set("Authorization", "Bearer "+prodToken)
+	reqSubmit.Header.Set("Content-Type", "application/json")
+	wSubmit := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSubmit, reqSubmit)
+
+	if wSubmit.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for submit review, got %d. Body: %s", wSubmit.Code, wSubmit.Body.String())
+	}
+
+	// Verifikasi status sample di database berubah menjadi IN_REVIEW
+	var finalStatus string
+	err = application.db.QueryRow("SELECT status FROM sample_requests WHERE id = $1", sampleID).Scan(&finalStatus)
+	if err != nil || finalStatus != "IN_REVIEW" {
+		t.Fatalf("expected sample status IN_REVIEW, got %s (err: %v)", finalStatus, err)
+	}
+
+	// Verifikasi notifikasi SAMPLE_READY_FOR_REVIEW tersimpan di database untuk klien Snøhund
+	var notifCount int
+	err = application.db.QueryRow(`
+		SELECT COUNT(*) FROM notifications 
+		WHERE client_id = $1 AND event_type = 'SAMPLE_READY_FOR_REVIEW' AND reference_id = $2
+	`, snoClientID, sampleID).Scan(&notifCount)
+	if err != nil || notifCount <= 0 {
+		t.Fatalf("expected SAMPLE_READY_FOR_REVIEW notification for client %s, got count %d (err: %v)", snoClientID, notifCount, err)
+	}
+	t.Logf("Step 8 PASS: Sample submitted to review. In-app notification created for client (count: %d)", notifCount)
+
+	// ==========================================
+	// 9. RBAC & VALIDATION GUARDS
+	// ==========================================
+	// Non-internal (client) tidak boleh membuat sample request
+	reqForbiddenCreate, _ := http.NewRequest(http.MethodPost, "/api/v1/samples", bytes.NewBuffer(createBytes))
+	reqForbiddenCreate.Header.Set("Authorization", "Bearer "+clientToken)
+	wForbiddenCreate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbiddenCreate, reqForbiddenCreate)
+	if wForbiddenCreate.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client creating sample, got %d", wForbiddenCreate.Code)
+	}
+
+	// Tidak boleh mengedit time study pada versi 1 yang sudah REVISED (dikunci)
+	reqLockedStudy, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/1/time-studies", sampleID), bytes.NewBuffer(study1Bytes))
+	reqLockedStudy.Header.Set("Authorization", "Bearer "+prodToken)
+	wLockedStudy := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLockedStudy, reqLockedStudy)
+	if wLockedStudy.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for editing locked v1, got %d", wLockedStudy.Code)
+	}
+
+	// Request tanpa otentikasi ditolak 401
+	reqUnauth, _ := http.NewRequest(http.MethodGet, "/api/v1/samples", nil)
+	wUnauth := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wUnauth, reqUnauth)
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized, got %d", wUnauth.Code)
+	}
+	t.Logf("Step 9 PASS: RBAC, locking enforcement, and unauthorized guards verified")
+}
+
+
 
 
 

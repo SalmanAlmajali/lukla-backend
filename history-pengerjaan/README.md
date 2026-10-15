@@ -18,8 +18,8 @@ Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan peng
 | **Tahap 4.2** | Pool Bonus QC 3-Arah & Skenario Uji 3 (BPMN 08) | 15 Okt 2026 | 000030 | Selesai | [Laporan Tahap 4.2](./tahap-4.2-pool-bonus-skenario3.md) |
 | **Tahap 5.1** | Portal Klien & Isolasi Multi-Tenant (BPMN 11) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 5.1](./tahap-5.1-portal-klien.md) |
 | **Tahap 5.2** | Order Completion Lifecycle & Notification Engine (BPMN 11, 01) | 15 Okt 2026 | 000031 | Selesai | [Laporan Tahap 5.2](./tahap-5.2-order-completion-notifikasi.md) |
-| **Tahap 6.1** | Sample Lifecycle, Versioning Engine, & Time Study Tracker (BPMN 03) | *Berikutnya* | 000032 (TBD) | Direncanakan | [Rencana Tahap 6](./analisis-dan-rencana-tahap-6.md#a-tahap-61-sample-lifecycle-versioning-engine--time-study-tracker-bpmn-03) |
-| **Tahap 6.2** | Commercial Rate Card, Client Approval, Order Conversion & Skenario Uji 4 (BPMN 03, 11) | *Akan Datang* | 000032 / 000033 (TBD) | Direncanakan | [Rencana Tahap 6](./analisis-dan-rencana-tahap-6.md#b-tahap-62-commercial-rate-card-client-approval-portal-konversi-ke-order-massal--skenario-uji-4-bpmn-03--11) |
+| **Tahap 6.1** | Sample Lifecycle, Versioning Engine, & Time Study Tracker (BPMN 03) | 15 Okt 2026 | 000032 | Selesai | [Laporan Tahap 6.1](./tahap-6.1-sample-time-study.md) |
+| **Tahap 6.2** | Commercial Rate Card, Client Approval, Order Conversion & Skenario Uji 4 (BPMN 03, 11) | *Berikutnya* | 000032 | Direncanakan | [Rencana Tahap 6](./analisis-dan-rencana-tahap-6.md#b-tahap-62-commercial-rate-card-client-approval-portal-konversi-ke-order-massal--skenario-uji-4-bpmn-03--11) |
 | **Tahap 7** | Overhead & Uji End-to-End (BPMN 09, 01) | *Akan Datang* | - | Direncanakan | - |
 
 ---

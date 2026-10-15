@@ -14,10 +14,13 @@ var (
 )
 
 const (
-	EventTypeOrderCompleted      = "ORDER_COMPLETED"
-	EventTypeMaterialReceived    = "MATERIAL_RECEIVED"
-	EventTypeProductionMilestone = "PRODUCTION_MILESTONE"
-	EventTypeAnnouncement        = "ANNOUNCEMENT"
+	EventTypeOrderCompleted            = "ORDER_COMPLETED"
+	EventTypeMaterialReceived          = "MATERIAL_RECEIVED"
+	EventTypeProductionMilestone       = "PRODUCTION_MILESTONE"
+	EventTypeAnnouncement              = "ANNOUNCEMENT"
+	EventTypeSampleReadyForReview      = "SAMPLE_READY_FOR_REVIEW"
+	EventTypeSampleApproved            = "SAMPLE_APPROVED"
+	EventTypeSampleRevisionRequested   = "SAMPLE_REVISION_REQUESTED"
 )
 
 // Notification merepresentasikan rekaman notifikasi in-app untuk klien portal.
