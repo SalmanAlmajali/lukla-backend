@@ -10,7 +10,7 @@
 *.dll
 *.so
 *.dylib
-bin/
+# bin/
 dist/
 
 # Test binaries and profiles
