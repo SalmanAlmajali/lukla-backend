@@ -29,6 +29,9 @@ func (r *PostgresRepository) List(ctx context.Context, clientID, status string) 
 			o.article_id,
 			a.code AS article_code,
 			a.title AS article_title,
+			o.sample_version_id::TEXT,
+			o.unit_price,
+			o.total_amount,
 			o.target_quantity,
 			COALESCE(qc.total_passed, 0) AS passed_quantity,
 			o.status,
@@ -58,7 +61,8 @@ func (r *PostgresRepository) List(ctx context.Context, clientID, status string) 
 	var orders []InternalOrderSummary
 	for rows.Next() {
 		var o InternalOrderSummary
-		var startDate, targetDate sql.NullString
+		var sampleVerID, startDate, targetDate sql.NullString
+		var unitPrice, totalAmount sql.NullFloat64
 		var completedAt sql.NullTime
 
 		if err := rows.Scan(
@@ -69,6 +73,9 @@ func (r *PostgresRepository) List(ctx context.Context, clientID, status string) 
 			&o.ArticleID,
 			&o.ArticleCode,
 			&o.ArticleTitle,
+			&sampleVerID,
+			&unitPrice,
+			&totalAmount,
 			&o.TargetQuantity,
 			&o.PassedQuantity,
 			&o.Status,
@@ -80,6 +87,17 @@ func (r *PostgresRepository) List(ctx context.Context, clientID, status string) 
 			return nil, fmt.Errorf("scan order: %w", err)
 		}
 
+		if sampleVerID.Valid {
+			o.SampleVersionID = &sampleVerID.String
+		}
+		if unitPrice.Valid {
+			p := unitPrice.Float64
+			o.UnitPrice = &p
+		}
+		if totalAmount.Valid {
+			a := totalAmount.Float64
+			o.TotalAmount = &a
+		}
 		if startDate.Valid {
 			o.StartDate = &startDate.String
 		}
@@ -107,6 +125,9 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (*InternalO
 			o.article_id,
 			a.code AS article_code,
 			a.title AS article_title,
+			o.sample_version_id::TEXT,
+			o.unit_price,
+			o.total_amount,
 			o.target_quantity,
 			o.status,
 			o.start_date::TEXT,
@@ -121,7 +142,8 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (*InternalO
 	`
 
 	var detail InternalOrderDetail
-	var startDate, targetDate, notes sql.NullString
+	var sampleVerID, startDate, targetDate, notes sql.NullString
+	var unitPrice, totalAmount sql.NullFloat64
 	var completedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
@@ -132,6 +154,9 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (*InternalO
 		&detail.ArticleID,
 		&detail.ArticleCode,
 		&detail.ArticleTitle,
+		&sampleVerID,
+		&unitPrice,
+		&totalAmount,
 		&detail.TargetQuantity,
 		&detail.Status,
 		&startDate,
@@ -147,6 +172,17 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (*InternalO
 		return nil, fmt.Errorf("get order by id: %w", err)
 	}
 
+	if sampleVerID.Valid {
+		detail.SampleVersionID = &sampleVerID.String
+	}
+	if unitPrice.Valid {
+		p := unitPrice.Float64
+		detail.UnitPrice = &p
+	}
+	if totalAmount.Valid {
+		a := totalAmount.Float64
+		detail.TotalAmount = &a
+	}
 	if startDate.Valid {
 		detail.StartDate = &startDate.String
 	}

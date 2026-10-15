@@ -102,13 +102,13 @@ func New(ctx context.Context) (*App, error) {
 	qcbonusSvc := qcbonus.NewService(qcbonusRepo)
 	qcbonusHandler := qcbonus.NewHandler(qcbonusSvc)
 
-	portalRepo := portal.NewPostgresRepository(db)
-	portalSvc := portal.NewService(portalRepo)
-	portalHandler := portal.NewHandler(portalSvc)
-
 	notificationRepo := notification.NewPostgresRepository(db)
 	notificationSvc := notification.NewService(notificationRepo)
 	notificationHandler := notification.NewHandler(notificationSvc)
+
+	portalRepo := portal.NewPostgresRepository(db)
+	portalSvc := portal.NewService(portalRepo, notificationSvc)
+	portalHandler := portal.NewHandler(portalSvc)
 
 	orderRepo := order.NewPostgresRepository(db)
 	orderSvc := order.NewService(orderRepo, notificationSvc)

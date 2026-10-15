@@ -31,6 +31,7 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		samplesGroup.POST("/:id/versions/:versionNumber/time-studies", h.RecordTimeStudy)
 		samplesGroup.PUT("/:id/versions/:versionNumber/commercial-rate", h.SetCommercialRate)
 		samplesGroup.POST("/:id/submit-review", h.SubmitReview)
+		samplesGroup.POST("/:id/convert-to-order", h.ConvertToOrder)
 	}
 }
 
@@ -372,6 +373,52 @@ func (h *Handler) SubmitReview(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Sample berhasil diajukan ke klien dan notifikasi telah dikirim",
+	})
+}
+
+// ConvertToOrder handles POST /api/v1/samples/:id/convert-to-order.
+func (h *Handler) ConvertToOrder(c *gin.Context) {
+	id := c.Param("id")
+	var payload ConvertSampleToOrderPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Payload konversi sample ke order massal tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	res, err := h.svc.ConvertToOrder(c.Request.Context(), id, payload)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrSampleNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrSampleNotApproved) || errors.Is(err, ErrSampleAlreadyConverted) {
+			status = http.StatusBadRequest
+			code = "BAD_REQUEST"
+		} else {
+			status = http.StatusBadRequest
+			code = "VALIDATION_ERROR"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Sample berhasil dikonversi menjadi Order Produksi Massal",
+		"data":    res,
 	})
 }
 

@@ -4900,6 +4900,476 @@ func TestApp_SampleLifecycleAndTimeStudyLiveDB(t *testing.T) {
 	t.Logf("Step 9 PASS: RBAC, locking enforcement, and unauthorized guards verified")
 }
 
+// ============================================================================
+// TAHAP 6.2: CLIENT APPROVAL, COMMERCIAL RATE CARD, MASS ORDER CONVERSION & SKENARIO UJI 4 LIVE DB TEST
+// ============================================================================
+func TestApp_SampleScenario4LiveDB(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
+
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+	defer application.db.Close()
+
+	// 1. Authenticate Actors
+	prodToken := getAuthToken(t, application, "production@lukla.local", "password")
+	snohundToken := getAuthToken(t, application, "client@lukla.local", "password")
+	aventuraToken := getAuthToken(t, application, "client.aventura@lukla.local", "password")
+
+	// 2. Query Client Snøhund & Article ART-SNO-PK01
+	var snoClientID, articleID string
+	err = application.db.QueryRow("SELECT id FROM clients WHERE code = 'SNOHUND'").Scan(&snoClientID)
+	if err != nil {
+		t.Fatalf("failed to find snohund client id: %v", err)
+	}
+
+	err = application.db.QueryRow("SELECT id FROM articles WHERE code = 'ART-SNO-PK01'").Scan(&articleID)
+	if err != nil {
+		t.Fatalf("failed to find article ART-SNO-PK01 id: %v", err)
+	}
+
+	// Ambil 2 komponen
+	rows, err := application.db.Query("SELECT id, name FROM components WHERE article_id = $1 ORDER BY sequence_number ASC LIMIT 2", articleID)
+	if err != nil {
+		t.Fatalf("failed to query components: %v", err)
+	}
+	defer rows.Close()
+
+	var comp1ID, comp1Name, comp2ID, comp2Name string
+	if rows.Next() {
+		_ = rows.Scan(&comp1ID, &comp1Name)
+	}
+	if rows.Next() {
+		_ = rows.Scan(&comp2ID, &comp2Name)
+	}
+	if comp1ID == "" || comp2ID == "" {
+		t.Fatalf("expected 2 components, got comp1=%s, comp2=%s", comp1ID, comp2ID)
+	}
+
+	// ==========================================
+	// LANGKAH 1: POST /api/v1/samples (Buat Sample Request & Versi v1)
+	// ==========================================
+	createPayload := map[string]interface{}{
+		"clientId":     snoClientID,
+		"articleId":    articleID,
+		"initialNotes": "Pengujian Skenario 4: Prototipe Parka Arctic v1",
+		"targetDate":   "2026-11-20",
+	}
+	createBytes, _ := json.Marshal(createPayload)
+	reqCreate, _ := http.NewRequest(http.MethodPost, "/api/v1/samples", bytes.NewBuffer(createBytes))
+	reqCreate.Header.Set("Authorization", "Bearer "+prodToken)
+	reqCreate.Header.Set("Content-Type", "application/json")
+	wCreate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCreate, reqCreate)
+
+	if wCreate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for create sample, got %d. Body: %s", wCreate.Code, wCreate.Body.String())
+	}
+	var createResp struct {
+		Data struct {
+			ID         string `json:"id"`
+			SampleCode string `json:"sampleCode"`
+			Versions   []struct {
+				ID            string `json:"id"`
+				VersionNumber int    `json:"versionNumber"`
+			} `json:"versions"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCreate.Body.Bytes(), &createResp)
+	sampleID := createResp.Data.ID
+	sampleCode := createResp.Data.SampleCode
+	v1ID := createResp.Data.Versions[0].ID
+	t.Logf("Langkah 1 PASS: Sample %s dibuat (v1 id: %s)", sampleCode, v1ID)
+
+	// ==========================================
+	// LANGKAH 2: Input Time Study pada v1
+	// ==========================================
+	// Komponen 1: 480 detik, 15% allowance => SAM 9.20
+	study1Payload := map[string]interface{}{
+		"componentId":         comp1ID,
+		"observedSeconds":     480.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Time study v1 komponen 1",
+	}
+	s1Bytes, _ := json.Marshal(study1Payload)
+	reqS1, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/1/time-studies", sampleID), bytes.NewBuffer(s1Bytes))
+	reqS1.Header.Set("Authorization", "Bearer "+prodToken)
+	reqS1.Header.Set("Content-Type", "application/json")
+	wS1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wS1, reqS1)
+	if wS1.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for study 1 on v1, got %d", wS1.Code)
+	}
+
+	// Komponen 2: 300 detik, 15% allowance => SAM 5.75
+	study2Payload := map[string]interface{}{
+		"componentId":         comp2ID,
+		"observedSeconds":     300.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Time study v1 komponen 2",
+	}
+	s2Bytes, _ := json.Marshal(study2Payload)
+	reqS2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/1/time-studies", sampleID), bytes.NewBuffer(s2Bytes))
+	reqS2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqS2.Header.Set("Content-Type", "application/json")
+	wS2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wS2, reqS2)
+	if wS2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for study 2 on v1, got %d", wS2.Code)
+	}
+	t.Logf("Langkah 2 PASS: Time study v1 dicatat (Total SAM v1 = 14.95)")
+
+	// ==========================================
+	// LANGKAH 3: POST /api/v1/samples/:id/submit-review (Ajukan v1 ke Klien)
+	// ==========================================
+	sub1Payload := map[string]interface{}{
+		"notes": "Sample fisik v1 telah dikirim ke kantor Snøhund",
+	}
+	sub1Bytes, _ := json.Marshal(sub1Payload)
+	reqSub1, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/submit-review", sampleID), bytes.NewBuffer(sub1Bytes))
+	reqSub1.Header.Set("Authorization", "Bearer "+prodToken)
+	reqSub1.Header.Set("Content-Type", "application/json")
+	wSub1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSub1, reqSub1)
+	if wSub1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for submit v1, got %d", wSub1.Code)
+	}
+	t.Logf("Langkah 3 PASS: Sample v1 diajukan ke review klien")
+
+	// ==========================================
+	// LANGKAH 4: GET /api/v1/portal/samples & GET /api/v1/portal/samples/:id (Klien Tinjau di Portal)
+	// ==========================================
+	reqPortalList, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/samples", nil)
+	reqPortalList.Header.Set("Authorization", "Bearer "+snohundToken)
+	wPortalList := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wPortalList, reqPortalList)
+	if wPortalList.Code != http.StatusOK {
+		t.Fatalf("expected 200 for portal list samples, got %d", wPortalList.Code)
+	}
+
+	reqPortalDetail, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/portal/samples/%s", sampleID), nil)
+	reqPortalDetail.Header.Set("Authorization", "Bearer "+snohundToken)
+	wPortalDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wPortalDetail, reqPortalDetail)
+	if wPortalDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 for portal sample detail, got %d", wPortalDetail.Code)
+	}
+	t.Logf("Langkah 4 PASS: Klien Snøhund berhasil meninjau sample v1 di portal")
+
+	// ==========================================
+	// LANGKAH 5: POST /api/v1/portal/samples/:id/request-revision (Klien Minta Revisi v1)
+	// ==========================================
+	revReqPayload := map[string]interface{}{
+		"revisionNotes": "Mohon saku dada dinaikkan 3 cm dan zipper diganti matte black waterproof",
+	}
+	revReqBytes, _ := json.Marshal(revReqPayload)
+	reqRev, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/portal/samples/%s/request-revision", sampleID), bytes.NewBuffer(revReqBytes))
+	reqRev.Header.Set("Authorization", "Bearer "+snohundToken)
+	reqRev.Header.Set("Content-Type", "application/json")
+	wRev := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRev, reqRev)
+	if wRev.Code != http.StatusOK {
+		t.Fatalf("expected 200 for request revision, got %d. Body: %s", wRev.Code, wRev.Body.String())
+	}
+
+	// Verifikasi status sample di database berubah menjadi REVISED
+	var statusAfterRev string
+	_ = application.db.QueryRow("SELECT status FROM sample_requests WHERE id = $1", sampleID).Scan(&statusAfterRev)
+	if statusAfterRev != "REVISED" {
+		t.Fatalf("expected sample status REVISED, got %s", statusAfterRev)
+	}
+
+	// Verifikasi notifikasi SAMPLE_REVISION_REQUESTED tercatat
+	var revNotifCount int
+	_ = application.db.QueryRow(`
+		SELECT COUNT(*) FROM notifications 
+		WHERE reference_id = $1 AND event_type = 'SAMPLE_REVISION_REQUESTED'
+	`, sampleID).Scan(&revNotifCount)
+	if revNotifCount <= 0 {
+		t.Fatalf("expected SAMPLE_REVISION_REQUESTED notification, got %d", revNotifCount)
+	}
+	t.Logf("Langkah 5 PASS: Permintaan revisi klien terkirim, status REVISED, notifikasi tercatat")
+
+	// ==========================================
+	// LANGKAH 6: POST /api/v1/samples/:id/versions (Pabrik Terbitkan Versi v2)
+	// ==========================================
+	v2Payload := map[string]interface{}{
+		"revisionNotes":               "Revisi pola saku dada dinaikkan 3 cm dan zipper matte black waterproof",
+		"copyTimeStudiesFromPrevious": true,
+	}
+	v2Bytes, _ := json.Marshal(v2Payload)
+	reqV2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions", sampleID), bytes.NewBuffer(v2Bytes))
+	reqV2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqV2.Header.Set("Content-Type", "application/json")
+	wV2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wV2, reqV2)
+	if wV2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for create version 2, got %d. Body: %s", wV2.Code, wV2.Body.String())
+	}
+
+	var v2Resp struct {
+		Data struct {
+			ID            string `json:"id"`
+			VersionNumber int    `json:"versionNumber"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wV2.Body.Bytes(), &v2Resp)
+	v2ID := v2Resp.Data.ID
+	if v2ID == "" || v2ID == v1ID {
+		t.Fatalf("expected distinct v2 ID, got v1=%s, v2=%s", v1ID, v2ID)
+	}
+	t.Logf("Langkah 6 PASS: Versi 2 diterbitkan (v2 id: %s)", v2ID)
+
+	// ==========================================
+	// LANGKAH 7: Update Time Study pada Versi 2 (Penyesuaian Waktu Stopwatch)
+	// ==========================================
+	// Observasi disempurnakan: 420 detik (allowance 15%) => SAM = 8.05 menit
+	studyV2Payload := map[string]interface{}{
+		"componentId":         comp1ID,
+		"observedSeconds":     420.0,
+		"allowancePercentage": 15.0,
+		"notes":               "Penyesuaian jahitan saku v2 lebih presisi",
+	}
+	sV2Bytes, _ := json.Marshal(studyV2Payload)
+	reqSV2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/versions/2/time-studies", sampleID), bytes.NewBuffer(sV2Bytes))
+	reqSV2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqSV2.Header.Set("Content-Type", "application/json")
+	wSV2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSV2, reqSV2)
+	if wSV2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for update time study v2, got %d", wSV2.Code)
+	}
+
+	var v2TotalSAM float64
+	_ = application.db.QueryRow("SELECT total_sam FROM sample_versions WHERE id = $1", v2ID).Scan(&v2TotalSAM)
+	if v2TotalSAM < 13.79 || v2TotalSAM > 13.81 {
+		t.Fatalf("expected v2 total SAM ~13.80, got %.2f", v2TotalSAM)
+	}
+	t.Logf("Langkah 7 PASS: Time study v2 diperbarui. Total SAM v2 = %.2f", v2TotalSAM)
+
+	// ==========================================
+	// LANGKAH 8: PUT /api/v1/samples/:id/versions/2/commercial-rate (Tetapkan Commercial Rate Card)
+	// ==========================================
+	ratePayload := map[string]interface{}{
+		"proposedUnitPrice": 45000.00,
+		"currency":          "IDR",
+		"priceNotes":        "Tarif jasa maklon CMT Jaket Parka v2 approved",
+	}
+	rateBytes, _ := json.Marshal(ratePayload)
+	reqRate, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/samples/%s/versions/2/commercial-rate", sampleID), bytes.NewBuffer(rateBytes))
+	reqRate.Header.Set("Authorization", "Bearer "+prodToken)
+	reqRate.Header.Set("Content-Type", "application/json")
+	wRate := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRate, reqRate)
+	if wRate.Code != http.StatusOK {
+		t.Fatalf("expected 200 for commercial rate, got %d", wRate.Code)
+	}
+	t.Logf("Langkah 8 PASS: Commercial Rate Card ditetapkan Rp 45.000 pada v2")
+
+	// ==========================================
+	// LANGKAH 9: POST /api/v1/samples/:id/submit-review (Pabrik Ajukan v2 ke Klien)
+	// ==========================================
+	sub2Payload := map[string]interface{}{
+		"notes": "Sample fisik v2 revisi telah dikirim ke kantor Snøhund",
+	}
+	sub2Bytes, _ := json.Marshal(sub2Payload)
+	reqSub2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/submit-review", sampleID), bytes.NewBuffer(sub2Bytes))
+	reqSub2.Header.Set("Authorization", "Bearer "+prodToken)
+	reqSub2.Header.Set("Content-Type", "application/json")
+	wSub2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSub2, reqSub2)
+	if wSub2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for submit v2, got %d", wSub2.Code)
+	}
+	t.Logf("Langkah 9 PASS: Sample v2 diajukan ke review klien")
+
+	// ==========================================
+	// LANGKAH 10: Klien Tinjau v2 di Portal (Cek Harga dan Spesifikasi)
+	// ==========================================
+	reqReviewV2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/portal/samples/%s", sampleID), nil)
+	reqReviewV2.Header.Set("Authorization", "Bearer "+snohundToken)
+	wReviewV2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wReviewV2, reqReviewV2)
+	if wReviewV2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for review v2, got %d", wReviewV2.Code)
+	}
+	var reviewResp struct {
+		Data struct {
+			CurrentVersionNumber    int      `json:"currentVersionNumber"`
+			LatestProposedUnitPrice *float64 `json:"latestProposedUnitPrice"`
+			Versions                []struct {
+				VersionNumber int     `json:"versionNumber"`
+				TotalSAM      float64 `json:"totalSAM"`
+			} `json:"versions"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wReviewV2.Body.Bytes(), &reviewResp)
+	if reviewResp.Data.CurrentVersionNumber != 2 {
+		t.Fatalf("expected current version 2, got %d", reviewResp.Data.CurrentVersionNumber)
+	}
+	if reviewResp.Data.LatestProposedUnitPrice == nil || *reviewResp.Data.LatestProposedUnitPrice != 45000.00 {
+		t.Fatalf("expected proposed unit price 45000, got %v", reviewResp.Data.LatestProposedUnitPrice)
+	}
+	t.Logf("Langkah 10 PASS: Klien meninjau v2 di portal, harga Rp 45.000 dan SAM 13.80 terverifikasi")
+
+	// ==========================================
+	// LANGKAH 11: POST /api/v1/portal/samples/:id/approve (Klien Setujui v2)
+	// ==========================================
+	approvePayload := map[string]interface{}{
+		"feedbackNotes": "Sample v2 sempurna, spesifikasi pola dan harga Rp 45.000 disetujui untuk PO massal.",
+	}
+	approveBytes, _ := json.Marshal(approvePayload)
+	reqApprove, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/portal/samples/%s/approve", sampleID), bytes.NewBuffer(approveBytes))
+	reqApprove.Header.Set("Authorization", "Bearer "+snohundToken)
+	reqApprove.Header.Set("Content-Type", "application/json")
+	wApprove := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wApprove, reqApprove)
+	if wApprove.Code != http.StatusOK {
+		t.Fatalf("expected 200 for approve sample, got %d. Body: %s", wApprove.Code, wApprove.Body.String())
+	}
+
+	// Verifikasi status sample di database berubah menjadi APPROVED
+	var sampleStatusApproved string
+	_ = application.db.QueryRow("SELECT status FROM sample_requests WHERE id = $1", sampleID).Scan(&sampleStatusApproved)
+	if sampleStatusApproved != "APPROVED" {
+		t.Fatalf("expected sample status APPROVED, got %s", sampleStatusApproved)
+	}
+
+	// Verifikasi notifikasi SAMPLE_APPROVED tercatat
+	var appNotifCount int
+	_ = application.db.QueryRow(`
+		SELECT COUNT(*) FROM notifications 
+		WHERE reference_id = $1 AND event_type = 'SAMPLE_APPROVED'
+	`, sampleID).Scan(&appNotifCount)
+	if appNotifCount <= 0 {
+		t.Fatalf("expected SAMPLE_APPROVED notification, got %d", appNotifCount)
+	}
+
+	// Verifikasi Standard SAM di masterdata components tersinkronisasi
+	var comp1SAM float64
+	_ = application.db.QueryRow("SELECT standard_sam FROM components WHERE id = $1", comp1ID).Scan(&comp1SAM)
+	if comp1SAM < 8.04 || comp1SAM > 8.06 {
+		t.Fatalf("expected component 1 standard SAM synchronized to ~8.05, got %.2f", comp1SAM)
+	}
+	t.Logf("Langkah 11 PASS: Sample v2 disetujui klien, notifikasi SAMPLE_APPROVED dikirim, masterdata SAM disinkronkan")
+
+	// ==========================================
+	// LANGKAH 12: POST /api/v1/samples/:id/convert-to-order (Konversi ke Order Massal)
+	// ==========================================
+	massOrderNumber := fmt.Sprintf("PO-SNO-TEST4-%d", time.Now().Unix())
+	convertPayload := map[string]interface{}{
+		"orderNumber":    massOrderNumber,
+		"targetQuantity": 2000,
+		"targetDate":     "2026-12-15",
+		// unitPrice sengaja tidak diisi, harus otomatis adopsi proposedUnitPrice Rp 45.000 dari versi v2 yang disetujui
+		"notes": "Produksi massal 2000 pcs mengikat spesifikasi Sample v2 yang telah disetujui",
+	}
+	convertBytes, _ := json.Marshal(convertPayload)
+	reqConvert, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/convert-to-order", sampleID), bytes.NewBuffer(convertBytes))
+	reqConvert.Header.Set("Authorization", "Bearer "+prodToken)
+	reqConvert.Header.Set("Content-Type", "application/json")
+	wConvert := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wConvert, reqConvert)
+
+	if wConvert.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for convert to order, got %d. Body: %s", wConvert.Code, wConvert.Body.String())
+	}
+
+	var convertResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			OrderID         string  `json:"orderId"`
+			OrderNumber     string  `json:"orderNumber"`
+			SampleCode      string  `json:"sampleCode"`
+			ApprovedVersion int     `json:"approvedVersion"`
+			TargetQuantity  int     `json:"targetQuantity"`
+			UnitPrice       float64 `json:"unitPrice"`
+			TotalAmount     float64 `json:"totalAmount"`
+			Status          string  `json:"status"`
+			SpecSnapshotSAM float64 `json:"specSnapshotSAM"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wConvert.Body.Bytes(), &convertResp)
+	createdOrderID := convertResp.Data.OrderID
+
+	// ==========================================
+	// LANGKAH 13: PEMBUKTIAN KRUSIAL SKENARIO UJI 4 (SRS MUTLAK)
+	// ==========================================
+	// 1. Order massal harus merujuk pada versi sample yang disetujui (v2, BUKAN v1!)
+	var boundVersionID string
+	var dbUnitPrice, dbTotalAmount float64
+	var dbOrderStatus string
+	err = application.db.QueryRow(`
+		SELECT sample_version_id, unit_price, total_amount, status 
+		FROM orders 
+		WHERE id = $1
+	`, createdOrderID).Scan(&boundVersionID, &dbUnitPrice, &dbTotalAmount, &dbOrderStatus)
+	if err != nil {
+		t.Fatalf("failed to query converted order in db: %v", err)
+	}
+
+	if boundVersionID != v2ID {
+		t.Fatalf("CRITICAL SKENARIO 4 FAILURE: Order massal harus mengikat versi v2 (%s), namun malah mengikat %s (v1 id was %s)", v2ID, boundVersionID, v1ID)
+	}
+	if boundVersionID == v1ID {
+		t.Fatalf("CRITICAL SKENARIO 4 FAILURE: Versi v1 yang usang bocor ke order massal!")
+	}
+	t.Logf("Skenario 4 Proof: Order massal terbukti mengikat spesifikasi versi v2 (%s), BUKAN v1 (%s)", boundVersionID, v1ID)
+
+	// 2. Harga satuan dan total nilai kontrak akurat
+	if dbUnitPrice != 45000.00 {
+		t.Fatalf("expected unit price 45000.00, got %.2f", dbUnitPrice)
+	}
+	expectedTotal := 2000.0 * 45000.00 // Rp 90.000.000
+	if dbTotalAmount != expectedTotal {
+		t.Fatalf("expected total amount %.2f, got %.2f", expectedTotal, dbTotalAmount)
+	}
+	if dbOrderStatus != "IN_PRODUCTION" {
+		t.Fatalf("expected order status IN_PRODUCTION, got %s", dbOrderStatus)
+	}
+	t.Logf("Skenario 4 Proof: Unit Price Rp 45.000 x 2.000 pcs = Rp 90.000.000 akurat 100%%")
+
+	// 3. Status sample_requests terkunci menjadi CONVERTED_TO_ORDER
+	var srConvertedID, srFinalStatus string
+	err = application.db.QueryRow("SELECT converted_order_id, status FROM sample_requests WHERE id = $1", sampleID).Scan(&srConvertedID, &srFinalStatus)
+	if err != nil || srConvertedID != createdOrderID || srFinalStatus != "CONVERTED_TO_ORDER" {
+		t.Fatalf("expected sample converted to order %s and status CONVERTED_TO_ORDER, got id=%s, status=%s", createdOrderID, srConvertedID, srFinalStatus)
+	}
+	t.Logf("Skenario 4 Proof: Sample request terkunci dengan converted_order_id=%s dan status=CONVERTED_TO_ORDER", srConvertedID)
+
+	// 4. Upaya konversi ulang harus ditolak (Idempotency / Guard)
+	reqReconvert, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/samples/%s/convert-to-order", sampleID), bytes.NewBuffer(convertBytes))
+	reqReconvert.Header.Set("Authorization", "Bearer "+prodToken)
+	reqReconvert.Header.Set("Content-Type", "application/json")
+	wReconvert := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wReconvert, reqReconvert)
+	if wReconvert.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for re-converting sample, got %d", wReconvert.Code)
+	}
+	t.Logf("Skenario 4 Proof: Upaya re-konversi diblokir secara aman (400 Bad Request)")
+
+	// 5. Uji Multi-Tenant Anti-IDOR: Klien Aventura tidak boleh mengakses sample Snøhund
+	reqCrossDetail, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/portal/samples/%s", sampleID), nil)
+	reqCrossDetail.Header.Set("Authorization", "Bearer "+aventuraToken)
+	wCrossDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCrossDetail, reqCrossDetail)
+	if wCrossDetail.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found for cross-tenant access to sample, got %d", wCrossDetail.Code)
+	}
+
+	reqCrossApprove, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/portal/samples/%s/approve", sampleID), bytes.NewBuffer(approveBytes))
+	reqCrossApprove.Header.Set("Authorization", "Bearer "+aventuraToken)
+	reqCrossApprove.Header.Set("Content-Type", "application/json")
+	wCrossApprove := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCrossApprove, reqCrossApprove)
+	if wCrossApprove.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found for cross-tenant approve sample, got %d", wCrossApprove.Code)
+	}
+	t.Logf("Skenario 4 Proof: Multi-tenant portal isolation terverifikasi kebal terhadap IDOR lintas brand")
+}
+
 
 
 

@@ -36,6 +36,12 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		// Consigned & Finished Inventory Stocks
 		portalGroup.GET("/stocks/materials", h.ListMaterialStocks)
 		portalGroup.GET("/stocks/finished-goods", h.ListFinishedGoodsStocks)
+
+		// Sample Review & Approval (BPMN 03 & BPMN 11)
+		portalGroup.GET("/samples", h.ListSamples)
+		portalGroup.GET("/samples/:id", h.GetSampleDetail)
+		portalGroup.POST("/samples/:id/approve", h.ApproveSample)
+		portalGroup.POST("/samples/:id/request-revision", h.RequestSampleRevision)
 	}
 }
 
@@ -160,9 +166,90 @@ func (h *Handler) ListFinishedGoodsStocks(c *gin.Context) {
 	})
 }
 
+// ListSamples handles GET /api/v1/portal/samples.
+func (h *Handler) ListSamples(c *gin.Context) {
+	actor := getActor(c)
+	status := c.DefaultQuery("status", "ALL")
+
+	samples, err := h.svc.ListSamples(c.Request.Context(), actor, status)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    samples,
+	})
+}
+
+// GetSampleDetail handles GET /api/v1/portal/samples/:id.
+func (h *Handler) GetSampleDetail(c *gin.Context) {
+	actor := getActor(c)
+	sampleID := c.Param("id")
+
+	detail, err := h.svc.GetSampleDetail(c.Request.Context(), actor, sampleID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    detail,
+	})
+}
+
+// ApproveSample handles POST /api/v1/portal/samples/:id/approve.
+func (h *Handler) ApproveSample(c *gin.Context) {
+	actor := getActor(c)
+	sampleID := c.Param("id")
+	var payload ClientPortalApproveSamplePayload
+	_ = c.ShouldBindJSON(&payload)
+
+	err := h.svc.ApproveSample(c.Request.Context(), actor, sampleID, payload.FeedbackNotes)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Sample berhasil disetujui dan siap dikonversi ke produksi massal",
+	})
+}
+
+// RequestSampleRevision handles POST /api/v1/portal/samples/:id/request-revision.
+func (h *Handler) RequestSampleRevision(c *gin.Context) {
+	actor := getActor(c)
+	sampleID := c.Param("id")
+	var payload ClientPortalRequestRevisionPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Catatan revisi wajib diisi: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	err := h.svc.RequestSampleRevision(c.Request.Context(), actor, sampleID, payload.RevisionNotes)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permintaan revisi berhasil disampaikan ke tim pabrik",
+	})
+}
+
 func (h *Handler) handleError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, ErrOrderNotFound):
+	case errors.Is(err, ErrOrderNotFound), errors.Is(err, ErrSampleNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error": gin.H{

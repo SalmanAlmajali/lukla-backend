@@ -195,7 +195,8 @@
                     "response": []
                 }
             ],
-            "name": "01. Authentication"
+            "name": "01. Authentication",
+            "response": null
         },
         {
             "item": [
@@ -291,12 +292,6 @@
                             "path": [
                                 "articles"
                             ],
-                            "query": [
-                                {
-                                    "key": "category",
-                                    "value": "GARMENT"
-                                }
-                            ],
                             "raw": "{{base_url}}/articles?category=GARMENT"
                         }
                     },
@@ -339,12 +334,6 @@
                             "path": [
                                 "articles"
                             ],
-                            "query": [
-                                {
-                                    "key": "category",
-                                    "value": "BAG"
-                                }
-                            ],
                             "raw": "{{base_url}}/articles?category=BAG"
                         }
                     },
@@ -368,12 +357,6 @@
                             "path": [
                                 "articles"
                             ],
-                            "query": [
-                                {
-                                    "key": "clientId",
-                                    "value": "{{client_snohund_id}}"
-                                }
-                            ],
                             "raw": "{{base_url}}/articles?clientId={{client_snohund_id}}"
                         }
                     },
@@ -396,20 +379,6 @@
                             ],
                             "path": [
                                 "articles"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "5"
-                                },
-                                {
-                                    "key": "search",
-                                    "value": "Parka"
-                                }
                             ],
                             "raw": "{{base_url}}/articles?page=1\u0026limit=5\u0026search=Parka"
                         }
@@ -495,12 +464,6 @@
                             "path": [
                                 "articles"
                             ],
-                            "query": [
-                                {
-                                    "key": "clientId",
-                                    "value": "{{client_snohund_id}}"
-                                }
-                            ],
                             "raw": "{{base_url}}/articles?clientId={{client_snohund_id}}"
                         }
                     },
@@ -536,12 +499,6 @@
                             ],
                             "path": [
                                 "articles"
-                            ],
-                            "query": [
-                                {
-                                    "key": "clientId",
-                                    "value": "{{client_aventura_id}}"
-                                }
                             ],
                             "raw": "{{base_url}}/articles?clientId={{client_aventura_id}}"
                         }
@@ -671,7 +628,8 @@
                     "response": []
                 }
             ],
-            "name": "02. Articles API"
+            "name": "02. Articles API",
+            "response": null
         },
         {
             "item": [
@@ -892,7 +850,8 @@
                     "response": []
                 }
             ],
-            "name": "03. Components \u0026 Time Study API"
+            "name": "03. Components \u0026 Time Study API",
+            "response": null
         },
         {
             "item": [
@@ -988,12 +947,6 @@
                             "path": [
                                 "operators"
                             ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "ACTIVE"
-                                }
-                            ],
                             "raw": "{{base_url}}/operators?status=ACTIVE"
                         }
                     },
@@ -1036,12 +989,6 @@
                             ],
                             "path": [
                                 "operators"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "ON_LEAVE"
-                                }
                             ],
                             "raw": "{{base_url}}/operators?status=ON_LEAVE"
                         }
@@ -1086,12 +1033,6 @@
                             "path": [
                                 "operators"
                             ],
-                            "query": [
-                                {
-                                    "key": "line",
-                                    "value": "LINE-1"
-                                }
-                            ],
                             "raw": "{{base_url}}/operators?line=LINE-1"
                         }
                     },
@@ -1133,12 +1074,6 @@
                             "path": [
                                 "operators"
                             ],
-                            "query": [
-                                {
-                                    "key": "search",
-                                    "value": "Ahmad"
-                                }
-                            ],
                             "raw": "{{base_url}}/operators?search=Ahmad"
                         }
                     },
@@ -1179,12 +1114,6 @@
                             ],
                             "path": [
                                 "operators"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "INVALID_STATUS"
-                                }
                             ],
                             "raw": "{{base_url}}/operators?status=INVALID_STATUS"
                         }
@@ -1482,7 +1411,8 @@
                     "response": []
                 }
             ],
-            "name": "04. Operators (Internal Staff Only)"
+            "name": "04. Operators (Internal Staff Only)",
+            "response": null
         },
         {
             "item": [
@@ -1535,13 +1465,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"a894ad0f-a65f-4638-b14b-50b8f77e1794\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"a1807a99-a036-431d-a543-5c73f1c20408\",\n            \"componentName\": \"Jahit Saku Samping \\u0026 Saku Kargo Paha\",\n            \"sewingRate\": 7200,\n            \"cuttingRate\": 850,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku samping \\u0026 paha\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:52:19.523529+07:00\"\n        },\n        {\n            \"id\": \"1e7dfa58-30f9-4ca5-89c6-6c66d6f036eb\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"194e54cf-7a2e-4cd1-9d46-b4c0f07135df\",\n            \"componentName\": \"Pasang Resleting Fly \\u0026 Ban Pinggang Elastis\",\n            \"sewingRate\": 3200,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Fly front \\u0026 ban pinggang\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"2a81449d-91fc-4448-a7a6-f0b6a00cfe04\",\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"articleId\": \"7f418075-d444-4059-9f73-7b28d2c85b46\",\n            \"articleTitle\": \"Aventura All-Terrain Cargo Pants\",\n            \"componentId\": \"65e52f36-28b1-4198-839b-3f45ba2a5794\",\n            \"componentName\": \"Assembly Selangkangan, Jahit Kaki \\u0026 Hem Bawah\",\n            \"sewingRate\": 4200,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly inseam \\u0026 hemming\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - All Rate Cards",
                             "originalRequest": {
                                 "header": [
@@ -1598,12 +1521,6 @@
                             "path": [
                                 "rate-cards"
                             ],
-                            "query": [
-                                {
-                                    "key": "client_id",
-                                    "value": "{{client_snohund_id}}"
-                                }
-                            ],
                             "raw": "{{base_url}}/rate-cards?client_id={{client_snohund_id}}"
                         }
                     },
@@ -1612,13 +1529,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - Filtered by Client Snøhund",
                             "originalRequest": {
                                 "header": [
@@ -1683,13 +1593,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n            \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n            \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n            \"sewingRate\": 6800,\n            \"cuttingRate\": 1100,\n            \"effectiveDate\": \"2026-10-14\",\n            \"notes\": \"Tarif awal komponen backpack harness\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n            \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"e1ebf6ea-b4f6-4095-a2d4-02d14c171849\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n            \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n            \"sewingRate\": 0,\n            \"cuttingRate\": 1500,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Ongkos potong pola badan parka\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"6fc94d8e-3e62-4bac-817e-add625e9770c\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"369dc3b1-bb75-4394-9605-39f5b42f3463\",\n            \"componentName\": \"Jahit Saku Kargo \\u0026 Flap Tahan Air\",\n            \"sewingRate\": 4500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Saku kargo flap ganda tahan air\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"52426f1e-6024-4275-b5d0-fdcbbcc5e4c0\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"dbbfdc59-ebd6-48b8-87d4-e24bfd5dda5d\",\n            \"componentName\": \"Pasang Resleting Depan 2-Way \\u0026 Storm Flap\",\n            \"sewingRate\": 5500,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Pasang resleting 2-way Aquaguard\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"34987044-68b7-427e-a4f7-904fccaf938a\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"c1911524-382c-4853-b5f0-506f09fd8948\",\n            \"componentName\": \"Jahit Kerah Tinggi \\u0026 Pasang Storm Hoodie\",\n            \"sewingRate\": 6200,\n            \"cuttingRate\": 800,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Penyesuaian kain Cordura tebal\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        },\n        {\n            \"id\": \"86ea9fc1-e7b6-438b-ab65-0d61bad3d45b\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"componentId\": \"a2cc344b-9389-422c-83f7-ef94217150f2\",\n            \"componentName\": \"Assembly Lengan, Manset Velcro \\u0026 Hem Bawah\",\n            \"sewingRate\": 7000,\n            \"cuttingRate\": 0,\n            \"effectiveDate\": \"2026-10-01\",\n            \"notes\": \"Assembly lengan \\u0026 manset velcro\",\n            \"createdAt\": \"2026-10-14T14:41:22.712476+07:00\",\n            \"updatedAt\": \"2026-10-14T14:41:22.712476+07:00\"\n        }\n    ]\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - Client Own Rate Cards",
                             "originalRequest": {
                                 "header": [
@@ -1743,12 +1646,6 @@
                             "path": [
                                 "rate-cards"
                             ],
-                            "query": [
-                                {
-                                    "key": "client_id",
-                                    "value": "{{client_aventura_id}}"
-                                }
-                            ],
                             "raw": "{{base_url}}/rate-cards?client_id={{client_aventura_id}}"
                         }
                     },
@@ -1757,13 +1654,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"Akses ditolak: Anda hanya dapat mengakses rate card milik klien Anda sendiri\"\n    }\n}",
                             "code": 403,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "403 Forbidden - Client Access Other Client",
                             "originalRequest": {
                                 "header": [
@@ -1827,13 +1717,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n        \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n        \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n        \"sewingRate\": 6800,\n        \"cuttingRate\": 1100,\n        \"effectiveDate\": \"2026-10-14\",\n        \"notes\": \"Tarif awal komponen backpack harness\",\n        \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n        \"updatedAt\": \"2026-10-14T15:08:38.811964+07:00\"\n    }\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - Get Rate Card Detail",
                             "originalRequest": {
                                 "header": [
@@ -1896,13 +1779,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"NOT_FOUND\",\n        \"message\": \"Rate card tidak ditemukan.\"\n    }\n}",
                             "code": 404,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "404 Not Found - Rate Card Non Existent",
                             "originalRequest": {
                                 "header": [
@@ -1974,13 +1850,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\r\n    \"success\":  true,\r\n    \"data\":  {\r\n                 \"id\":  \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\r\n                 \"clientId\":  \"f310f933-4b79-40c4-849d-f0334716d43c\",\r\n                 \"clientName\":  \"Sn�hund Brand\",\r\n                 \"articleId\":  \"47b353d2-e59c-4bab-8f1b-81169c836136\",\r\n                 \"articleTitle\":  \"Sn�hund Alpine Summit Backpack 45L\",\r\n                 \"componentId\":  \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\r\n                 \"componentName\":  \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\r\n                 \"sewingRate\":  6500,\r\n                 \"cuttingRate\":  1000,\r\n                 \"effectiveDate\":  \"2026-10-14\",\r\n                 \"notes\":  \"Tarif awal komponen backpack harness\",\r\n                 \"createdAt\":  \"2026-10-14T14:57:18.875416+07:00\",\r\n                 \"updatedAt\":  \"2026-10-14T14:57:18.875416+07:00\"\r\n             }\r\n}\r\n",
                             "code": 201,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created - New Rate Card",
                             "originalRequest": {
                                 "body": {
@@ -2060,13 +1929,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": {\n        \"id\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Alpine Summit Backpack 45L\",\n        \"componentId\": \"f82467b6-d744-40f3-83ea-2dc72ef78d93\",\n        \"componentName\": \"Jahit Harness Bahu Ergonomis \\u0026 Sternum Strap\",\n        \"sewingRate\": 6800,\n        \"cuttingRate\": 1100,\n        \"effectiveDate\": \"2026-10-14\",\n        \"notes\": \"Tarif awal komponen backpack harness\",\n        \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\",\n        \"updatedAt\": \"2026-10-14T15:12:03.086779+07:00\"\n    }\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - Rate Card Updated",
                             "originalRequest": {
                                 "body": {
@@ -2146,13 +2008,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"VALIDATION_ERROR\",\n        \"message\": \"Data pembaruan tarif tidak valid.\",\n        \"details\": \"Key: 'UpdateRateCardRequest.ChangeReason' Error:Field validation for 'ChangeReason' failed on the 'required' tag\"\n    }\n}",
                             "code": 400,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "400 Bad Request - Missing Change Reason",
                             "originalRequest": {
                                 "body": {
@@ -2230,13 +2085,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": false,\n    \"error\": {\n        \"code\": \"FORBIDDEN\",\n        \"message\": \"Akses ditolak: hanya Owner dan Kepala Produksi yang dapat menetapkan atau mengubah rate card\"\n    }\n}",
                             "code": 403,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "403 Forbidden - Client Attempt Create",
                             "originalRequest": {
                                 "body": {
@@ -2311,13 +2159,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"success\": true,\n    \"data\": [\n        {\n            \"id\": \"c779c3c7-74fb-4657-8df6-354ea9198b08\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6800,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1100,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T15:12:03.086779+07:00\"\n        },\n        {\n            \"id\": \"405a570d-8af4-4de0-984d-cdc1180234bc\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6800,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1100,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T15:08:38.811964+07:00\"\n        },\n        {\n            \"id\": \"b5a054b5-7bb2-4026-b617-12e7c95be671\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 6500,\n            \"newSewingRate\": 6800,\n            \"oldCuttingRate\": 1000,\n            \"newCuttingRate\": 1100,\n            \"changedByUserId\": \"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\n            \"changedByName\": \"Budi Santoso\",\n            \"reason\": \"Penyesuaian benang nilon tahan abrasi dan webbing reinforced\",\n            \"createdAt\": \"2026-10-14T14:57:18.906979+07:00\"\n        },\n        {\n            \"id\": \"ebb9e646-2de4-445b-abf2-e0884a771bc3\",\n            \"rateCardId\": \"82e1daf7-c85f-4c48-b4ad-516a9c4c68f5\",\n            \"oldSewingRate\": 0,\n            \"newSewingRate\": 6500,\n            \"oldCuttingRate\": 0,\n            \"newCuttingRate\": 1000,\n            \"changedByUserId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n            \"changedByName\": \"Bambang Supriyadi\",\n            \"reason\": \"Penetapan tarif awal komponen\",\n            \"createdAt\": \"2026-10-14T14:57:18.875416+07:00\"\n        }\n    ]\n}",
                             "code": 200,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK - Rate Card History",
                             "originalRequest": {
                                 "header": [
@@ -2374,13 +2215,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"error\": {\n        \"code\": \"UNAUTHORIZED\",\n        \"message\": \"Header Authorization Bearer token diperlukan.\"\n    },\n    \"success\": false\n}",
                             "code": 401,
-                            "cookie": [],
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "401 Unauthorized - Missing Token",
                             "originalRequest": {
                                 "header": [],
@@ -2394,7 +2228,8 @@
                     ]
                 }
             ],
-            "name": "05. Rate Cards (BPMN 10)"
+            "name": "05. Rate Cards (BPMN 10)",
+            "response": null
         },
         {
             "item": [
@@ -2424,12 +2259,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"code\": \"LINE-01\",\n            \"name\": \"Line Jahit Parka Utama Ciwidey\",\n            \"maxCapacity\": 24,\n            \"activeOperatorsCount\": 0,\n            \"supervisorId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n            \"supervisorName\": \"Bambang Supriyadi\",\n            \"status\": \"ACTIVE\",\n            \"createdAt\": \"2026-10-14T17:30:25+07:00\",\n            \"updatedAt\": \"2026-10-14T17:47:35+07:00\"\n        },\n        {\n            \"id\": \"1eb68e03-b478-4ff5-ae69-b66a00b266c5\",\n            \"code\": \"LINE-02\",\n            \"name\": \"Line Jahit Celana \u0026 Tas Kargo\",\n            \"maxCapacity\": 22,\n            \"activeOperatorsCount\": 1,\n            \"supervisorId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n            \"supervisorName\": \"Bambang Supriyadi\",\n            \"status\": \"ACTIVE\",\n            \"createdAt\": \"2026-10-14T17:30:25+07:00\",\n            \"updatedAt\": \"2026-10-14T17:30:25+07:00\"\n        },\n        {\n            \"id\": \"c4ce8ad3-5ee4-483b-8ff2-c122a0cc7fcf\",\n            \"code\": \"LINE-03\",\n            \"name\": \"Line Cadangan \u0026 Finishing\",\n            \"maxCapacity\": 24,\n            \"activeOperatorsCount\": 0,\n            \"status\": \"ACTIVE\",\n            \"createdAt\": \"2026-10-14T17:30:25+07:00\",\n            \"updatedAt\": \"2026-10-14T17:30:25+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2469,12 +2298,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d\",\n        \"code\": \"LINE-04\",\n        \"name\": \"Line Jahit Ekspor Khusus\",\n        \"maxCapacity\": 10,\n        \"activeOperatorsCount\": 0,\n        \"status\": \"ACTIVE\",\n        \"createdAt\": \"2026-10-14T17:50:00+07:00\",\n        \"updatedAt\": \"2026-10-14T17:50:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -2507,12 +2330,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"code\": \"LINE-01\",\n        \"name\": \"Line Jahit Parka Utama Ciwidey\",\n        \"maxCapacity\": 24,\n        \"activeOperatorsCount\": 0,\n        \"supervisorId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n        \"supervisorName\": \"Bambang Supriyadi\",\n        \"status\": \"ACTIVE\",\n        \"createdAt\": \"2026-10-14T17:30:25+07:00\",\n        \"updatedAt\": \"2026-10-14T17:47:35+07:00\",\n        \"currentAllocations\": [],\n        \"activeOrders\": []\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2553,12 +2370,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"code\": \"LINE-01\",\n        \"name\": \"Line Jahit Parka Utama Ciwidey\",\n        \"maxCapacity\": 24,\n        \"activeOperatorsCount\": 0,\n        \"supervisorId\": \"e6447b6c-7ffc-462f-a0d6-a2ef6a387634\",\n        \"supervisorName\": \"Bambang Supriyadi\",\n        \"status\": \"ACTIVE\",\n        \"createdAt\": \"2026-10-14T17:30:25+07:00\",\n        \"updatedAt\": \"2026-10-14T17:50:00+07:00\",\n        \"currentAllocations\": [],\n        \"activeOrders\": []\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2590,12 +2401,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"5a4b3c2d-1e2f-4a5b-8c9d-0e1f2a3b4c5d\",\n            \"lineId\": \"1eb68e03-b478-4ff5-ae69-b66a00b266c5\",\n            \"lineCode\": \"LINE-02\",\n            \"orderId\": \"8f7e6d5c-4b3a-2f1e-0d9c-8b7a6f5e4d3c\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"operatorId\": \"d751c855-bf4f-4fe7-89b2-4c62f3513d04\",\n            \"operatorCode\": \"JH-001\",\n            \"operatorName\": \"Ahmad Supriatna\",\n            \"skillTier\": \"SENIOR\",\n            \"status\": \"ACTIVE\",\n            \"assignedAt\": \"2026-10-14T17:45:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2635,12 +2440,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"5a4b3c2d-1e2f-4a5b-8c9d-0e1f2a3b4c5d\",\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"orderId\": \"8f7e6d5c-4b3a-2f1e-0d9c-8b7a6f5e4d3c\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"operatorCode\": \"JH-002\",\n        \"operatorName\": \"Dedi Kusnadi\",\n        \"skillTier\": \"MID\",\n        \"status\": \"ACTIVE\",\n        \"assignedAt\": \"2026-10-14T17:48:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -2682,12 +2481,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"oldAllocationId\": \"5a4b3c2d-1e2f-4a5b-8c9d-0e1f2a3b4c5d\",\n        \"newAllocationId\": \"6b5c4d3e-2f3a-5b6c-9d0e-1f2a3b4c5d6e\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"previousLineCode\": \"LINE-01\",\n        \"destinationLineCode\": \"LINE-02\",\n        \"transferredAt\": \"2026-10-14T17:49:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2721,19 +2514,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"7c6d5e4f-3a4b-6c7d-0e1f-2a3b4c5d6e7f\",\n            \"allocationId\": \"6b5c4d3e-2f3a-5b6c-9d0e-1f2a3b4c5d6e\",\n            \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n            \"fromLineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"fromLineCode\": \"LINE-01\",\n            \"toLineId\": \"1eb68e03-b478-4ff5-ae69-b66a00b266c5\",\n            \"toLineCode\": \"LINE-02\",\n            \"reason\": \"Mesin jahit di Line 1 mendadak macet / balancing line 2\",\n            \"transferredByName\": \"Bambang Supriyadi\",\n            \"transferredAt\": \"2026-10-14T17:49:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "04. Tahap 1: Production Lines \u0026 Line Allocations (BPMN 04)"
+            "name": "04. Tahap 1: Production Lines \u0026 Line Allocations (BPMN 04)",
+            "response": null
         },
         {
             "item": [
@@ -2790,12 +2578,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n        \"componentName\": \"Saku kargo flap ganda\",\n        \"quantity\": 25,\n        \"timeSlot\": \"08:00-08:30\",\n        \"workDate\": \"2026-10-14\",\n        \"snapshotSewingRate\": 4500.00,\n        \"notes\": \"Slot pagi lancar, mesin normal\",\n        \"recordedByUserName\": \"Bambang Supriyadi\",\n        \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n        \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -2854,12 +2636,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e\",\n            \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"lineCode\": \"LINE-01\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n            \"componentName\": \"Saku kargo flap ganda\",\n            \"quantity\": 28,\n            \"timeSlot\": \"08:30-09:00\",\n            \"workDate\": \"2026-10-14\",\n            \"snapshotSewingRate\": 4500.00,\n            \"notes\": \"Target tercapai\",\n            \"recordedByUserName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T09:02:00+07:00\",\n            \"updatedAt\": \"2026-10-14T09:02:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -2901,16 +2677,6 @@
                             "path": [
                                 "production-outputs"
                             ],
-                            "query": [
-                                {
-                                    "key": "line_id",
-                                    "value": "{{line_id}}"
-                                },
-                                {
-                                    "key": "date",
-                                    "value": "2026-10-14"
-                                }
-                            ],
                             "raw": "{{base_url}}/production-outputs?line_id={{line_id}}\u0026date=2026-10-14"
                         }
                     },
@@ -2919,12 +2685,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n            \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n            \"lineCode\": \"LINE-01\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n            \"componentName\": \"Saku kargo flap ganda\",\n            \"quantity\": 25,\n            \"timeSlot\": \"08:00-08:30\",\n            \"workDate\": \"2026-10-14\",\n            \"snapshotSewingRate\": 4500.00,\n            \"recordedByUserName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n            \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -2975,19 +2735,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"operatorId\": \"3d01eac9-0e85-4d6e-9262-10896f9e1a31\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n        \"componentName\": \"Saku kargo flap ganda\",\n        \"quantity\": 25,\n        \"timeSlot\": \"08:00-08:30\",\n        \"workDate\": \"2026-10-14\",\n        \"snapshotSewingRate\": 4500.00,\n        \"notes\": \"Slot pagi lancar, mesin normal\",\n        \"recordedByUserName\": \"Bambang Supriyadi\",\n        \"createdAt\": \"2026-10-14T08:32:00+07:00\",\n        \"updatedAt\": \"2026-10-14T08:32:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "05. Tahap 1: Production Outputs 30 Menit (BPMN 05)"
+            "name": "05. Tahap 1: Production Outputs 30 Menit (BPMN 05)",
+            "response": null
         },
         {
             "item": [
@@ -3044,12 +2799,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"id\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"quantityAssembled\": 25,\n        \"status\": \"MENUNGGU_QC\",\n        \"assembledDate\": \"2026-10-14\",\n        \"assembledByName\": \"Bambang Supriyadi\",\n        \"notes\": \"Selesai assembly batch 1 siang, siap inspeksi QC\",\n        \"createdAt\": \"2026-10-14T11:45:00+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -3091,12 +2840,6 @@
                             "path": [
                                 "assemblies"
                             ],
-                            "query": [
-                                {
-                                    "key": "order_id",
-                                    "value": "{{order_id}}"
-                                }
-                            ],
                             "raw": "{{base_url}}/assemblies?order_id={{order_id}}"
                         }
                     },
@@ -3105,12 +2848,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"articleId\": \"47b353d2-e59c-4bab-8f1b-81169c836136\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"quantityAssembled\": 25,\n            \"status\": \"MENUNGGU_QC\",\n            \"assembledDate\": \"2026-10-14\",\n            \"assembledByName\": \"Bambang Supriyadi\",\n            \"createdAt\": \"2026-10-14T11:45:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3161,19 +2898,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"assemblyId\": \"c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f\",\n            \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientId\": \"c0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"pendingQuantity\": 25,\n            \"waitingSince\": \"2026-10-14T11:45:00+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "06. Tahap 1: Assembly \u0026 Antrian QC (BPMN 05)"
+            "name": "06. Tahap 1: Assembly \u0026 Antrian QC (BPMN 05)",
+            "response": null
         },
         {
             "item": [
@@ -3222,12 +2954,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"factoryMachineCapacity\": 70,\n        \"totalActiveMachines\": 54,\n        \"totalTodayOutputPcs\": 640,\n        \"targetTodayOutputPcs\": 800,\n        \"efficiencyPercentage\": 80.0,\n        \"linesOverview\": [\n            {\n                \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n                \"lineCode\": \"LINE-01\",\n                \"activeOperators\": 18,\n                \"todayOutputPcs\": 220,\n                \"currentSlotOutput\": 28\n            }\n        ]\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3271,12 +2997,6 @@
                                 "lines",
                                 "{{line_id}}"
                             ],
-                            "query": [
-                                {
-                                    "key": "date",
-                                    "value": "2026-10-14"
-                                }
-                            ],
                             "raw": "{{base_url}}/production-dashboard/lines/{{line_id}}?date=2026-10-14"
                         }
                     },
@@ -3285,12 +3005,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"lineId\": \"ae2edff5-04ea-4573-8cfd-6d020e2f7556\",\n        \"lineCode\": \"LINE-01\",\n        \"date\": \"2026-10-14\",\n        \"totalOutputPcs\": 220,\n        \"timeSlots\": [\n            {\n                \"slot\": \"08:00-08:30\",\n                \"outputPcs\": 18,\n                \"activeOperatorsCount\": 18\n            }\n        ]\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3342,19 +3056,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"totalTargetPcs\": 1000,\n        \"totalAssembledPcs\": 240,\n        \"status\": \"IN_PRODUCTION\",\n        \"componentsProgress\": [\n            {\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"completedPcs\": 320,\n                \"percentage\": 32.0\n            }\n        ]\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "07. Tahap 1: Real-Time Floor Dashboard (BPMN 05)"
+            "name": "07. Tahap 1: Real-Time Floor Dashboard (BPMN 05)",
+            "response": null
         },
         {
             "item": [
@@ -3395,16 +3104,6 @@
                                 "payroll",
                                 "periods"
                             ],
-                            "query": [
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                },
-                                {
-                                    "key": "offset",
-                                    "value": "0"
-                                }
-                            ],
                             "raw": "{{base_url}}/payroll/periods?limit=20\u0026offset=0"
                         }
                     },
@@ -3413,12 +3112,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"createdAt\": \"2026-10-14T08:00:00Z\",\n            \"endDate\": \"2026-10-18\",\n            \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n            \"mealAllowancePercentage\": 12.5,\n            \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n            \"periodCode\": \"PAY-2026-W42\",\n            \"startDate\": \"2026-10-12\",\n            \"status\": \"CALCULATED\",\n            \"totalAdjustments\": 0,\n            \"totalGrossPieceRate\": 18500000,\n            \"totalMealAllowance\": 2312500,\n            \"totalNetPayable\": 20812500,\n            \"totalOperatorsCount\": 24,\n            \"updatedAt\": \"2026-10-14T17:30:00Z\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3479,12 +3172,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"DRAFT\",\n        \"totalAdjustments\": 0,\n        \"totalGrossPieceRate\": 0,\n        \"totalMealAllowance\": 0,\n        \"totalNetPayable\": 0,\n        \"totalOperatorsCount\": 0,\n        \"updatedAt\": \"2026-10-14T08:00:00Z\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -3536,12 +3223,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"CALCULATED\",\n        \"totalAdjustments\": 0,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalNetPayable\": 20812500,\n        \"totalOperatorsCount\": 24,\n        \"updatedAt\": \"2026-10-14T17:30:00Z\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3603,12 +3284,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll minggu ke-42 fasilitas Ciwidey\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"CALCULATED\",\n        \"totalAdjustments\": 0,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalNetPayable\": 20812500,\n        \"totalOperatorsCount\": 24,\n        \"updatedAt\": \"2026-10-14T17:30:00Z\"\n    },\n    \"message\": \"Kalkulasi payroll berhasil dijalankan untuk periode PAY-2026-W42\",\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3657,16 +3332,6 @@
                                 "{{payroll_period_id}}",
                                 "slips"
                             ],
-                            "query": [
-                                {
-                                    "key": "limit",
-                                    "value": "50"
-                                },
-                                {
-                                    "key": "offset",
-                                    "value": "0"
-                                }
-                            ],
                             "raw": "{{base_url}}/payroll/periods/{{payroll_period_id}}/slips?limit=50\u0026offset=0"
                         }
                     },
@@ -3675,12 +3340,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"adjustmentsTotal\": 0,\n            \"createdAt\": \"2026-10-14T17:30:00Z\",\n            \"grossPieceRateTotal\": 950000,\n            \"id\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n            \"mealAllowanceAmount\": 118750,\n            \"netPayableTotal\": 1068750,\n            \"operatorCode\": \"OP-001\",\n            \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n            \"operatorJoinDate\": \"2026-08-01\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n            \"periodCode\": \"PAY-2026-W42\",\n            \"status\": \"CALCULATED\",\n            \"totalPieces\": 380,\n            \"updatedAt\": \"2026-10-14T17:30:00Z\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3733,12 +3392,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"adjustmentsTotal\": 0,\n        \"createdAt\": \"2026-10-14T17:30:00Z\",\n        \"grossPieceRateTotal\": 950000,\n        \"id\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"id\": \"3b2a1c0d-4e5f-6a7b-8c9d-0e1f2a3b4c5d\",\n                \"orderCode\": \"PO-2026-10-001\",\n                \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n                \"payrollSlipId\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"quantity\": 180,\n                \"snapshotSewingRate\": 2500,\n                \"subtotal\": 450000,\n                \"workDate\": \"2026-10-14\"\n            },\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"componentId\": \"5b4c3d2e-1f0a-9b8c-7d6e-5f4a3b2c1d0e\",\n                \"componentName\": \"Saku kargo flap ganda\",\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"id\": \"4c3b2a1d-5e6f-7a8b-9c0d-1e2f3a4b5c6e\",\n                \"orderCode\": \"PO-2026-10-001\",\n                \"orderId\": \"f0a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c\",\n                \"payrollSlipId\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"quantity\": 200,\n                \"snapshotSewingRate\": 2500,\n                \"subtotal\": 500000,\n                \"workDate\": \"2026-10-15\"\n            }\n        ],\n        \"mealAllowanceAmount\": 118750,\n        \"mealAllowancePercentage\": 12.5,\n        \"netPayableTotal\": 1068750,\n        \"operatorCode\": \"OP-001\",\n        \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n        \"operatorJoinDate\": \"2026-08-01\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"status\": \"CALCULATED\",\n        \"totalPieces\": 380,\n        \"updatedAt\": \"2026-10-14T17:30:00Z\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3800,12 +3453,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T08:00:00Z\",\n        \"endDate\": \"2026-10-18\",\n        \"id\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"lockedAt\": \"2026-10-14T18:00:00Z\",\n        \"lockedByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n        \"mealAllowancePercentage\": 12.5,\n        \"notes\": \"Periode payroll telah diaudit dan disetujui oleh Owner dan Finance. Data kini terkunci (immutable).\",\n        \"periodCode\": \"PAY-2026-W42\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"LOCKED\",\n        \"totalAdjustments\": 50000,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalNetPayable\": 20862500,\n        \"totalOperatorsCount\": 24,\n        \"updatedAt\": \"2026-10-14T18:00:00Z\"\n    },\n    \"message\": \"Payroll period PAY-2026-W42 locked successfully. Data is now finalized.\",\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3858,12 +3505,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"adjustmentType\": \"BONUS\",\n            \"amount\": 50000,\n            \"createdAt\": \"2026-10-14T17:45:00Z\",\n            \"createdByName\": \"Finance Officer\",\n            \"createdByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n            \"id\": \"9b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e\",\n            \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n            \"operatorName\": \"Siti Rahmawati\",\n            \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n            \"reason\": \"Bonus insentif kecepatan \u0026 ketepatan jahitan line 1\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -3926,12 +3567,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"adjustmentType\": \"BONUS\",\n        \"amount\": 50000,\n        \"createdAt\": \"2026-10-14T17:45:00Z\",\n        \"createdByName\": \"Finance Officer\",\n        \"createdByUserId\": \"3c1e2f4a-8b9d-4e5f-a012-3456789abcde\",\n        \"id\": \"9b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e\",\n        \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n        \"operatorName\": \"Siti Rahmawati\",\n        \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"reason\": \"Bonus insentif kecepatan \u0026 ketepatan jahitan line 1\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -3986,19 +3621,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"endDate\": \"2026-10-18\",\n        \"grandTotalPayable\": 20862500,\n        \"linesSummary\": [\n            {\n                \"grossAmount\": 18500000,\n                \"lineCode\": \"LINE-01\",\n                \"lineId\": \"1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d\",\n                \"lineName\": \"Line Produksi Ciwidey 1\",\n                \"operatorsCount\": 24,\n                \"piecesProduced\": 7400\n            }\n        ],\n        \"mealAllowancePercentage\": 12.5,\n        \"operatorsSummary\": [\n            {\n                \"adjustmentsTotal\": 50000,\n                \"createdAt\": \"2026-10-14T17:30:00Z\",\n                \"grossPieceRateTotal\": 950000,\n                \"id\": \"7e91f034-31da-42ea-a41d-cb092a6b2191\",\n                \"mealAllowanceAmount\": 118750,\n                \"netPayableTotal\": 1118750,\n                \"operatorCode\": \"OP-001\",\n                \"operatorId\": \"6c7e145f-149b-430c-b26a-d46777bc3db5\",\n                \"operatorJoinDate\": \"2026-08-01\",\n                \"operatorName\": \"Siti Rahmawati\",\n                \"payrollPeriodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n                \"status\": \"LOCKED\",\n                \"totalPieces\": 380,\n                \"updatedAt\": \"2026-10-14T18:00:00Z\"\n            }\n        ],\n        \"periodCode\": \"PAY-2026-W42\",\n        \"periodId\": \"a8e9d3b2-6012-4c5b-91d8-ff0327ab4c10\",\n        \"startDate\": \"2026-10-12\",\n        \"status\": \"LOCKED\",\n        \"totalAdjustments\": 50000,\n        \"totalGrossPieceRate\": 18500000,\n        \"totalMealAllowance\": 2312500,\n        \"totalOperators\": 24,\n        \"totalPiecesProduced\": 7400\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "08. Tahap 2: Payroll Mingguan - Borongan \u0026 Uang Makan (BPMN 07)"
+            "name": "08. Tahap 2: Payroll Mingguan - Borongan \u0026 Uang Makan (BPMN 07)",
+            "response": null
         },
         {
             "item": [
@@ -4052,12 +3682,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"email\": \"warehouse@lukla.local\",\n        \"id\": \"7c2b3a4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d\",\n        \"name\": \"Agus Pratama\",\n        \"role\": \"WAREHOUSE\",\n        \"roleDescription\": \"Petugas Gudang \u0026 Logistik Bahan Baku\",\n        \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YzJiM2E0ZC01ZTZmLTdhOGItOWMwZC0xZTJmM2E0YjVjNmQiLCJyb2xlIjoid2FyZWhvdXNlIn0.preview\",\n        \"username\": \"warehouse@lukla.local\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4111,12 +3735,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"category\": \"THREAD\",\n            \"code\": \"MAT-THD-SPUN-BLK\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"CONE\",\n            \"description\": \"Benang jahit konveksi berkekuatan tinggi\",\n            \"id\": \"3b2c18fe-a328-4f34-ac64-a314a1997636\",\n            \"name\": \"Benang Jahit Spun Polyester 40/2 Hitam\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        },\n        {\n            \"category\": \"FABRIC\",\n            \"code\": \"MAT-CTN-30S-BLK\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"KG\",\n            \"description\": \"Kain katun combed rajut knits gramasi 140-150 gsm\",\n            \"id\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"name\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        },\n        {\n            \"category\": \"FABRIC\",\n            \"code\": \"MAT-CTN-30S-WHT\",\n            \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n            \"defaultUnit\": \"KG\",\n            \"description\": \"Kain katun combed rajut knits putih solid\",\n            \"id\": \"29790a2f-bce1-48f2-98e9-842dac211f30\",\n            \"name\": \"Cotton Combed 30s Reaktif - Putih Solid\",\n            \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 7\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4176,12 +3794,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"category\": \"FABRIC\",\n        \"code\": \"MAT-FAB-CORDURA-01\",\n        \"createdAt\": \"2026-10-14T22:28:07.830747+07:00\",\n        \"defaultUnit\": \"METER\",\n        \"description\": \"Bahan luar tas dan jaket outdoor tahan gesekan tinggi\",\n        \"id\": \"b145edef-249a-4930-b118-fa809e369f81\",\n        \"name\": \"Kain Cordura 500D Waterproof\",\n        \"updatedAt\": \"2026-10-14T22:28:07.830747+07:00\"\n    },\n    \"message\": \"Material created successfully\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -4233,12 +3845,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"category\": \"FABRIC\",\n        \"code\": \"MAT-CTN-30S-BLK\",\n        \"createdAt\": \"2026-10-14T21:57:36.461278+07:00\",\n        \"defaultUnit\": \"KG\",\n        \"description\": \"Kain katun combed rajut knits gramasi 140-150 gsm\",\n        \"id\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"name\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"updatedAt\": \"2026-10-14T21:57:36.461278+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4302,12 +3908,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"deliveryNoteNumber\": \"SJ-ITB-2026-9999\",\n        \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"items\": [\n            {\n                \"id\": \"aa11bb22-cc33-44dd-55ee-66ff77889900\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-TEST-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll tambahan kondisi prima\",\n                \"quantity\": 120,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-03\"\n            },\n            {\n                \"id\": \"aa11bb22-cc33-44dd-55ee-66ff77889901\",\n                \"lotId\": \"1378a140-97b3-4dd6-a128-868fd7dced3a\",\n                \"lotNumber\": \"LOT-SNO-TEST-02\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll tambahan kondisi prima\",\n                \"quantity\": 130,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-04\"\n            }\n        ],\n        \"notes\": \"Penerimaan tambahan bahan kain untuk PO Snohund\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptNumber\": \"RCV-20261014-9999\",\n        \"receivedByName\": \"Agus Pratama\",\n        \"receivedDate\": \"2026-10-14\",\n        \"supplierName\": \"PT Indo Tekstil Bandung\",\n        \"totalItemsCount\": 2\n    },\n    \"message\": \"Inbound receipt created and inventory lots tagged successfully\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -4361,12 +3961,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n            \"id\": \"4978f454-c67a-4bb9-94a3-12dd9fd8e63c\",\n            \"orderCode\": \"PO-2026-10-002\",\n            \"orderId\": \"a9142b01-3c14-4d2d-bb1f-7c9b1ac64fa5\",\n            \"receiptNumber\": \"RCV-20261014-0002\",\n            \"receivedDate\": \"2026-10-14T00:00:00Z\",\n            \"supplierName\": \"CV Rajut Makmur Cimahi\",\n            \"totalItemsCount\": 1\n        },\n        {\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n            \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"receiptNumber\": \"RCV-20261014-0001\",\n            \"receivedDate\": \"2026-10-14T00:00:00Z\",\n            \"supplierName\": \"PT Indo Tekstil Bandung\",\n            \"totalItemsCount\": 2\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4419,12 +4013,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"deliveryNoteNumber\": \"SJ-ITB-2026-8801\",\n        \"id\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"items\": [\n            {\n                \"id\": \"11223344-5566-7788-9900-aabbccddeeff\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll 1 kondisi prima\",\n                \"quantity\": 150.5,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-01\"\n            },\n            {\n                \"id\": \"11223344-5566-7788-9900-aabbccddee00\",\n                \"lotId\": \"1378a140-97b3-4dd6-a128-868fd7dced3a\",\n                \"lotNumber\": \"LOT-SNO-20261014-02\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Roll 2 kondisi prima\",\n                \"quantity\": 149.5,\n                \"rollCount\": 1,\n                \"unit\": \"KG\",\n                \"warehouseLocation\": \"GUDANG-A-02\"\n            }\n        ],\n        \"notes\": \"Penerimaan bahan kain utama Cotton Combed 30s Hitam untuk PO Snøhund\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptNumber\": \"RCV-20261014-0001\",\n        \"receivedByName\": \"Agus Pratama\",\n        \"receivedDate\": \"2026-10-14\",\n        \"supplierName\": \"PT Indo Tekstil Bandung\",\n        \"totalItemsCount\": 2\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4479,12 +4067,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"availableLotsCount\": 2,\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"materialCode\": \"MAT-CTN-30S-BLK\",\n            \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"totalQuantity\": 300,\n            \"unit\": \"KG\"\n        },\n        {\n            \"availableLotsCount\": 1,\n            \"clientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"clientName\": \"Aventura Outdoor Gear\",\n            \"materialCode\": \"MAT-CTN-30S-WHT\",\n            \"materialId\": \"29790a2f-bce1-48f2-98e9-842dac211f30\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Putih Solid\",\n            \"orderCode\": \"PO-2026-10-002\",\n            \"orderId\": \"a9142b01-3c14-4d2d-bb1f-7c9b1ac64fa5\",\n            \"totalQuantity\": 100,\n            \"unit\": \"KG\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4539,12 +4121,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"availableQuantity\": 150.5,\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"createdAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"currentQuantity\": 150.5,\n        \"id\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n        \"initialQuantity\": 150.5,\n        \"lotNumber\": \"LOT-SNO-20261014-01\",\n        \"materialCode\": \"MAT-CTN-30S-BLK\",\n        \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"notes\": \"Roll 1 kain Cotton Combed 30s Hitam kondisi prima\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"receiptId\": \"add67642-069f-4780-ab96-030bf0cc2200\",\n        \"rollCount\": 1,\n        \"status\": \"AVAILABLE\",\n        \"unit\": \"KG\",\n        \"updatedAt\": \"2026-10-14T22:42:26.79748+07:00\",\n        \"warehouseLocation\": \"GUDANG-A-01\"\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4604,12 +4180,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"error\": {\n        \"code\": \"INVENTORY_CLIENT_ORDER_MISMATCH\",\n        \"message\": \"BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan: BLOKIR KEAMANAN: Bahan pada lot 'LOT-AVE-20261014-01' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-2026-10-001' milik klien 'Snøhund Brand'.\"\n    },\n    \"success\": false\n}",
                             "code": 400,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "400 Bad Request (Blokade Kontaminasi Silang Terverifikasi)",
                             "status": "Bad Request"
                         }
@@ -4664,12 +4234,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"attemptedAt\": \"2026-10-14T23:09:18.050193+07:00\",\n            \"attemptedByName\": \"Agus Pratama\",\n            \"attemptedByUserId\": \"bfe9c52d-769d-4645-b621-06ad7aa0c716\",\n            \"id\": \"86c76d10-ae5e-40b6-a21e-fd3f2737b908\",\n            \"lotClientId\": \"483b04f2-d5b3-4581-97e9-27ccbfb38637\",\n            \"lotClientName\": \"Aventura Outdoor Gear\",\n            \"lotId\": \"f075a84d-ac2a-4b7d-a688-7328c4c03927\",\n            \"lotNumber\": \"LOT-AVE-20261014-01\",\n            \"reason\": \"BLOKIR KEAMANAN: Bahan pada lot 'LOT-AVE-20261014-01' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-2026-10-001' milik klien 'Snøhund Brand'.\",\n            \"requestedQuantity\": 25,\n            \"targetClientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"targetClientName\": \"Snøhund Brand\",\n            \"targetOrderCode\": \"PO-2026-10-001\",\n            \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4731,12 +4295,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n        \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n        \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n        \"issueNumber\": \"ISS-20261014-0003\",\n        \"issuedByName\": \"Agus Pratama\",\n        \"issuedDate\": \"2026-10-15\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"id\": \"2310bb2a-1fba-4bf3-a74c-a018ab53e8b0\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Ambil 50kg\",\n                \"quantity\": 50,\n                \"remainingLotQuantity\": 100.5,\n                \"unit\": \"KG\"\n            }\n        ],\n        \"notes\": \"Pengeluaran bahan kain badan Snøhund sesuai SPK\",\n        \"targetClientName\": \"Snøhund Brand\",\n        \"targetOrderCode\": \"PO-2026-10-001\",\n        \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"totalItemsCount\": 1\n    },\n    \"message\": \"Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-2026-10-001\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -4788,12 +4346,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n            \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n            \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n            \"issueNumber\": \"ISS-20261014-0003\",\n            \"issuedDate\": \"2026-10-15T00:00:00Z\",\n            \"targetClientName\": \"Snøhund Brand\",\n            \"targetOrderCode\": \"PO-2026-10-001\",\n            \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"totalItemsCount\": 1\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4846,12 +4398,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.084282+07:00\",\n        \"cuttingTableNumber\": \"MEJA-CUTTING-01\",\n        \"id\": \"7a347ac6-b1ba-4084-8240-e0500c0abb3f\",\n        \"issueNumber\": \"ISS-20261014-0003\",\n        \"issuedByName\": \"Agus Pratama\",\n        \"issuedDate\": \"2026-10-15T00:00:00Z\",\n        \"items\": [\n            {\n                \"clientName\": \"Snøhund Brand\",\n                \"id\": \"2310bb2a-1fba-4bf3-a74c-a018ab53e8b0\",\n                \"lotId\": \"4c2591b6-a60b-4f97-b50e-f8c936e1fd57\",\n                \"lotNumber\": \"LOT-SNO-20261014-01\",\n                \"materialCode\": \"MAT-CTN-30S-BLK\",\n                \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n                \"notes\": \"Ambil 50kg\",\n                \"quantity\": 50,\n                \"remainingLotQuantity\": 100.5,\n                \"unit\": \"KG\"\n            }\n        ],\n        \"notes\": \"Pengeluaran bahan kain badan Snøhund sesuai SPK\",\n        \"targetClientName\": \"Snøhund Brand\",\n        \"targetOrderCode\": \"PO-2026-10-001\",\n        \"targetOrderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"totalItemsCount\": 1\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -4913,12 +4459,6 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": {\n        \"createdAt\": \"2026-10-14T23:09:18.139211+07:00\",\n        \"disposition\": \"SIMPAN_GUDANG_SISA\",\n        \"id\": \"bc4eba1e-b2a3-41a9-8f39-4ea026932f66\",\n        \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n        \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n        \"notes\": \"Sisa pemotongan pola badan dan kerah batch 1\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"quantity\": 4.25,\n        \"recordedByName\": \"Bambang Supriyadi\",\n        \"scrapCategory\": \"PERCA_KECIL\",\n        \"unit\": \"KG\"\n    },\n    \"message\": \"Data sisa potongan cutting berhasil dicatat\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -4964,12 +4504,6 @@
                                 "inventory",
                                 "scraps"
                             ],
-                            "query": [
-                                {
-                                    "key": "orderId",
-                                    "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
-                                }
-                            ],
                             "raw": "{{base_url}}/inventory/scraps?orderId=fad2530f-90d9-4a76-af96-d9f7db451a98"
                         }
                     },
@@ -4978,19 +4512,14 @@
                             "_postman_previewlanguage": "json",
                             "body": "{\n    \"data\": [\n        {\n            \"createdAt\": \"2026-10-14T23:09:18.139211+07:00\",\n            \"disposition\": \"SIMPAN_GUDANG_SISA\",\n            \"id\": \"bc4eba1e-b2a3-41a9-8f39-4ea026932f66\",\n            \"materialId\": \"a3150c7e-fd5e-4ca1-bf6f-b4a148c0186d\",\n            \"materialName\": \"Cotton Combed 30s Reaktif - Hitam Jet Black\",\n            \"notes\": \"Sisa pemotongan pola badan dan kerah batch 1\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"quantity\": 4.25,\n            \"recordedByName\": \"Bambang Supriyadi\",\n            \"scrapCategory\": \"PERCA_KECIL\",\n            \"unit\": \"KG\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "09. Tahap 3: Gudang \u0026 Inventaris - Penerimaan, Stok Lot, Pengeluaran Cutting \u0026 Blokade Silang (BPMN 02)"
+            "name": "09. Tahap 3: Gudang \u0026 Inventaris - Penerimaan, Stok Lot, Pengeluaran Cutting \u0026 Blokade Silang (BPMN 02)",
+            "response": null
         },
         {
             "item": [
@@ -5042,14 +4571,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"token\": \"mock_qc_jwt_token\",\n        \"user\": {\n            \"canAccessApp\": true,\n            \"email\": \"qc@lukla.local\",\n            \"employeeCode\": \"EMP-QC-001\",\n            \"fullName\": \"Siti Handayani\",\n            \"id\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n            \"isActive\": true,\n            \"roleCode\": \"qc_inspector\",\n            \"roleName\": \"QC Inspector\"\n        }\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -5098,14 +4622,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"7017b769-4676-42bf-8585-9c9b31741d7e\",\n            \"code\": \"DEF-ACC-01\",\n            \"name\": \"Aksesoris Rusak / Cacat\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Resleting macet, kancing patah, atau tali serut sobek\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"5827c3a5-4ec0-47bd-a95f-ec1eb4102375\",\n            \"code\": \"DEF-SEW-01\",\n            \"name\": \"Jahitan Loncat / Lepas\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Jahitan rantai atau obras melompat lebih dari 3 tusukan\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"e3f5ef1c-88cf-49ba-9a81-75b688136bb3\",\n            \"code\": \"DEF-SIZ-01\",\n            \"name\": \"Ukuran Meleset / Measurement Off\",\n            \"severity\": \"CRITICAL\",\n            \"description\": \"Toleransi ukuran panjang/lingkar melebihi batas spek (+/- 1 cm)\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"b0ca448f-5937-4c82-b0a9-e5691b732ff8\",\n            \"code\": \"DEF-STN-01\",\n            \"name\": \"Noda Kain / Minyak Mesin\",\n            \"severity\": \"MAJOR\",\n            \"description\": \"Terciprat pelumas mesin atau noda kotoran pada panel\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        },\n        {\n            \"id\": \"12ad38b7-59ff-4f57-a3f6-fe99e7954a55\",\n            \"code\": \"DEF-WRI-01\",\n            \"name\": \"Kerutan / Puckering\",\n            \"severity\": \"MINOR\",\n            \"description\": \"Kerutan kain berlebih di sekitar sambungan jahitan\",\n            \"isActive\": true,\n            \"createdAt\": \"2026-10-15T05:25:14.74271+07:00\",\n            \"updatedAt\": \"2026-10-15T05:25:14.74271+07:00\"\n        }\n    ],\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -5156,14 +4675,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"id\": \"d46113a1-89ff-4c9c-ab0d-6284b25cf1f0\",\n        \"code\": \"DEF-LBL-01\",\n        \"name\": \"Label Miring / Terbalik\",\n        \"severity\": \"MINOR\",\n        \"description\": \"Label instruksi pencucian dijahit miring \u003e 2mm\",\n        \"isActive\": true,\n        \"createdAt\": \"2026-10-15T05:34:32.885205+07:00\",\n        \"updatedAt\": \"2026-10-15T05:34:32.885205+07:00\"\n    },\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -5206,25 +4720,14 @@
                                 "qc",
                                 "queue"
                             ],
-                            "query": [
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                }
-                            ],
                             "raw": "{{base_url}}/qc/queue?limit=20"
                         }
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": [\n        {\n            \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n            \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"lineId\": \"1eb68e03-b478-4ff5-ae69-b66a00b266c5\",\n            \"lineCode\": \"LINE-02\",\n            \"completedQuantity\": 50,\n            \"status\": \"WAITING_QC\",\n            \"completedAt\": \"2026-10-15T05:36:02.855583+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 1\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -5279,14 +4782,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n        \"inspectionNumber\": \"QC-20261015-0001\",\n        \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 48,\n        \"repairQuantity\": 2,\n        \"rejectQuantity\": 0,\n        \"totalChecked\": 50,\n        \"notes\": \"Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras\",\n        \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"de69dbbd-8650-4c1f-b31f-499199ff6c5c\",\n                \"defectCategoryCode\": \"DEF-SEW-01\",\n                \"defectCategoryName\": \"Jahitan Loncat / Lepas\",\n                \"severity\": \"MAJOR\",\n                \"componentId\": \"bfd19a70-cd0e-47e6-b2cc-5146a569af56\",\n                \"componentName\": \"QC Akhir \u0026 Labeling\",\n                \"quantity\": 2,\n                \"disposition\": \"REPAIR\",\n                \"notes\": \"Obrasan sambungan ketiak loncat 1 cm\"\n            }\n        ]\n    },\n    \"message\": \"Pemeriksaan QC berhasil dicatat\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -5330,14 +4828,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n        \"inspectionNumber\": \"QC-20261015-0001\",\n        \"assemblyId\": \"dc698b32-ac2b-4714-a829-8f4f3cbd5121\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 48,\n        \"repairQuantity\": 2,\n        \"rejectQuantity\": 0,\n        \"totalChecked\": 50,\n        \"notes\": \"Pemeriksaan batch jahit siang: 48 pcs lolos, 2 pcs perbaikan obras\",\n        \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"de69dbbd-8650-4c1f-b31f-499199ff6c5c\",\n                \"defectCategoryCode\": \"DEF-SEW-01\",\n                \"defectCategoryName\": \"Jahitan Loncat / Lepas\",\n                \"severity\": \"MAJOR\",\n                \"componentId\": \"bfd19a70-cd0e-47e6-b2cc-5146a569af56\",\n                \"componentName\": \"QC Akhir \u0026 Labeling\",\n                \"quantity\": 2,\n                \"disposition\": \"REPAIR\",\n                \"notes\": \"Obrasan sambungan ketiak loncat 1 cm\"\n            }\n        ]\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -5388,14 +4881,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"id\": \"2edcd68a-25e3-4945-8b06-d71fa548c5da\",\n        \"inspectionNumber\": \"QC-20261015-0002\",\n        \"assemblyId\": \"933513bd-74f2-47dc-a9c1-5a43035b794b\",\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"clientName\": \"Snøhund Brand\",\n        \"articleName\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"inspectorId\": \"2a13d9e0-8c59-4a72-8b50-412724113963\",\n        \"inspectorName\": \"Siti Handayani\",\n        \"inspectionDate\": \"2026-10-15\",\n        \"passedQuantity\": 8,\n        \"repairQuantity\": 0,\n        \"rejectQuantity\": 2,\n        \"totalChecked\": 10,\n        \"notes\": \"Batch 2: 8 lolos, 2 reject cacat ukuran panel\",\n        \"createdAt\": \"2026-10-15T05:36:02.994594+07:00\",\n        \"defects\": [\n            {\n                \"id\": \"7cb89112-a5cf-4f91-91ea-02a819b5d401\",\n                \"defectCategoryCode\": \"DEF-SIZ-01\",\n                \"defectCategoryName\": \"Ukuran Meleset / Measurement Off\",\n                \"severity\": \"CRITICAL\",\n                \"quantity\": 2,\n                \"disposition\": \"REJECT\",\n                \"notes\": \"Pola meleset \u003e 2 cm, afkir total\"\n            }\n        ]\n    },\n    \"message\": \"Pemeriksaan QC berhasil dicatat\",\n    \"success\": true\n}",
                             "code": 201,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "201 Created",
                             "status": "Created"
                         }
@@ -5440,14 +4928,9 @@
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": {\n        \"orderId\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"orderCode\": \"PO-2026-10-001\",\n        \"targetQuantity\": 1000,\n        \"totalChecked\": 60,\n        \"totalPassed\": 56,\n        \"totalRepair\": 2,\n        \"totalReject\": 2,\n        \"passRatePercentage\": 93.33333333333333,\n        \"isOrderCompleted\": false,\n        \"topDefects\": [\n            {\n                \"categoryName\": \"Jahitan Loncat / Lepas\",\n                \"count\": 2\n            },\n            {\n                \"categoryName\": \"Ukuran Meleset / Measurement Off\",\n                \"count\": 2\n            }\n        ]\n    },\n    \"success\": true\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
@@ -5485,32 +4968,22 @@
                                 "qc",
                                 "inspections"
                             ],
-                            "query": [
-                                {
-                                    "key": "orderId",
-                                    "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
-                                }
-                            ],
                             "raw": "{{base_url}}/qc/inspections?orderId=fad2530f-90d9-4a76-af96-d9f7db451a98"
                         }
                     },
                     "response": [
                         {
+                            "_postman_previewlanguage": "",
                             "body": "{\n    \"data\": [\n        {\n            \"id\": \"2edcd68a-25e3-4945-8b06-d71fa548c5da\",\n            \"inspectionNumber\": \"QC-20261015-0002\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"inspectorName\": \"Siti Handayani\",\n            \"inspectionDate\": \"2026-10-15\",\n            \"passedQuantity\": 8,\n            \"repairQuantity\": 0,\n            \"rejectQuantity\": 2,\n            \"totalChecked\": 10,\n            \"createdAt\": \"2026-10-15T05:36:02.994594+07:00\"\n        },\n        {\n            \"id\": \"68721089-55e6-473f-9ba1-ef155ee32f11\",\n            \"inspectionNumber\": \"QC-20261015-0001\",\n            \"orderCode\": \"PO-2026-10-001\",\n            \"clientName\": \"Snøhund Brand\",\n            \"inspectorName\": \"Siti Handayani\",\n            \"inspectionDate\": \"2026-10-15\",\n            \"passedQuantity\": 48,\n            \"repairQuantity\": 2,\n            \"rejectQuantity\": 0,\n            \"totalChecked\": 50,\n            \"createdAt\": \"2026-10-15T05:36:02.922483+07:00\"\n        }\n    ],\n    \"success\": true,\n    \"total\": 2\n}",
                             "code": 200,
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json; charset=utf-8"
-                                }
-                            ],
                             "name": "200 OK",
                             "status": "OK"
                         }
                     ]
                 }
             ],
-            "name": "10. Tahap 4: Quality Control \u0026 Defect Tracking (BPMN 06)"
+            "name": "10. Tahap 4: Quality Control \u0026 Defect Tracking (BPMN 06)",
+            "response": null
         },
         {
             "item": [
@@ -5975,7 +5448,8 @@
                     ]
                 }
             ],
-            "name": "11. Tahap 4.2: QC Pool Bonus 3-Arah \u0026 Skenario Uji 3 (BPMN 08)"
+            "name": "11. Tahap 4.2: QC Pool Bonus 3-Arah \u0026 Skenario Uji 3 (BPMN 08)",
+            "response": null
         },
         {
             "item": [
@@ -6079,20 +5553,6 @@
                             "path": [
                                 "portal",
                                 "orders"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "ALL"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "10"
-                                },
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                }
                             ],
                             "raw": "{{base_url}}/portal/orders?status=ALL\u0026limit=10\u0026page=1"
                         }
@@ -6348,7 +5808,8 @@
                     ]
                 }
             ],
-            "name": "12. Tahap 5.1: Portal Klien \u0026 Isolasi Multi-Tenant (BPMN 11)"
+            "name": "12. Tahap 5.1: Portal Klien \u0026 Isolasi Multi-Tenant (BPMN 11)",
+            "response": null
         },
         {
             "item": [
@@ -6431,16 +5892,6 @@
                             "path": [
                                 "portal",
                                 "notifications"
-                            ],
-                            "query": [
-                                {
-                                    "key": "unreadOnly",
-                                    "value": "false"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "10"
-                                }
                             ],
                             "raw": "{{base_url}}/portal/notifications?unreadOnly=false\u0026limit=10"
                         }
@@ -6595,12 +6046,6 @@
                             ],
                             "path": [
                                 "orders"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "ALL"
-                                }
                             ],
                             "raw": "{{base_url}}/orders?status=ALL"
                         }
@@ -6772,7 +6217,8 @@
                     "response": []
                 }
             ],
-            "name": "13. Tahap 5.2: Order Completion \u0026 Notification Engine (BPMN 11 \u0026 01)"
+            "name": "13. Tahap 5.2: Order Completion \u0026 Notification Engine (BPMN 11 \u0026 01)",
+            "response": null
         },
         {
             "item": [
@@ -6874,16 +6320,6 @@
                             ],
                             "path": [
                                 "samples"
-                            ],
-                            "query": [
-                                {
-                                    "key": "status",
-                                    "value": "ALL"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "10"
-                                }
                             ],
                             "raw": "{{base_url}}/samples?status=ALL\u0026limit=10"
                         }
@@ -7374,7 +6810,660 @@
                     ]
                 }
             ],
-            "name": "14. Tahap 6.1: Sample \u0026 Time Study Engine (BPMN 03)"
+            "name": "14. Tahap 6.1: Sample \u0026 Time Study Engine (BPMN 03)",
+            "response": null
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Client samples returned successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.1 Klien Tinjau Daftar Sample di Portal",
+                    "request": {
+                        "description": "Klien eksternal meninjau seluruh daftar permintaan sample miliknya di portal.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples"
+                            ],
+                            "raw": "{{base_url}}/portal/samples?status=ALL"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":[{\"id\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"sampleCode\":\"SMP-202610-012\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":1,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-11-30\",\"createdAt\":\"2026-10-15T11:42:49.782088+07:00\"},{\"id\":\"1cbac435-815b-48e8-b1a7-26319275ce87\",\"sampleCode\":\"SMP-202610-011\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"CONVERTED_TO_ORDER\",\"targetDate\":\"2026-11-20\",\"createdAt\":\"2026-10-15T11:40:10.715474+07:00\"},{\"id\":\"ca64832d-4e7f-4e3c-814b-e7a858bd5168\",\"sampleCode\":\"SMP-202610-010\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T11:40:09.618755+07:00\"},{\"id\":\"5ca30346-25cf-4ee0-821a-a39cf039deaf\",\"sampleCode\":\"SMP-202610-009\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"CONVERTED_TO_ORDER\",\"targetDate\":\"2026-11-20\",\"createdAt\":\"2026-10-15T11:39:24.364975+07:00\"},{\"id\":\"b8ad485a-7b72-45fe-bf41-b8b256bc3834\",\"sampleCode\":\"SMP-202610-008\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":1,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-11-20\",\"createdAt\":\"2026-10-15T11:29:18.996273+07:00\"},{\"id\":\"223ed89d-efff-475e-89a1-9dbbd4a36fcf\",\"sampleCode\":\"SMP-202610-007\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:39:49.02885+07:00\"},{\"id\":\"c897085a-257a-4b8b-a93c-afa7f71e579f\",\"sampleCode\":\"SMP-202610-006\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:32:45.242207+07:00\"},{\"id\":\"311f04a1-b66f-4826-a8e0-297c6d3bfe0a\",\"sampleCode\":\"SMP-202610-005\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:31:06.126837+07:00\"},{\"id\":\"6b19f6c0-fac5-407b-a288-382958e5c765\",\"sampleCode\":\"SMP-202610-004\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":1,\"currency\":\"IDR\",\"status\":\"DRAFT\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:24:01.080072+07:00\"},{\"id\":\"0861405e-3630-4987-8b4b-a0718f5f7608\",\"sampleCode\":\"SMP-202610-003\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:12:08.613289+07:00\"},{\"id\":\"b8eb6fa5-0145-4d6b-bcb5-b31a13d739fd\",\"sampleCode\":\"SMP-202610-002\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:11:25.311351+07:00\"},{\"id\":\"43b366b4-4a00-4ac8-b6c5-bf2735018a2e\",\"sampleCode\":\"SMP-202610-001\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"currentVersion\":2,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"status\":\"IN_REVIEW\",\"targetDate\":\"2026-10-25\",\"createdAt\":\"2026-10-15T10:10:38.748451+07:00\"}],\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Sample detail contains versions and article info\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.sampleCode).to.include('SMP-');",
+                                    "    pm.expect(jsonData.data.versions.length).to.be.above(0);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.2 Klien Tinjau Detail Sample \u0026 Riwayat Versi (v1)",
+                    "request": {
+                        "description": "Klien melihat rincian versi fisik sample v1, fitting catatan teknis, dan komponen.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{sample_id}}"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{sample_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"sampleCode\":\"SMP-202610-012\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"articleCode\":\"ART-SNO-PK01\",\"status\":\"IN_REVIEW\",\"currentVersionNumber\":1,\"currency\":\"IDR\",\"versions\":[{\"id\":\"709bb497-ed24-442f-929e-db684b6113de\",\"sampleRequestId\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"versionNumber\":1,\"versionLabel\":\"v1\",\"status\":\"IN_REVIEW\",\"revisionNotes\":\"Versi awal inisiasi spesifikasi sample prototipe\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-15T11:42:49.782088+07:00\",\"updatedAt\":\"2026-10-15T11:42:50.002746+07:00\",\"components\":[]}]},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Revision request submitted successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.message).to.include('revisi');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.3 Klien Ajukan Permintaan Revisi Spesifikasi (v1 -\u003e Revisi)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"revisionNotes\": \"Mohon posisi saku dada dinaikkan 3 cm dan zipper diganti matte black waterproof\"\n}"
+                        },
+                        "description": "Klien meminta perbaikan teknis sample prototipe (merubah status sample menjadi REVISED dan memicu notifikasi ke pabrik).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{sample_id}}",
+                                "request-revision"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{sample_id}}/request-revision"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Permintaan revisi berhasil disampaikan ke tim pabrik\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Version 2 created\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.versionNumber).to.eql(2);",
+                                    "    pm.expect(jsonData.data.versionLabel).to.eql('v2');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.4 Pabrik Terbitkan Versi Revisi 2 (v2)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"revisionNotes\": \"Revisi pola saku dada dinaikkan 3 cm dan zipper matte black waterproof\",\n    \"copyTimeStudiesFromPrevious\": true\n}"
+                        },
+                        "description": "Tim pabrik merilis revisi fisik sample versi 2 berdasarkan masukan klien.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"c9655eb5-5346-4e40-88b4-a734f4895f01\",\"sampleRequestId\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Revisi pola saku dada dinaikkan 3 cm dan zipper matte black waterproof\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-15T11:42:50.038081+07:00\",\"updatedAt\":\"2026-10-15T11:42:50.038081+07:00\",\"components\":[]},\"message\":\"Versi revisi sample berhasil diterbitkan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Time study v2 updated\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.calculatedSAM).to.eql(8.05);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.5 Update Time Study Observasi Komponen pada Versi 2",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"componentId\": \"{{component_main_id}}\",\n    \"observedSeconds\": 420.0,\n    \"allowancePercentage\": 15.0,\n    \"notes\": \"Penyesuaian waktu jahit saku v2 lebih presisi\"\n}"
+                        },
+                        "description": "Pencatatan ulang stopwatch penjahitan komponen v2 menghasilkan SAM 8.05 menit (total SAM versi 2 = 13.80 menit).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "2",
+                                "time-studies"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/2/time-studies"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"id\": \"620e74a3-6d85-483a-9524-08e3d2f0e3f3\",\n        \"sampleVersionId\": \"c9655eb5-5346-4e40-88b4-a734f4895f01\",\n        \"componentId\": \"0e5a5433-1be6-4330-aa9d-98e0cfbfb180\",\n        \"componentName\": \"Potong \\u0026 Persiapan Pola Badan Parka\",\n        \"sequenceNumber\": 1,\n        \"observedSeconds\": 420,\n        \"allowancePercentage\": 15,\n        \"calculatedSAM\": 8.05,\n        \"targetPerHour\": 7,\n        \"notes\": \"Penyesuaian waktu jahit saku v2 lebih presisi\",\n        \"createdAt\": \"2026-10-15T12:32:39.426466+07:00\"\n    },\n    \"message\": \"Pencatatan time study berhasil disimpan\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Commercial rate card set to 45000\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.proposedUnitPrice).to.eql(45000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.6 Tetapkan Commercial Rate Card ke Klien pada Versi 2",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"proposedUnitPrice\": 45000.00,\n    \"currency\": \"IDR\",\n    \"priceNotes\": \"Tarif jasa maklon CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \u0026 packing\"\n}"
+                        },
+                        "description": "Manajemen pabrik menetapkan penawaran harga jasa maklon per pcs ke klien sebesar Rp 45.000 berdasarkan total SAM 13.80 menit.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "versions",
+                                "2",
+                                "commercial-rate"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/versions/2/commercial-rate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"c9655eb5-5346-4e40-88b4-a734f4895f01\",\"sampleRequestId\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Revisi pola saku dada dinaikkan 3 cm dan zipper matte black waterproof\",\"totalSAM\":0,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"priceNotes\":\"Tarif jasa maklon CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \\u0026 packing\",\"createdAt\":\"2026-10-15T11:42:50.038081+07:00\",\"updatedAt\":\"2026-10-15T11:42:50.047814+07:00\",\"components\":[]},\"message\":\"Commercial rate card berhasil ditetapkan\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Sample submitted for review\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.7 Pabrik Ajukan Versi 2 ke Klien untuk Persetujuan",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Sample fisik v2 telah dikirim ke kantor brand Snøhund via ekspedisi resi JNE889900\"\n}"
+                        },
+                        "description": "Sample versi 2 diajukan ke klien (status IN_REVIEW) dan mengirim notifikasi in-app SAMPLE_READY_FOR_REVIEW.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "submit-review"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/submit-review"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Sample berhasil diajukan ke klien dan notifikasi telah dikirim\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Version 2 verified with price Rp 45.000\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.currentVersionNumber).to.eql(2);",
+                                    "    pm.expect(jsonData.data.latestProposedUnitPrice).to.eql(45000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.8 Klien Tinjau Versi 2 \u0026 Harga Commercial Rate Card di Portal",
+                    "request": {
+                        "description": "Klien melihat rincian spesifikasi sample v2 dan penawaran harga jasa CMT Rp 45.000 di portal.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{sample_id}}"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{sample_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"sampleCode\":\"SMP-202610-012\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"articleCode\":\"ART-SNO-PK01\",\"status\":\"IN_REVIEW\",\"currentVersionNumber\":2,\"latestProposedUnitPrice\":45000,\"currency\":\"IDR\",\"versions\":[{\"id\":\"709bb497-ed24-442f-929e-db684b6113de\",\"sampleRequestId\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"versionNumber\":1,\"versionLabel\":\"v1\",\"status\":\"REVISED\",\"revisionNotes\":\"Versi awal inisiasi spesifikasi sample prototipe\",\"clientFeedback\":\"Mohon posisi saku dada dinaikkan 3 cm dan zipper diganti matte black waterproof\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-15T11:42:49.782088+07:00\",\"updatedAt\":\"2026-10-15T11:42:50.038081+07:00\",\"components\":[]},{\"id\":\"c9655eb5-5346-4e40-88b4-a734f4895f01\",\"sampleRequestId\":\"41a85dc1-93df-4346-8f91-63bafc2651fa\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"IN_REVIEW\",\"revisionNotes\":\"Revisi pola saku dada dinaikkan 3 cm dan zipper matte black waterproof\",\"totalSAM\":0,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"priceNotes\":\"Tarif jasa maklon CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \\u0026 packing\",\"createdAt\":\"2026-10-15T11:42:50.038081+07:00\",\"updatedAt\":\"2026-10-15T11:42:50.055267+07:00\",\"components\":[]}]},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Sample approved successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.message).to.include('disetujui');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.9 Klien Menyetujui Versi Sample \u0026 Penawaran Harga (Digital Approval)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"feedbackNotes\": \"Sample v2 sempurna, jahitan rapi, pola pas dan tarif CMT Rp 45.000 disetujui untuk PO massal.\"\n}"
+                        },
+                        "description": "Klien menyetujui sample versi 2 beserta harga jasa maklon CMT Rp 45.000 secara resmi.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "samples",
+                                "{{sample_id}}",
+                                "approve"
+                            ],
+                            "raw": "{{base_url}}/portal/samples/{{sample_id}}/approve"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"message\":\"Sample berhasil disetujui dan siap dikonversi ke produksi massal\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Order created from approved sample version 2\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.approvedVersion).to.eql(2);",
+                                    "    pm.expect(jsonData.data.unitPrice).to.eql(45000);",
+                                    "    pm.expect(jsonData.data.totalAmount).to.eql(90000000);",
+                                    "    pm.expect(jsonData.data.status).to.eql('IN_PRODUCTION');",
+                                    "    pm.collectionVariables.set(\"mass_order_id\", jsonData.data.orderId);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.10 Konversi Sample Approved Menjadi Order Produksi Massal (Skenario Uji 4)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"orderNumber\": \"PO-SNO-2026-M9370\",\n    \"targetQuantity\": 2000,\n    \"targetDate\": \"2026-12-20\",\n    \"notes\": \"Produksi massal 2000 pcs mengikat spesifikasi Sample v2 yang telah disetujui\"\n}"
+                        },
+                        "description": "Menerbitkan Order Produksi Massal dari sample yang telah disetujui. Secara absolut mengikat spesifikasi teknis versi 2 (bukan v1) dan mengikat harga Rp 45.000 dengan total kontrak Rp 90.000.000.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "samples",
+                                "{{sample_id}}",
+                                "convert-to-order"
+                            ],
+                            "raw": "{{base_url}}/samples/{{sample_id}}/convert-to-order"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"orderId\":\"6c23be23-ae55-4fbb-bf78-21ed896fcd89\",\"orderNumber\":\"PO-SNO-2026-M9370\",\"sampleCode\":\"SMP-202610-012\",\"approvedVersion\":2,\"targetQuantity\":2000,\"unitPrice\":45000,\"totalAmount\":90000000,\"currency\":\"IDR\",\"status\":\"IN_PRODUCTION\",\"specSnapshotSAM\":0},\"message\":\"Sample berhasil dikonversi menjadi Order Produksi Massal\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Order details verified with sample version 2 binding\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.unitPrice).to.eql(45000);",
+                                    "    pm.expect(jsonData.data.totalAmount).to.eql(90000000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "15.11 Verifikasi Detail Order Massal Mengikat Versi 2 \u0026 Commercial Rate",
+                    "request": {
+                        "description": "Verifikasi komprehensif order massal di database bahwa sample_version_id, unit_price, dan total_amount telah terkunci akurat.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "{{mass_order_id}}"
+                            ],
+                            "raw": "{{base_url}}/orders/{{mass_order_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"6c23be23-ae55-4fbb-bf78-21ed896fcd89\",\"orderNumber\":\"PO-SNO-2026-M9370\",\"clientId\":\"f310f933-4b79-40c4-849d-f0334716d43c\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"sampleVersionId\":\"c9655eb5-5346-4e40-88b4-a734f4895f01\",\"unitPrice\":45000,\"totalAmount\":90000000,\"targetQuantity\":2000,\"passedQuantity\":0,\"status\":\"IN_PRODUCTION\",\"startDate\":\"2026-10-15\",\"targetDate\":\"2026-12-20\",\"createdAt\":\"2026-10-15T11:42:50.065946+07:00\",\"notes\":\"Produksi massal 2000 pcs mengikat spesifikasi Sample v2 yang telah disetujui\",\"cuttingQuantity\":0,\"sewingQuantity\":0,\"repairQuantity\":0,\"rejectQuantity\":0,\"passRate\":0},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "15. Tahap 6.2: Client Approval, Commercial Rate Card \u0026 Mass Order Conversion (BPMN 03 \u0026 Skenario Uji 4)",
+            "response": null
         }
     ],
     "variable": [
@@ -7536,7 +7625,7 @@
         {
             "key": "sample_id",
             "type": "string",
-            "value": "311f04a1-b66f-4826-a8e0-297c6d3bfe0a"
+            "value": "41a85dc1-93df-4346-8f91-63bafc2651fa"
         },
         {
             "key": "component_main_id",
@@ -7547,6 +7636,11 @@
             "key": "component_pocket_id",
             "type": "string",
             "value": "369dc3b1-bb75-4394-9605-39f5b42f3463"
+        },
+        {
+            "key": "mass_order_id",
+            "type": "string",
+            "value": "6c23be23-ae55-4fbb-bf78-21ed896fcd89"
         }
     ]
 }

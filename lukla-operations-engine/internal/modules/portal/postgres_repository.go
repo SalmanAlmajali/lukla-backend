@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+
+	"github.com/lukla/operations-engine/internal/modules/sample"
 )
 
 // PostgresRepository implements Repository for PostgreSQL database.
@@ -413,4 +415,355 @@ func (r *PostgresRepository) ListFinishedGoodsStocks(ctx context.Context, client
 	}
 
 	return list, nil
+}
+
+// ListClientSamples retrieves sample requests for the authenticated client.
+func (r *PostgresRepository) ListClientSamples(ctx context.Context, clientID, status string) ([]ClientPortalSampleSummary, error) {
+	query := `
+		SELECT 
+			sr.id,
+			sr.sample_code,
+			a.title AS article_title,
+			COALESCE(v.version_number, 1) AS current_version,
+			v.proposed_unit_price,
+			COALESCE(v.currency, 'IDR') AS currency,
+			sr.status,
+			sr.target_date::TEXT,
+			sr.created_at
+		FROM sample_requests sr
+		JOIN articles a ON sr.article_id = a.id
+		LEFT JOIN LATERAL (
+			SELECT version_number, proposed_unit_price, currency
+			FROM sample_versions
+			WHERE sample_request_id = sr.id
+			ORDER BY version_number DESC
+			LIMIT 1
+		) v ON true
+		WHERE sr.client_id = $1::uuid
+		  AND ($2 = '' OR $2 = 'ALL' OR sr.status = $2)
+		ORDER BY sr.created_at DESC
+	`
+	rows, err := r.db.QueryContext(ctx, query, clientID, status)
+	if err != nil {
+		return nil, fmt.Errorf("list client samples: %w", err)
+	}
+	defer rows.Close()
+
+	var list []ClientPortalSampleSummary
+	for rows.Next() {
+		var s ClientPortalSampleSummary
+		var proposedPrice sql.NullFloat64
+		var targetDate sql.NullString
+
+		if err := rows.Scan(
+			&s.ID,
+			&s.SampleCode,
+			&s.ArticleTitle,
+			&s.CurrentVersion,
+			&proposedPrice,
+			&s.Currency,
+			&s.Status,
+			&targetDate,
+			&s.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan client sample: %w", err)
+		}
+
+		if proposedPrice.Valid {
+			price := proposedPrice.Float64
+			s.ProposedUnitPrice = &price
+		}
+		if targetDate.Valid {
+			s.TargetDate = &targetDate.String
+		}
+
+		list = append(list, s)
+	}
+
+	return list, nil
+}
+
+// GetClientSampleDetail retrieves comprehensive drill-down of a sample for client portal.
+func (r *PostgresRepository) GetClientSampleDetail(ctx context.Context, clientID, sampleID string) (*ClientPortalSampleDetail, error) {
+	querySample := `
+		SELECT 
+			sr.id,
+			sr.sample_code,
+			a.title AS article_title,
+			a.code AS article_code,
+			sr.status
+		FROM sample_requests sr
+		JOIN articles a ON sr.article_id = a.id
+		WHERE sr.id = $1::uuid AND sr.client_id = $2::uuid
+	`
+	var detail ClientPortalSampleDetail
+	err := r.db.QueryRowContext(ctx, querySample, sampleID, clientID).Scan(
+		&detail.ID,
+		&detail.SampleCode,
+		&detail.ArticleTitle,
+		&detail.ArticleCode,
+		&detail.Status,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSampleNotFound
+		}
+		return nil, fmt.Errorf("query sample detail: %w", err)
+	}
+
+	// Ambil semua versi sample
+	queryVersions := `
+		SELECT 
+			id, sample_request_id, version_number, version_label, status,
+			revision_notes, client_feedback, total_sam, proposed_unit_price,
+			currency, price_notes, approved_at, created_at, updated_at
+		FROM sample_versions
+		WHERE sample_request_id = $1
+		ORDER BY version_number ASC
+	`
+	vRows, err := r.db.QueryContext(ctx, queryVersions, sampleID)
+	if err != nil {
+		return nil, fmt.Errorf("query versions: %w", err)
+	}
+	defer vRows.Close()
+
+	var versions []sample.SampleVersionDetail
+	var latestVerNum int
+	var latestPrice *float64
+	var latestCurrency = "IDR"
+
+	for vRows.Next() {
+		var v sample.SampleVersionDetail
+		var revNotes, clientFeedback, priceNotes sql.NullString
+		var proposedPrice sql.NullFloat64
+		var approvedAt sql.NullTime
+
+		if err := vRows.Scan(
+			&v.ID,
+			&v.SampleRequestID,
+			&v.VersionNumber,
+			&v.VersionLabel,
+			&v.Status,
+			&revNotes,
+			&clientFeedback,
+			&v.TotalSAM,
+			&proposedPrice,
+			&v.Currency,
+			&priceNotes,
+			&approvedAt,
+			&v.CreatedAt,
+			&v.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan version: %w", err)
+		}
+
+		if revNotes.Valid {
+			v.RevisionNotes = &revNotes.String
+		}
+		if clientFeedback.Valid {
+			v.ClientFeedback = &clientFeedback.String
+		}
+		if proposedPrice.Valid {
+			price := proposedPrice.Float64
+			v.ProposedUnitPrice = &price
+		}
+		if priceNotes.Valid {
+			v.PriceNotes = &priceNotes.String
+		}
+		if approvedAt.Valid {
+			v.ApprovedAt = &approvedAt.Time
+		}
+
+		if v.VersionNumber >= latestVerNum {
+			latestVerNum = v.VersionNumber
+			latestPrice = v.ProposedUnitPrice
+			latestCurrency = v.Currency
+		}
+
+		versions = append(versions, v)
+	}
+	vRows.Close()
+
+	// Ambil data time study untuk setiap versi
+	compQuery := `
+		SELECT 
+			sts.id, sts.sample_version_id, sts.component_id,
+			c.name AS component_name, c.sequence_number,
+			sts.observed_seconds, sts.allowance_percentage, sts.calculated_sam, sts.target_per_hour,
+			u.full_name AS operator_name, sts.notes, sts.created_at
+		FROM sample_time_studies sts
+		JOIN components c ON sts.component_id = c.id
+		LEFT JOIN users u ON sts.operator_id = u.id
+		WHERE sts.sample_version_id = $1
+		ORDER BY c.sequence_number ASC
+	`
+	for i := range versions {
+		cRows, err := r.db.QueryContext(ctx, compQuery, versions[i].ID)
+		if err != nil {
+			return nil, fmt.Errorf("query components time study: %w", err)
+		}
+
+		versions[i].Components = make([]sample.SampleTimeStudyItem, 0)
+		for cRows.Next() {
+			var item sample.SampleTimeStudyItem
+			var opName, notes sql.NullString
+			if err := cRows.Scan(
+				&item.ID,
+				&item.SampleVersionID,
+				&item.ComponentID,
+				&item.ComponentName,
+				&item.SequenceNumber,
+				&item.ObservedSeconds,
+				&item.AllowancePercentage,
+				&item.CalculatedSAM,
+				&item.TargetPerHour,
+				&opName,
+				&notes,
+				&item.CreatedAt,
+			); err != nil {
+				cRows.Close()
+				return nil, fmt.Errorf("scan time study component: %w", err)
+			}
+			if opName.Valid {
+				item.OperatorName = &opName.String
+			}
+			if notes.Valid {
+				item.Notes = &notes.String
+			}
+			versions[i].Components = append(versions[i].Components, item)
+		}
+		cRows.Close()
+	}
+
+	detail.CurrentVersionNumber = latestVerNum
+	detail.LatestProposedUnitPrice = latestPrice
+	detail.Currency = latestCurrency
+	detail.Versions = versions
+
+	return &detail, nil
+}
+
+// ApproveSample sets the active version of a sample to APPROVED, syncs components standard SAM, and updates sample request status.
+func (r *PostgresRepository) ApproveSample(ctx context.Context, clientID, sampleID string, feedbackNotes *string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Verifikasi kepemilikan sample oleh client
+	var currentStatus string
+	err = tx.QueryRowContext(ctx, "SELECT status FROM sample_requests WHERE id = $1 AND client_id = $2 FOR UPDATE", sampleID, clientID).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrSampleNotFound
+		}
+		return fmt.Errorf("verify sample client: %w", err)
+	}
+
+	// 2. Ambil versi aktif (tertinggi)
+	var versionID string
+	err = tx.QueryRowContext(ctx, `
+		SELECT id FROM sample_versions 
+		WHERE sample_request_id = $1 
+		ORDER BY version_number DESC 
+		LIMIT 1 FOR UPDATE
+	`, sampleID).Scan(&versionID)
+	if err != nil {
+		return fmt.Errorf("find active version: %w", err)
+	}
+
+	// 3. Update status versi menjadi APPROVED
+	_, err = tx.ExecContext(ctx, `
+		UPDATE sample_versions
+		SET status = 'APPROVED',
+		    approved_at = NOW(),
+		    client_feedback = COALESCE($1, client_feedback),
+		    updated_at = NOW()
+		WHERE id = $2
+	`, feedbackNotes, versionID)
+	if err != nil {
+		return fmt.Errorf("update version to approved: %w", err)
+	}
+
+	// 4. Update status sample_requests menjadi APPROVED
+	_, err = tx.ExecContext(ctx, `
+		UPDATE sample_requests
+		SET status = 'APPROVED',
+		    updated_at = NOW()
+		WHERE id = $1
+	`, sampleID)
+	if err != nil {
+		return fmt.Errorf("update sample request to approved: %w", err)
+	}
+
+	// 5. Sinkronisasikan Standard SAM ke masterdata components untuk artikel ini
+	_, err = tx.ExecContext(ctx, `
+		UPDATE components c
+		SET standard_sam = sts.calculated_sam,
+		    updated_at = NOW()
+		FROM sample_time_studies sts
+		WHERE sts.sample_version_id = $1 AND sts.component_id = c.id
+	`, versionID)
+	if err != nil {
+		return fmt.Errorf("sync component standard SAM: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// RequestSampleRevision sets the active version of a sample to REVISED and records client feedback.
+func (r *PostgresRepository) RequestSampleRevision(ctx context.Context, clientID, sampleID string, revisionNotes string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Verifikasi kepemilikan sample oleh client
+	var currentStatus string
+	err = tx.QueryRowContext(ctx, "SELECT status FROM sample_requests WHERE id = $1 AND client_id = $2 FOR UPDATE", sampleID, clientID).Scan(&currentStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrSampleNotFound
+		}
+		return fmt.Errorf("verify sample client: %w", err)
+	}
+
+	// 2. Ambil versi aktif (tertinggi)
+	var versionID string
+	err = tx.QueryRowContext(ctx, `
+		SELECT id FROM sample_versions 
+		WHERE sample_request_id = $1 
+		ORDER BY version_number DESC 
+		LIMIT 1 FOR UPDATE
+	`, sampleID).Scan(&versionID)
+	if err != nil {
+		return fmt.Errorf("find active version: %w", err)
+	}
+
+	// 3. Update status versi menjadi REVISED dan catat masukan revisi klien
+	_, err = tx.ExecContext(ctx, `
+		UPDATE sample_versions
+		SET status = 'REVISED',
+		    client_feedback = $1,
+		    updated_at = NOW()
+		WHERE id = $2
+	`, revisionNotes, versionID)
+	if err != nil {
+		return fmt.Errorf("update version to revised: %w", err)
+	}
+
+	// 4. Update status sample_requests menjadi REVISED
+	_, err = tx.ExecContext(ctx, `
+		UPDATE sample_requests
+		SET status = 'REVISED',
+		    updated_at = NOW()
+		WHERE id = $1
+	`, sampleID)
+	if err != nil {
+		return fmt.Errorf("update sample request to revised: %w", err)
+	}
+
+	return tx.Commit()
 }

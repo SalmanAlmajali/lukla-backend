@@ -13,20 +13,23 @@ var (
 
 // InternalOrderSummary merepresentasikan ikhtisar pesanan untuk pengawasan lini produksi pabrik.
 type InternalOrderSummary struct {
-	ID             string     `json:"id"`
-	OrderNumber    string     `json:"orderNumber"`
-	ClientID       string     `json:"clientId"`
-	ClientName     string     `json:"clientName"`
-	ArticleID      string     `json:"articleId"`
-	ArticleCode    string     `json:"articleCode"`
-	ArticleTitle   string     `json:"articleTitle"`
-	TargetQuantity int        `json:"targetQuantity"`
-	PassedQuantity int        `json:"passedQuantity"`
-	Status         string     `json:"status"`
-	StartDate      *string    `json:"startDate,omitempty"`
-	TargetDate     *string    `json:"targetDate,omitempty"`
-	CompletedAt    *time.Time `json:"completedAt,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
+	ID              string     `json:"id"`
+	OrderNumber     string     `json:"orderNumber"`
+	ClientID        string     `json:"clientId"`
+	ClientName      string     `json:"clientName"`
+	ArticleID       string     `json:"articleId"`
+	ArticleCode     string     `json:"articleCode"`
+	ArticleTitle    string     `json:"articleTitle"`
+	SampleVersionID *string    `json:"sampleVersionId,omitempty"`
+	UnitPrice       *float64   `json:"unitPrice,omitempty"`
+	TotalAmount     *float64   `json:"totalAmount,omitempty"`
+	TargetQuantity  int        `json:"targetQuantity"`
+	PassedQuantity  int        `json:"passedQuantity"`
+	Status          string     `json:"status"`
+	StartDate       *string    `json:"startDate,omitempty"`
+	TargetDate      *string    `json:"targetDate,omitempty"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
 }
 
 // InternalOrderDetail merepresentasikan detail teknis pesanan internal pabrik.

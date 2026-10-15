@@ -839,3 +839,132 @@ func (r *PostgresRepository) UpdateSampleStatus(ctx context.Context, sampleID st
 	return tx.Commit()
 }
 
+// ConvertToOrder mengonversi sample approved menjadi Order Produksi Massal (BPMN 03 / Skenario Uji 4).
+func (r *PostgresRepository) ConvertToOrder(ctx context.Context, sampleID string, payload ConvertSampleToOrderPayload) (*ConvertedMassOrderResponse, error) {
+	// 1. Ambil data sample request
+	var sampleCode, clientID, articleID, status string
+	var convertedOrderID sql.NullString
+	querySample := `
+		SELECT sample_code, client_id, article_id, status, converted_order_id
+		FROM sample_requests
+		WHERE id = $1
+	`
+	err := r.db.QueryRowContext(ctx, querySample, sampleID).Scan(
+		&sampleCode, &clientID, &articleID, &status, &convertedOrderID,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSampleNotFound
+		}
+		return nil, fmt.Errorf("find sample request: %w", err)
+	}
+
+	if convertedOrderID.Valid && convertedOrderID.String != "" {
+		return nil, ErrSampleAlreadyConverted
+	}
+
+	// 2. Ambil versi sample yang disetujui (APPROVED)
+	var versionID, currency string
+	var versionNumber int
+	var totalSAM float64
+	var proposedPrice sql.NullFloat64
+	queryVersion := `
+		SELECT id, version_number, total_sam, proposed_unit_price, currency
+		FROM sample_versions
+		WHERE sample_request_id = $1 AND status = 'APPROVED'
+		ORDER BY version_number DESC
+		LIMIT 1
+	`
+	err = r.db.QueryRowContext(ctx, queryVersion, sampleID).Scan(
+		&versionID, &versionNumber, &totalSAM, &proposedPrice, &currency,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSampleNotApproved
+		}
+		return nil, fmt.Errorf("find approved sample version: %w", err)
+	}
+
+	// 3. Tentukan harga satuan (unit price)
+	var unitPrice float64
+	if payload.UnitPrice != nil && *payload.UnitPrice > 0 {
+		unitPrice = *payload.UnitPrice
+	} else if proposedPrice.Valid && proposedPrice.Float64 > 0 {
+		unitPrice = proposedPrice.Float64
+	} else {
+		return nil, errors.New("harga satuan (unit price) belum ditentukan baik pada payload maupun versi sample yang disetujui")
+	}
+
+	totalAmount := math.Round(float64(payload.TargetQuantity)*unitPrice*100) / 100
+
+	// 4. Eksekusi transaksi pembuatan order massal dan penguncian sample
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 4a. Insert ke orders
+	var orderID string
+	insertOrderQuery := `
+		INSERT INTO orders (
+			order_number, client_id, article_id, sample_version_id,
+			target_quantity, start_date, target_date, unit_price, total_amount,
+			status, notes, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4,
+			$5, CURRENT_DATE, $6, $7, $8,
+			'IN_PRODUCTION', $9, NOW(), NOW()
+		) RETURNING id
+	`
+	err = tx.QueryRowContext(ctx, insertOrderQuery,
+		payload.OrderNumber, clientID, articleID, versionID,
+		payload.TargetQuantity, payload.TargetDate, unitPrice, totalAmount,
+		payload.Notes,
+	).Scan(&orderID)
+	if err != nil {
+		return nil, fmt.Errorf("insert mass order: %w", err)
+	}
+
+	// 4b. Sinkronisasi Standard SAM komponen masterdata dari hasil time study versi approved
+	_, err = tx.ExecContext(ctx, `
+		UPDATE components c
+		SET standard_sam = sts.calculated_sam,
+		    updated_at = NOW()
+		FROM sample_time_studies sts
+		WHERE sts.sample_version_id = $1 AND sts.component_id = c.id
+	`, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("sync component standard SAM: %w", err)
+	}
+
+	// 4c. Update sample_requests menandai telah dikonversi ke order massal
+	_, err = tx.ExecContext(ctx, `
+		UPDATE sample_requests
+		SET converted_order_id = $1,
+		    status = 'CONVERTED_TO_ORDER',
+		    updated_at = NOW()
+		WHERE id = $2
+	`, orderID, sampleID)
+	if err != nil {
+		return nil, fmt.Errorf("update sample_requests converted: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return &ConvertedMassOrderResponse{
+		OrderID:         orderID,
+		OrderNumber:     payload.OrderNumber,
+		SampleCode:      sampleCode,
+		ApprovedVersion: versionNumber,
+		TargetQuantity:  payload.TargetQuantity,
+		UnitPrice:       unitPrice,
+		TotalAmount:     totalAmount,
+		Currency:        currency,
+		Status:          "IN_PRODUCTION",
+		SpecSnapshotSAM: totalSAM,
+	}, nil
+}
+

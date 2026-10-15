@@ -3,6 +3,8 @@ package portal
 import (
 	"errors"
 	"time"
+
+	"github.com/lukla/operations-engine/internal/modules/sample"
 )
 
 // Sentinel domain errors for client portal and multi-tenant isolation.
@@ -10,6 +12,7 @@ var (
 	ErrUnauthorizedPortalAccess   = errors.New("pengguna tidak memiliki hak akses ke portal klien")
 	ErrClientTenantRequired       = errors.New("pengguna tidak terhubung dengan akun klien manapun")
 	ErrOrderNotFound              = errors.New("pesanan tidak ditemukan atau bukan milik klien Anda")
+	ErrSampleNotFound             = errors.New("data sample tidak ditemukan atau bukan milik klien Anda")
 	ErrForbiddenTenantCrossAccess = errors.New("pelanggaran keamanan: akses data lintas klien dilarang keras")
 )
 
@@ -128,5 +131,41 @@ type ListClientOrdersFilter struct {
 	Search string
 	Page   int
 	Limit  int
+}
+
+// ClientPortalSampleSummary represents a sample request summary in client portal.
+type ClientPortalSampleSummary struct {
+	ID                string    `json:"id"`
+	SampleCode        string    `json:"sampleCode"`
+	ArticleTitle      string    `json:"articleTitle"`
+	CurrentVersion    int       `json:"currentVersion"`
+	ProposedUnitPrice *float64  `json:"proposedUnitPrice,omitempty"`
+	Currency          string    `json:"currency"`
+	Status            string    `json:"status"`
+	TargetDate        *string   `json:"targetDate,omitempty"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+// ClientPortalSampleDetail represents deep drill-down of a sample in client portal.
+type ClientPortalSampleDetail struct {
+	ID                      string                       `json:"id"`
+	SampleCode              string                       `json:"sampleCode"`
+	ArticleTitle            string                       `json:"articleTitle"`
+	ArticleCode             string                       `json:"articleCode"`
+	Status                  string                       `json:"status"`
+	CurrentVersionNumber    int                          `json:"currentVersionNumber"`
+	LatestProposedUnitPrice *float64                     `json:"latestProposedUnitPrice,omitempty"`
+	Currency                string                       `json:"currency"`
+	Versions                []sample.SampleVersionDetail `json:"versions"`
+}
+
+// ClientPortalApproveSamplePayload represents feedback payload when client approves sample.
+type ClientPortalApproveSamplePayload struct {
+	FeedbackNotes *string `json:"feedbackNotes"`
+}
+
+// ClientPortalRequestRevisionPayload represents revision notes when client requests revision.
+type ClientPortalRequestRevisionPayload struct {
+	RevisionNotes string `json:"revisionNotes" binding:"required"`
 }
 

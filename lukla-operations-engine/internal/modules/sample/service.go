@@ -194,3 +194,24 @@ func (s *Service) SubmitReview(ctx context.Context, sampleID string, notes *stri
 	return nil
 }
 
+// ConvertToOrder mengonversi sample approved menjadi Order Produksi Massal (BPMN 03 / Skenario Uji 4).
+func (s *Service) ConvertToOrder(ctx context.Context, sampleID string, payload ConvertSampleToOrderPayload) (*ConvertedMassOrderResponse, error) {
+	if strings.TrimSpace(sampleID) == "" {
+		return nil, ErrSampleNotFound
+	}
+	if strings.TrimSpace(payload.OrderNumber) == "" {
+		return nil, fmt.Errorf("nomor order massal wajib diisi")
+	}
+	if payload.TargetQuantity < 1 {
+		return nil, fmt.Errorf("target kuantitas produksi massal minimal 1 pcs")
+	}
+	if strings.TrimSpace(payload.TargetDate) == "" {
+		return nil, fmt.Errorf("target tanggal penyelesaian wajib diisi")
+	}
+	if payload.UnitPrice != nil && *payload.UnitPrice <= 0 {
+		return nil, fmt.Errorf("harga satuan unit price jika diisi harus lebih besar dari 0")
+	}
+
+	return s.repo.ConvertToOrder(ctx, strings.TrimSpace(sampleID), payload)
+}
+

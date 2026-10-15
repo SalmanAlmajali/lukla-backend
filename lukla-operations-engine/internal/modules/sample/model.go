@@ -136,3 +136,26 @@ type SubmitReviewPayload struct {
 	Notes *string `json:"notes"`
 }
 
+// ConvertSampleToOrderPayload payload untuk mengonversi sample approved menjadi order massal (BPMN 03 / Skenario Uji 4).
+type ConvertSampleToOrderPayload struct {
+	OrderNumber    string   `json:"orderNumber" binding:"required"`
+	TargetQuantity int      `json:"targetQuantity" binding:"required,gt=0"`
+	TargetDate     string   `json:"targetDate" binding:"required"`
+	UnitPrice      *float64 `json:"unitPrice"`
+	Notes          *string  `json:"notes"`
+}
+
+// ConvertedMassOrderResponse respons kembalian setelah sample berhasil dikonversi menjadi order produksi massal.
+type ConvertedMassOrderResponse struct {
+	OrderID         string  `json:"orderId"`
+	OrderNumber     string  `json:"orderNumber"`
+	SampleCode      string  `json:"sampleCode"`
+	ApprovedVersion int     `json:"approvedVersion"`
+	TargetQuantity  int     `json:"targetQuantity"`
+	UnitPrice       float64 `json:"unitPrice"`
+	TotalAmount     float64 `json:"totalAmount"`
+	Currency        string  `json:"currency"`
+	Status          string  `json:"status"`
+	SpecSnapshotSAM float64 `json:"specSnapshotSAM"`
+}
+

@@ -164,6 +164,41 @@ func (m *mockRepository) UpdateSampleStatus(ctx context.Context, sampleID string
 	return nil
 }
 
+func (m *mockRepository) ConvertToOrder(ctx context.Context, sampleID string, payload sample.ConvertSampleToOrderPayload) (*sample.ConvertedMassOrderResponse, error) {
+	s, ok := m.samples[sampleID]
+	if !ok {
+		return nil, sample.ErrSampleNotFound
+	}
+	if s.ConvertedOrderID != nil {
+		return nil, sample.ErrSampleAlreadyConverted
+	}
+	if s.Status != sample.StatusApproved {
+		return nil, sample.ErrSampleNotApproved
+	}
+
+	unitPrice := 45000.00
+	if payload.UnitPrice != nil && *payload.UnitPrice > 0 {
+		unitPrice = *payload.UnitPrice
+	}
+
+	orderID := "order-converted-uuid-1"
+	s.ConvertedOrderID = &orderID
+	s.Status = sample.StatusConvertedToOrder
+
+	return &sample.ConvertedMassOrderResponse{
+		OrderID:         orderID,
+		OrderNumber:     payload.OrderNumber,
+		SampleCode:      s.SampleCode,
+		ApprovedVersion: 2,
+		TargetQuantity:  payload.TargetQuantity,
+		UnitPrice:       unitPrice,
+		TotalAmount:     float64(payload.TargetQuantity) * unitPrice,
+		Currency:        "IDR",
+		Status:          "IN_PRODUCTION",
+		SpecSnapshotSAM: 13.80,
+	}, nil
+}
+
 func TestSampleService_CreateSampleRequest_Success(t *testing.T) {
 	repo := newMockRepo()
 	svc := sample.NewService(repo, nil)
@@ -303,6 +338,43 @@ func TestSampleService_SubmitReview(t *testing.T) {
 
 	if repo.updatedStats[created.ID] != sample.StatusInReview {
 		t.Errorf("expected sample status IN_REVIEW, got %s", repo.updatedStats[created.ID])
+	}
+}
+
+func TestSampleService_ConvertToOrder(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+
+	ctx := context.Background()
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	// Set sample to APPROVED
+	_ = repo.UpdateSampleStatus(ctx, created.ID, sample.StatusApproved, nil)
+
+	unitPrice := 45000.00
+	notes := "Konversi PO Massal"
+	res, err := svc.ConvertToOrder(ctx, created.ID, sample.ConvertSampleToOrderPayload{
+		OrderNumber:    "PO-2026-10-003",
+		TargetQuantity: 2000,
+		TargetDate:     "2026-12-01",
+		UnitPrice:      &unitPrice,
+		Notes:          &notes,
+	})
+	if err != nil {
+		t.Fatalf("convert to order failed: %v", err)
+	}
+
+	if res.OrderNumber != "PO-2026-10-003" {
+		t.Errorf("expected order number PO-2026-10-003, got %s", res.OrderNumber)
+	}
+	if res.TargetQuantity != 2000 {
+		t.Errorf("expected quantity 2000, got %d", res.TargetQuantity)
+	}
+	if res.TotalAmount != 90000000.00 {
+		t.Errorf("expected total amount 90000000, got %v", res.TotalAmount)
 	}
 }
 

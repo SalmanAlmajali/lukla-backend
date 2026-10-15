@@ -12,5 +12,11 @@ type Repository interface {
 	GetOrderQuality(ctx context.Context, clientID, orderID string) (*ClientPortalOrderQuality, error)
 	ListMaterialStocks(ctx context.Context, clientID, category string) ([]ClientPortalMaterialStock, error)
 	ListFinishedGoodsStocks(ctx context.Context, clientID string) ([]ClientPortalFinishedGoodsStock, error)
+
+	// Sample Review & Approval (BPMN 03 & BPMN 11)
+	ListClientSamples(ctx context.Context, clientID, status string) ([]ClientPortalSampleSummary, error)
+	GetClientSampleDetail(ctx context.Context, clientID, sampleID string) (*ClientPortalSampleDetail, error)
+	ApproveSample(ctx context.Context, clientID, sampleID string, feedbackNotes *string) error
+	RequestSampleRevision(ctx context.Context, clientID, sampleID string, revisionNotes string) error
 }
 
