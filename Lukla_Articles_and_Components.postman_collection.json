@@ -6349,6 +6349,430 @@
                 }
             ],
             "name": "12. Tahap 5.1: Portal Klien \u0026 Isolasi Multi-Tenant (BPMN 11)"
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "pm.test(\"Notification created and saved to var\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.id).to.be.a('string');",
+                                    "    pm.collectionVariables.set(\"notification_id\", jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "01. POST /notifications/send - Kirim Notifikasi Manual ke Klien (201 Created)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"title\": \"Pemberitahuan Jadwal Pengiriman Batch 1\",\n    \"message\": \"Pengiriman 3.336 pcs Parka Arctic Ekspor dijadwalkan pada hari Jumat pukul 09:00 WIB.\",\n    \"eventType\": \"ANNOUNCEMENT\"\n}"
+                        },
+                        "description": "Staf internal pabrik (Owner/Kepala Produksi) menerbitkan notifikasi pengumuman resmi ke akun klien tertentu.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "notifications",
+                                "send"
+                            ],
+                            "raw": "{{base_url}}/notifications/send"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"createdAt\": \"2026-10-15T08:44:56.934832+07:00\",\n        \"eventType\": \"ANNOUNCEMENT\",\n        \"id\": \"b13378a4-9953-4fc6-985a-3ac1fb61ddc0\",\n        \"isRead\": false,\n        \"message\": \"Pengiriman 3.336 pcs Parka Arctic Ekspor dijadwalkan pada hari Jumat pukul 09:00 WIB.\",\n        \"title\": \"Pemberitahuan Jadwal Pengiriman Batch 1\"\n    },\n    \"message\": \"Notifikasi berhasil dikirim\",\n    \"success\": true\n}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "name": "02. GET /portal/notifications - Daftar Notifikasi Milik Klien (200 OK)",
+                    "request": {
+                        "description": "Mengambil seluruh riwayat notifikasi in-app untuk klien yang sedang login beserta jumlah notifikasi yang belum dibaca (unreadCount).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "notifications"
+                            ],
+                            "query": [
+                                {
+                                    "key": "unreadOnly",
+                                    "value": "false"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "10"
+                                }
+                            ],
+                            "raw": "{{base_url}}/portal/notifications?unreadOnly=false\u0026limit=10"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"createdAt\": \"2026-10-15T08:44:56.934832+07:00\",\n            \"eventType\": \"ANNOUNCEMENT\",\n            \"id\": \"b13378a4-9953-4fc6-985a-3ac1fb61ddc0\",\n            \"isRead\": false,\n            \"message\": \"Pengiriman 3.336 pcs Parka Arctic Ekspor dijadwalkan pada hari Jumat pukul 09:00 WIB.\",\n            \"title\": \"Pemberitahuan Jadwal Pengiriman Batch 1\"\n        }\n    ],\n    \"success\": true,\n    \"unreadCount\": 1\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "03. PUT /portal/notifications/:id/read - Tandai Notifikasi Sudah Dibaca (200 OK)",
+                    "request": {
+                        "description": "Klien menandai pesan notifikasi spesifik sebagai sudah dibaca (is_read = true).",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "notifications",
+                                "{{notification_id}}",
+                                "read"
+                            ],
+                            "raw": "{{base_url}}/portal/notifications/{{notification_id}}/read"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"message\": \"Notifikasi telah ditandai sebagai dibaca\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 404 Not Found (Notification Isolation Protected)\", function () {",
+                                    "    pm.response.to.have.status(404);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Error code matches NOTIFICATION_NOT_FOUND\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(false);",
+                                    "    pm.expect(jsonData.error.code).to.eql(\"NOTIFICATION_NOT_FOUND\");",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "04. PUT /portal/notifications/:id/read - Uji Keamanan Multi-Tenant Akses Silang (404 Not Found)",
+                    "request": {
+                        "description": "Verifikasi isolasi tenant: Klien Aventura mencoba menandai/mengakses notifikasi milik Klien Snøhund. Wajib ditolak dengan 404 Not Found.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_aventura_token}}"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "notifications",
+                                "{{notification_id}}",
+                                "read"
+                            ],
+                            "raw": "{{base_url}}/portal/notifications/{{notification_id}}/read"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"error\": {\n        \"code\": \"NOTIFICATION_NOT_FOUND\",\n        \"message\": \"notifikasi tidak ditemukan atau bukan milik klien Anda\"\n    },\n    \"success\": false\n}",
+                            "code": 404,
+                            "name": "Notification Isolation Protected 404 Not Found",
+                            "status": "Not Found"
+                        }
+                    ]
+                },
+                {
+                    "name": "05. PUT /portal/notifications/read-all - Tandai Seluruh Notifikasi Dibaca (200 OK)",
+                    "request": {
+                        "description": "Menandai seluruh notifikasi milik klien yang masih belum dibaca menjadi sudah dibaca sekaligus.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "PUT",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "portal",
+                                "notifications",
+                                "read-all"
+                            ],
+                            "raw": "{{base_url}}/portal/notifications/read-all"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"message\": \"Seluruh notifikasi berhasil ditandai sebagai dibaca\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "06. GET /orders - Daftar Seluruh Pesanan Pabrik Internal (200 OK)",
+                    "request": {
+                        "description": "Melihat ikhtisar seluruh pesanan maklon dari seluruh klien untuk pengawasan lini produksi internal pabrik.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "ALL"
+                                }
+                            ],
+                            "raw": "{{base_url}}/orders?status=ALL"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": [\n        {\n            \"articleCode\": \"ART-SNO-PK01\",\n            \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n            \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n            \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n            \"clientName\": \"Snøhund Brand\",\n            \"createdAt\": \"2026-10-14T17:30:25.310537+07:00\",\n            \"id\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n            \"orderNumber\": \"PO-2026-10-001\",\n            \"passedQuantity\": 3392,\n            \"startDate\": \"2026-10-14\",\n            \"status\": \"COMPLETED\",\n            \"targetDate\": \"2026-11-13\",\n            \"targetQuantity\": 1000\n        }\n    ],\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "07. GET /orders/:id - Detail Pesanan Internal Pabrik (200 OK)",
+                    "request": {
+                        "description": "Melihat detail teknis mendalam suatu pesanan: target kuantitas, breakdown perakitan, QC pass rate, repair, dan reject.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "{{order_snohund_id}}"
+                            ],
+                            "raw": "{{base_url}}/orders/{{order_snohund_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"articleCode\": \"ART-SNO-PK01\",\n        \"articleId\": \"e084fffd-2b54-4027-85b5-7bfc1a4070d1\",\n        \"articleTitle\": \"Snøhund Arctic Expedition Parka 2026\",\n        \"clientId\": \"f310f933-4b79-40c4-849d-f0334716d43c\",\n        \"clientName\": \"Snøhund Brand\",\n        \"cuttingQuantity\": 1000,\n        \"id\": \"fad2530f-90d9-4a76-af96-d9f7db451a98\",\n        \"notes\": \"Pesanan Ekspor Snohund Arctic Parka Batch 1\",\n        \"orderNumber\": \"PO-2026-10-001\",\n        \"passRate\": 99.2,\n        \"passedQuantity\": 3392,\n        \"rejectQuantity\": 14,\n        \"repairQuantity\": 14,\n        \"sewingQuantity\": 3725,\n        \"startDate\": \"2026-10-14\",\n        \"status\": \"COMPLETED\",\n        \"targetDate\": \"2026-11-13\",\n        \"targetQuantity\": 1000\n    },\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "name": "08. POST /orders/:id/complete - Selesaikan Pesanan \u0026 Trigger Notif Klien (200 OK)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"notes\": \"Pesanan Aventura telah diverifikasi QC lolos 100% dan siap diambil klien.\"\n}"
+                        },
+                        "description": "Menutup status order menjadi COMPLETED, menetapkan completed_at, dan otomatis mengirim notifikasi ORDER_COMPLETED ke klien pemilik pesanan.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "{{order_aventura_id}}",
+                                "complete"
+                            ],
+                            "raw": "{{base_url}}/orders/{{order_aventura_id}}/complete"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n    \"data\": {\n        \"completedAt\": \"2026-10-15T08:44:57.042748+07:00\",\n        \"id\": \"a9142b01-3c14-4d2d-bb1f-7c9b1ac64fa5\",\n        \"notes\": \"Pesanan Aventura telah diverifikasi QC lolos 100% dan siap diambil klien.\",\n        \"orderNumber\": \"PO-2026-10-002\",\n        \"status\": \"COMPLETED\"\n    },\n    \"message\": \"Pesanan berhasil ditandai selesai dan notifikasi telah dikirim ke klien\",\n    \"success\": true\n}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 403 Forbidden (Non-Internal Forbidden)\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "09. POST /orders/:id/complete - Uji RBAC Klien Dilarang Selesaikan Order (403 Forbidden)",
+                    "request": {
+                        "description": "Klien eksternal dilarang memanggil endpoint operasional internal untuk menyelesaikan pesanan pabrik.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "{{order_aventura_id}}",
+                                "complete"
+                            ],
+                            "raw": "{{base_url}}/orders/{{order_aventura_id}}/complete"
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 403 Forbidden (Only Factory Staff Can Send)\", function () {",
+                                    "    pm.response.to.have.status(403);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "10. POST /notifications/send - Uji RBAC Klien Dilarang Kirim Notifikasi (403 Forbidden)",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"clientId\": \"{{client_snohund_id}}\",\n    \"title\": \"Pengumuman Ilegal\",\n    \"message\": \"Isi pesan.\",\n    \"eventType\": \"ANNOUNCEMENT\"\n}"
+                        },
+                        "description": "Klien eksternal dilarang memanggil endpoint pengiriman notifikasi/pengumuman pabrik.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{client_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "notifications",
+                                "send"
+                            ],
+                            "raw": "{{base_url}}/notifications/send"
+                        }
+                    },
+                    "response": []
+                }
+            ],
+            "name": "13. Tahap 5.2: Order Completion \u0026 Notification Engine (BPMN 11 \u0026 01)"
         }
     ],
     "variable": [
@@ -6501,6 +6925,11 @@
             "key": "order_snohund_id",
             "type": "string",
             "value": "fad2530f-90d9-4a76-af96-d9f7db451a98"
+        },
+        {
+            "key": "notification_id",
+            "type": "string",
+            "value": "b13378a4-9953-4fc6-985a-3ac1fb61ddc0"
         }
     ]
 }

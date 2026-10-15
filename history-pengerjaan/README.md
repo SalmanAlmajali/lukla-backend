@@ -15,9 +15,10 @@ Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan peng
 | **Tahap 3.1** | Katalog Bahan, Penerimaan Bertagging, & Stok Lot (BPMN 02) | 14 Okt 2026 | 000026 - 000027 | Selesai | [Laporan Tahap 3.1](./tahap-3.1-katalog-bahan-penerimaan-stok-lot.md) |
 | **Tahap 3.2** | Pengeluaran ke Cutting & Blokade Kontaminasi Silang (BPMN 02) | 14 Okt 2026 | 000028 | Selesai | [Laporan Tahap 3.2](./tahap-3.2-pengeluaran-cutting-blokade-skenario1.md) |
 | **Tahap 4.1** | QC Engine, Defect Tracking, & Verifikasi Upah Penjahit (BPMN 06) | 15 Okt 2026 | 000029 | Selesai | [Laporan Tahap 4.1](./tahap-4.1-qc-inspeksi.md) |
+| **Tahap 4.2** | Pool Bonus QC 3-Arah & Skenario Uji 3 (BPMN 08) | 15 Okt 2026 | 000030 | Selesai | [Laporan Tahap 4.2](./tahap-4.2-pool-bonus-skenario3.md) |
 | **Tahap 5.1** | Portal Klien & Isolasi Multi-Tenant (BPMN 11) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 5.1](./tahap-5.1-portal-klien.md) |
-| **Tahap 5.2** | Event Notification Engine & Webhook (BPMN 01, 11) | *Berikutnya* | 000031 (TBD) | Direncanakan | [Rencana Tahap 5](./analisis-dan-rencana-tahap-5.md) |
-| **Tahap 6** | Sample & Time Study (BPMN 03) | *Akan Datang* | - | Direncanakan | - |
+| **Tahap 5.2** | Order Completion Lifecycle & Notification Engine (BPMN 11, 01) | 15 Okt 2026 | 000031 | Selesai | [Laporan Tahap 5.2](./tahap-5.2-order-completion-notifikasi.md) |
+| **Tahap 6** | Sample & Time Study (BPMN 03) | *Berikutnya* | - | Direncanakan | - |
 | **Tahap 7** | Overhead & Uji End-to-End (BPMN 09, 01) | *Akan Datang* | - | Direncanakan | - |
 
 ---
