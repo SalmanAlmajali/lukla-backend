@@ -60,8 +60,11 @@ func (r *PostgresRepository) GetDashboard(ctx context.Context, clientID string) 
 		WHERE client_id = $1 AND current_quantity > 0
 	`, clientID).Scan(&dash.ActiveMaterialsCount)
 
-	// 6. Unread notifications (default 0 for Phase 5.1)
-	dash.UnreadNotificationsCount = 0
+	// 6. Unread notifications count from notifications table
+	_ = r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM notifications 
+		WHERE client_id = $1 AND is_read = FALSE
+	`, clientID).Scan(&dash.UnreadNotificationsCount)
 
 	return &dash, nil
 }

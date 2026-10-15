@@ -299,6 +299,12 @@ func (r *PostgresRepository) CreateReceipt(ctx context.Context, receipt *Invento
 		}
 	}
 
+	// Terbitkan notifikasi in-app otomatis ke klien pemilik bahan baku
+	_, _ = tx.ExecContext(ctx, `
+		INSERT INTO notifications (client_id, title, message, event_type, reference_id, is_read, created_at)
+		VALUES ($1, $2, $3, 'MATERIAL_RECEIVED', $4, FALSE, NOW())
+	`, receipt.ClientID, "Penerimaan Bahan Baku: "+receipt.ReceiptNumber, fmt.Sprintf("Bahan baku titipan telah diterima di gudang dengan nomor penerimaan %s.", receipt.ReceiptNumber), receipt.ID)
+
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}

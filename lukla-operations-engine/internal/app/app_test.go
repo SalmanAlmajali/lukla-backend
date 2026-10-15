@@ -4307,6 +4307,229 @@ func TestApp_ClientPortalLiveDB(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// TAHAP 5.2: ORDER COMPLETION LIFECYCLE & NOTIFICATION ENGINE LIVE DB TEST
+// ============================================================================
+func TestApp_OrderCompletionAndNotificationsLiveDB(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+	defer application.db.Close()
+
+	// 1. Authenticate Executive (Internal)
+	execToken := getAuthToken(t, application, "executive@lukla.local", "password")
+
+	// 2. Authenticate Client Snøhund
+	snohundToken := getAuthToken(t, application, "client@lukla.local", "password")
+
+	// 3. Authenticate Client Urban Culture / Aventura
+	aventuraToken := getAuthToken(t, application, "client.aventura@lukla.local", "password")
+
+	// Ambil Client ID Snøhund
+	var snoClientID string
+	err = application.db.QueryRow("SELECT id FROM clients WHERE code = 'SNOHUND'").Scan(&snoClientID)
+	if err != nil {
+		t.Fatalf("failed to find snohund client id: %v", err)
+	}
+
+	// ==========================================
+	// 1. POST /api/v1/notifications/send (Internal Staf Kirim Notifikasi ke Klien)
+	// ==========================================
+	sendPayload := map[string]interface{}{
+		"clientId":  snoClientID,
+		"title":     "Pemberitahuan Jadwal Pengiriman Batch 1",
+		"message":   "Pengiriman 3.336 pcs Parka Arctic Ekspor dijadwalkan pada hari Jumat pukul 09:00 WIB.",
+		"eventType": "ANNOUNCEMENT",
+	}
+	sendBytes, _ := json.Marshal(sendPayload)
+	reqSend, _ := http.NewRequest(http.MethodPost, "/api/v1/notifications/send", bytes.NewBuffer(sendBytes))
+	reqSend.Header.Set("Authorization", "Bearer "+execToken)
+	reqSend.Header.Set("Content-Type", "application/json")
+	wSend := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSend, reqSend)
+
+	if wSend.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for sending notification, got %d. Body: %s", wSend.Code, wSend.Body.String())
+	}
+	var prettySend bytes.Buffer
+	_ = json.Indent(&prettySend, wSend.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/notifications/send ===\n%s\n", prettySend.String())
+
+	var sendResp struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wSend.Body.Bytes(), &sendResp)
+	createdNotifID := sendResp.Data.ID
+
+	// ==========================================
+	// 2. GET /api/v1/portal/notifications (Klien Snøhund Cek Notifikasi In-App)
+	// ==========================================
+	reqNotifList, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/notifications?unreadOnly=false&limit=10", nil)
+	reqNotifList.Header.Set("Authorization", "Bearer "+snohundToken)
+	wNotifList := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wNotifList, reqNotifList)
+
+	if wNotifList.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list client notifications, got %d. Body: %s", wNotifList.Code, wNotifList.Body.String())
+	}
+	var prettyNotifs bytes.Buffer
+	_ = json.Indent(&prettyNotifs, wNotifList.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/portal/notifications ===\n%s\n", prettyNotifs.String())
+
+	// ==========================================
+	// 3. GET /api/v1/portal/dashboard (Pastikan unread count > 0)
+	// ==========================================
+	reqDash, _ := http.NewRequest(http.MethodGet, "/api/v1/portal/dashboard", nil)
+	reqDash.Header.Set("Authorization", "Bearer "+snohundToken)
+	wDash := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wDash, reqDash)
+
+	if wDash.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for portal dashboard, got %d", wDash.Code)
+	}
+	var dashResp struct {
+		Data struct {
+			UnreadNotificationsCount int `json:"unreadNotificationsCount"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wDash.Body.Bytes(), &dashResp)
+	if dashResp.Data.UnreadNotificationsCount <= 0 {
+		t.Fatalf("expected unread notifications count > 0, got %d", dashResp.Data.UnreadNotificationsCount)
+	}
+	t.Logf("Dashboard Unread Notifications Count: %d", dashResp.Data.UnreadNotificationsCount)
+
+	// ==========================================
+	// 4. PUT /api/v1/portal/notifications/:id/read (Uji Keamanan Multi-Tenant Akses Silang)
+	// Klien Aventura mencoba membaca notifikasi Klien Snøhund -> Wajib 404 Not Found
+	// ==========================================
+	reqCrossRead, _ := http.NewRequest(http.MethodPut, "/api/v1/portal/notifications/"+createdNotifID+"/read", nil)
+	reqCrossRead.Header.Set("Authorization", "Bearer "+aventuraToken)
+	wCrossRead := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCrossRead, reqCrossRead)
+
+	if wCrossRead.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found on cross-tenant notification read, got %d. Body: %s", wCrossRead.Code, wCrossRead.Body.String())
+	}
+	t.Logf("Cross-tenant notification read isolation protected: 404 Not Found")
+
+	// ==========================================
+	// 5. PUT /api/v1/portal/notifications/:id/read (Klien Snøhund Tandai Sudah Dibaca)
+	// ==========================================
+	reqRead, _ := http.NewRequest(http.MethodPut, "/api/v1/portal/notifications/"+createdNotifID+"/read", nil)
+	reqRead.Header.Set("Authorization", "Bearer "+snohundToken)
+	wRead := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wRead, reqRead)
+
+	if wRead.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK marking notification as read, got %d. Body: %s", wRead.Code, wRead.Body.String())
+	}
+
+	// ==========================================
+	// 6. PUT /api/v1/portal/notifications/read-all (Tandai Seluruh Notifikasi Dibaca)
+	// ==========================================
+	reqReadAll, _ := http.NewRequest(http.MethodPut, "/api/v1/portal/notifications/read-all", nil)
+	reqReadAll.Header.Set("Authorization", "Bearer "+snohundToken)
+	wReadAll := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wReadAll, reqReadAll)
+
+	if wReadAll.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for mark-all-read, got %d. Body: %s", wReadAll.Code, wReadAll.Body.String())
+	}
+
+	// ==========================================
+	// 7. GET /api/v1/orders (Internal Pengawasan Seluruh Pesanan Pabrik)
+	// ==========================================
+	reqOrders, _ := http.NewRequest(http.MethodGet, "/api/v1/orders?status=ALL", nil)
+	reqOrders.Header.Set("Authorization", "Bearer "+execToken)
+	wOrders := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOrders, reqOrders)
+
+	if wOrders.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for internal list orders, got %d. Body: %s", wOrders.Code, wOrders.Body.String())
+	}
+	var prettyOrders bytes.Buffer
+	_ = json.Indent(&prettyOrders, wOrders.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/orders ===\n%s\n", prettyOrders.String())
+
+	// ==========================================
+	// 8. GET /api/v1/orders/:id (Internal Detail Lengkap Pesanan)
+	// ==========================================
+	var orderSnohundID string
+	err = application.db.QueryRow("SELECT id FROM orders WHERE order_number = 'PO-2026-10-001'").Scan(&orderSnohundID)
+	if err != nil {
+		t.Fatalf("failed to query order PO-2026-10-001: %v", err)
+	}
+
+	reqOrderDetail, _ := http.NewRequest(http.MethodGet, "/api/v1/orders/"+orderSnohundID, nil)
+	reqOrderDetail.Header.Set("Authorization", "Bearer "+execToken)
+	wOrderDetail := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wOrderDetail, reqOrderDetail)
+
+	if wOrderDetail.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for internal get order detail, got %d. Body: %s", wOrderDetail.Code, wOrderDetail.Body.String())
+	}
+	var prettyOrderDetail bytes.Buffer
+	_ = json.Indent(&prettyOrderDetail, wOrderDetail.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL GET /api/v1/orders/:id ===\n%s\n", prettyOrderDetail.String())
+
+	// ==========================================
+	// 9. POST /api/v1/orders/:id/complete (Selesaikan Pesanan PO-2026-10-002 Aventura)
+	// ==========================================
+	var orderAveID string
+	err = application.db.QueryRow("SELECT id FROM orders WHERE order_number = 'PO-2026-10-002'").Scan(&orderAveID)
+	if err != nil {
+		t.Fatalf("failed to query order PO-2026-10-002: %v", err)
+	}
+
+	// Reset status jika sudah completed dari run sebelumnya agar idempotent
+	_, _ = application.db.Exec("UPDATE orders SET status = 'IN_PRODUCTION', completed_at = NULL WHERE id = $1", orderAveID)
+
+	completePayload := map[string]interface{}{
+		"notes": "Pesanan Aventura telah diverifikasi QC lolos 100% dan siap diambil klien.",
+	}
+	compBytes, _ := json.Marshal(completePayload)
+	reqComp, _ := http.NewRequest(http.MethodPost, "/api/v1/orders/"+orderAveID+"/complete", bytes.NewBuffer(compBytes))
+	reqComp.Header.Set("Authorization", "Bearer "+execToken)
+	reqComp.Header.Set("Content-Type", "application/json")
+	wComp := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wComp, reqComp)
+
+	if wComp.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for complete order, got %d. Body: %s", wComp.Code, wComp.Body.String())
+	}
+	var prettyComp bytes.Buffer
+	_ = json.Indent(&prettyComp, wComp.Body.Bytes(), "", "    ")
+	t.Logf("\n=== ACTUAL POST /api/v1/orders/:id/complete ===\n%s\n", prettyComp.String())
+
+	// Pastikan notifikasi ORDER_COMPLETED terkirim otomatis ke Klien Aventura
+	var aveNotifCount int
+	err = application.db.QueryRow(`
+		SELECT COUNT(*) FROM notifications 
+		WHERE reference_id = $1 AND event_type = 'ORDER_COMPLETED'
+	`, orderAveID).Scan(&aveNotifCount)
+	if err != nil || aveNotifCount <= 0 {
+		t.Fatalf("expected automatic ORDER_COMPLETED notification for Aventura order, got count %d (err: %v)", aveNotifCount, err)
+	}
+	t.Logf("Verified: Automatic ORDER_COMPLETED notification created for client order (count: %d)", aveNotifCount)
+
+	// ==========================================
+	// 10. RBAC GUARD: Non-internal tidak boleh memanggil complete order atau send notif
+	// ==========================================
+	reqForbiddenSend, _ := http.NewRequest(http.MethodPost, "/api/v1/notifications/send", bytes.NewBuffer(sendBytes))
+	reqForbiddenSend.Header.Set("Authorization", "Bearer "+snohundToken)
+	wForbiddenSend := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wForbiddenSend, reqForbiddenSend)
+	if wForbiddenSend.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 Forbidden for client trying to send notification, got %d", wForbiddenSend.Code)
+	}
+}
+
 
 
 

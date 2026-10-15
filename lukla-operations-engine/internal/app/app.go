@@ -11,6 +11,8 @@ import (
 	"github.com/lukla/operations-engine/internal/modules/identity"
 	"github.com/lukla/operations-engine/internal/modules/inventory"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
+	"github.com/lukla/operations-engine/internal/modules/notification"
+	"github.com/lukla/operations-engine/internal/modules/order"
 	"github.com/lukla/operations-engine/internal/modules/payroll"
 	"github.com/lukla/operations-engine/internal/modules/portal"
 	"github.com/lukla/operations-engine/internal/modules/production"
@@ -103,9 +105,32 @@ func New(ctx context.Context) (*App, error) {
 	portalSvc := portal.NewService(portalRepo)
 	portalHandler := portal.NewHandler(portalSvc)
 
+	notificationRepo := notification.NewPostgresRepository(db)
+	notificationSvc := notification.NewService(notificationRepo)
+	notificationHandler := notification.NewHandler(notificationSvc)
+
+	orderRepo := order.NewPostgresRepository(db)
+	orderSvc := order.NewService(orderRepo, notificationSvc)
+	orderHandler := order.NewHandler(orderSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	registerRoutes(router, identityHandler, masterdataHandler, ratecardHandler, productionHandler, payrollHandler, inventoryHandler, qualityHandler, qcbonusHandler, portalHandler, authnMiddleware, internalAuthz)
+	registerRoutes(
+		router,
+		identityHandler,
+		masterdataHandler,
+		ratecardHandler,
+		productionHandler,
+		payrollHandler,
+		inventoryHandler,
+		qualityHandler,
+		qcbonusHandler,
+		portalHandler,
+		notificationHandler,
+		orderHandler,
+		authnMiddleware,
+		internalAuthz,
+	)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Addr,
@@ -152,6 +177,8 @@ func registerRoutes(
 	qualityHandler *quality.Handler,
 	qcbonusHandler *qcbonus.Handler,
 	portalHandler *portal.Handler,
+	notificationHandler *notification.Handler,
+	orderHandler *order.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -170,6 +197,8 @@ func registerRoutes(
 	quality.RegisterRoutes(v1, qualityHandler, authnMiddleware)
 	qcbonus.RegisterRoutes(v1, qcbonusHandler, authnMiddleware)
 	portal.RegisterRoutes(v1, portalHandler, authnMiddleware)
+	notification.RegisterRoutes(v1, notificationHandler, authnMiddleware, internalAuthz)
+	order.RegisterRoutes(v1, orderHandler, authnMiddleware, internalAuthz)
 }
 
 

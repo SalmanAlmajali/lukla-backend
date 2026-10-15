@@ -347,8 +347,28 @@ func (r *PostgresRepository) CreateInspection(ctx context.Context, req *CreateQC
 		if cumPassed >= targetQty {
 			_, _ = tx.ExecContext(ctx, `
 				UPDATE orders
-				SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP
+				SET status = 'COMPLETED', 
+				    completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP), 
+				    updated_at = CURRENT_TIMESTAMP
 				WHERE id = $1 AND status != 'COMPLETED'
+			`, req.OrderID)
+
+			// Terbitkan notifikasi in-app otomatis ke klien pemilik order
+			_, _ = tx.ExecContext(ctx, `
+				INSERT INTO notifications (client_id, title, message, event_type, reference_id, is_read, created_at)
+				SELECT 
+					o.client_id, 
+					'Pesanan Selesai: ' || o.order_number, 
+					'Pesanan ' || o.order_number || ' telah selesai diproduksi dan seluruh garmen siap untuk diambil atau dikirim.', 
+					'ORDER_COMPLETED', 
+					o.id, 
+					FALSE, 
+					NOW()
+				FROM orders o
+				WHERE o.id = $1 
+				  AND NOT EXISTS (
+					SELECT 1 FROM notifications WHERE reference_id = o.id AND event_type = 'ORDER_COMPLETED'
+				  )
 			`, req.OrderID)
 		}
 	}
