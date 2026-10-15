@@ -13,6 +13,7 @@ import (
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
 	"github.com/lukla/operations-engine/internal/modules/notification"
 	"github.com/lukla/operations-engine/internal/modules/order"
+	"github.com/lukla/operations-engine/internal/modules/overhead"
 	"github.com/lukla/operations-engine/internal/modules/payroll"
 	"github.com/lukla/operations-engine/internal/modules/portal"
 	"github.com/lukla/operations-engine/internal/modules/production"
@@ -118,6 +119,10 @@ func New(ctx context.Context) (*App, error) {
 	sampleSvc := sample.NewService(sampleRepo, notificationSvc)
 	sampleHandler := sample.NewHandler(sampleSvc)
 
+	overheadRepo := overhead.NewPostgresRepository(db)
+	overheadSvc := overhead.NewService(overheadRepo)
+	overheadHandler := overhead.NewHandler(overheadSvc)
+
 	router := gin.New()
 	router.Use(gin.Recovery())
 	registerRoutes(
@@ -134,6 +139,7 @@ func New(ctx context.Context) (*App, error) {
 		notificationHandler,
 		orderHandler,
 		sampleHandler,
+		overheadHandler,
 		authnMiddleware,
 		internalAuthz,
 	)
@@ -177,6 +183,11 @@ func (a *App) Handler() http.Handler {
 	return a.server.Handler
 }
 
+// DB mengembalikan koneksi database PostgreSQL aplikasi.
+func (a *App) DB() *sql.DB {
+	return a.db
+}
+
 func registerRoutes(
 	r *gin.Engine,
 	identityHandler *identity.Handler,
@@ -191,6 +202,7 @@ func registerRoutes(
 	notificationHandler *notification.Handler,
 	orderHandler *order.Handler,
 	sampleHandler *sample.Handler,
+	overheadHandler *overhead.Handler,
 	authnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
@@ -212,6 +224,7 @@ func registerRoutes(
 	notification.RegisterRoutes(v1, notificationHandler, authnMiddleware, internalAuthz)
 	order.RegisterRoutes(v1, orderHandler, authnMiddleware, internalAuthz)
 	sample.RegisterRoutes(v1, sampleHandler, authnMiddleware, internalAuthz)
+	overhead.RegisterRoutes(v1, overheadHandler, authnMiddleware, internalAuthz)
 }
 
 

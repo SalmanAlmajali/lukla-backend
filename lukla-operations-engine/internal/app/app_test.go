@@ -5370,6 +5370,229 @@ func TestApp_SampleScenario4LiveDB(t *testing.T) {
 	t.Logf("Skenario 4 Proof: Multi-tenant portal isolation terverifikasi kebal terhadap IDOR lintas brand")
 }
 
+// ============================================================================
+// TAHAP 7.1: FACTORY OVERHEAD ENGINE & MONTHLY COST ALLOCATION LIVE DB TEST (BPMN 09)
+// ============================================================================
+func TestApp_OverheadLiveDB(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
+
+	application, err := New(ctx)
+	if err != nil {
+		t.Fatalf("failed to initialize app: %v", err)
+	}
+	defer application.db.Close()
+
+	// 1. Authenticate as executive/finance actor
+	token := getAuthToken(t, application, "executive@lukla.local", "password")
+
+	// 2. GET /api/v1/overhead/categories (Verifikasi Kategori Bawaan Seeding)
+	reqCats, _ := http.NewRequest(http.MethodGet, "/api/v1/overhead/categories", nil)
+	reqCats.Header.Set("Authorization", "Bearer "+token)
+	wCats := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCats, reqCats)
+	if wCats.Code != http.StatusOK {
+		t.Fatalf("expected 200 for list categories, got %d. Body: %s", wCats.Code, wCats.Body.String())
+	}
+	var catResp struct {
+		Data []struct {
+			ID   string `json:"id"`
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCats.Body.Bytes(), &catResp)
+	if len(catResp.Data) < 5 {
+		t.Fatalf("expected at least 5 seeded categories, got %d", len(catResp.Data))
+	}
+	elecCatID := ""
+	for _, c := range catResp.Data {
+		if c.Code == "ELECTRICITY" {
+			elecCatID = c.ID
+			break
+		}
+	}
+	if elecCatID == "" {
+		elecCatID = catResp.Data[0].ID
+	}
+	t.Logf("Tahap 7.1 PASS: %d Master Kategori Overhead diverifikasi", len(catResp.Data))
+
+	// 3. POST /api/v1/overhead/categories (Tambah Kategori Kustom)
+	customCatPayload := map[string]interface{}{
+		"code":        fmt.Sprintf("CUSTOM_PACK_%d", time.Now().Unix()%10000),
+		"name":        "Bahan Pembantu Pengemasan & Lakban",
+		"description": "Biaya isolasi, kardus, dan karung pelindung packing akhir",
+	}
+	customBytes, _ := json.Marshal(customCatPayload)
+	reqCustomCat, _ := http.NewRequest(http.MethodPost, "/api/v1/overhead/categories", bytes.NewBuffer(customBytes))
+	reqCustomCat.Header.Set("Authorization", "Bearer "+token)
+	reqCustomCat.Header.Set("Content-Type", "application/json")
+	wCustomCat := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCustomCat, reqCustomCat)
+	if wCustomCat.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for create category, got %d. Body: %s", wCustomCat.Code, wCustomCat.Body.String())
+	}
+	t.Logf("Tahap 7.1 PASS: Kategori overhead baru berhasil didaftarkan")
+
+	// 4. POST /api/v1/overhead/periods (Buka Periode Overhead Baru)
+	// Cari bulan/tahun yang belum ada agar tidak bentrok unik
+	testMonth := 11
+	testYear := 2026
+	// Hapus jika ada periode tes sebelumnya
+	_, _ = application.db.Exec("DELETE FROM overhead_periods WHERE period_month = $1 AND period_year = $2", testMonth, testYear)
+
+	periodPayload := map[string]interface{}{
+		"periodMonth": testMonth,
+		"periodYear":  testYear,
+		"notes":       "Pembukuan Biaya Overhead Pabrik Periode November 2026",
+	}
+	periodBytes, _ := json.Marshal(periodPayload)
+	reqPeriod, _ := http.NewRequest(http.MethodPost, "/api/v1/overhead/periods", bytes.NewBuffer(periodBytes))
+	reqPeriod.Header.Set("Authorization", "Bearer "+token)
+	reqPeriod.Header.Set("Content-Type", "application/json")
+	wPeriod := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wPeriod, reqPeriod)
+	if wPeriod.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for create period, got %d. Body: %s", wPeriod.Code, wPeriod.Body.String())
+	}
+	var createPeriodResp struct {
+		Data struct {
+			ID         string `json:"id"`
+			PeriodCode string `json:"periodCode"`
+			Status     string `json:"status"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wPeriod.Body.Bytes(), &createPeriodResp)
+	periodID := createPeriodResp.Data.ID
+	if periodID == "" || createPeriodResp.Data.Status != "OPEN" {
+		t.Fatalf("unexpected period response: %+v", createPeriodResp)
+	}
+	t.Logf("Tahap 7.1 PASS: Periode %s berhasil dibuka (id: %s)", createPeriodResp.Data.PeriodCode, periodID)
+
+	// 5. POST /api/v1/overhead/periods/:id/expenses (Catat Pengeluaran)
+	exp1Payload := map[string]interface{}{
+		"categoryId":       elecCatID,
+		"expenseDate":      "2026-11-10",
+		"amount":           12000000.00, // Rp 12.000.000
+		"invoiceReference": "PLN-NOV-2026-001",
+		"notes":            "Tagihan listrik PLN mesin jahit dan kompresor",
+	}
+	e1Bytes, _ := json.Marshal(exp1Payload)
+	reqE1, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/overhead/periods/%s/expenses", periodID), bytes.NewBuffer(e1Bytes))
+	reqE1.Header.Set("Authorization", "Bearer "+token)
+	reqE1.Header.Set("Content-Type", "application/json")
+	wE1 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wE1, reqE1)
+	if wE1.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for record expense 1, got %d. Body: %s", wE1.Code, wE1.Body.String())
+	}
+
+	exp2Payload := map[string]interface{}{
+		"categoryId":       elecCatID,
+		"expenseDate":      "2026-11-15",
+		"amount":           13000000.00, // Rp 13.000.000 (total Rp 25.000.000)
+		"invoiceReference": "RENT-NOV-2026",
+		"notes":            "Alokasi sewa bulanan workshop produksi",
+	}
+	e2Bytes, _ := json.Marshal(exp2Payload)
+	reqE2, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/overhead/periods/%s/expenses", periodID), bytes.NewBuffer(e2Bytes))
+	reqE2.Header.Set("Authorization", "Bearer "+token)
+	reqE2.Header.Set("Content-Type", "application/json")
+	wE2 := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wE2, reqE2)
+	if wE2.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for record expense 2, got %d. Body: %s", wE2.Code, wE2.Body.String())
+	}
+	t.Logf("Tahap 7.1 PASS: Pengeluaran biaya aktual sebesar Rp 25.000.000 berhasil dicatat")
+
+	// 6. POST /api/v1/overhead/periods/:id/calculate (Kalkulasi Tarif Flat vs Bobot Pakaian/Tas)
+	calcPayload := map[string]interface{}{
+		"weightGarment": 1.00,
+		"weightBag":     1.25,
+		"notes":         "Kalkulasi akhir bulan November 2026",
+	}
+	calcBytes, _ := json.Marshal(calcPayload)
+	reqCalc, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/overhead/periods/%s/calculate", periodID), bytes.NewBuffer(calcBytes))
+	reqCalc.Header.Set("Authorization", "Bearer "+token)
+	reqCalc.Header.Set("Content-Type", "application/json")
+	wCalc := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wCalc, reqCalc)
+	if wCalc.Code != http.StatusOK {
+		t.Fatalf("expected 200 for calculate overhead, got %d. Body: %s", wCalc.Code, wCalc.Body.String())
+	}
+	var calcResp struct {
+		Data struct {
+			Status             string  `json:"status"`
+			TotalExpenseAmount float64 `json:"totalExpenseAmount"`
+			TotalProducedUnits int     `json:"totalProducedUnits"`
+			FlatRatePerUnit    float64 `json:"flatRatePerUnit"`
+			GarmentRatePerUnit float64 `json:"garmentRatePerUnit"`
+			BagRatePerUnit     float64 `json:"bagRatePerUnit"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wCalc.Body.Bytes(), &calcResp)
+	if calcResp.Data.Status != "CALCULATED" || calcResp.Data.TotalExpenseAmount != 25000000.00 {
+		t.Fatalf("unexpected calculation response: %+v", calcResp)
+	}
+	t.Logf("Tahap 7.1 PASS: Kalkulasi Overhead sukses (Total: Rp %.2f, Flat: Rp %.2f, Garment: Rp %.2f, Bag: Rp %.2f)",
+		calcResp.Data.TotalExpenseAmount, calcResp.Data.FlatRatePerUnit, calcResp.Data.GarmentRatePerUnit, calcResp.Data.BagRatePerUnit)
+
+	// 7. GET /api/v1/overhead/periods/:id/summary (Laporan Ringkasan)
+	reqSum, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/overhead/periods/%s/summary", periodID), nil)
+	reqSum.Header.Set("Authorization", "Bearer "+token)
+	wSum := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wSum, reqSum)
+	if wSum.Code != http.StatusOK {
+		t.Fatalf("expected 200 for summary report, got %d", wSum.Code)
+	}
+	t.Logf("Tahap 7.1 PASS: Laporan ringkasan alokasi overhead bulanan terverifikasi")
+
+	// 8. POST /api/v1/overhead/periods/:id/lock (Kunci Periode)
+	reqLock, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/overhead/periods/%s/lock", periodID), nil)
+	reqLock.Header.Set("Authorization", "Bearer "+token)
+	wLock := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wLock, reqLock)
+	if wLock.Code != http.StatusOK {
+		t.Fatalf("expected 200 for lock period, got %d. Body: %s", wLock.Code, wLock.Body.String())
+	}
+	var lockResp struct {
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(wLock.Body.Bytes(), &lockResp)
+	if lockResp.Data.Status != "LOCKED" {
+		t.Fatalf("expected status LOCKED, got %s", lockResp.Data.Status)
+	}
+	t.Logf("Tahap 7.1 PASS: Periode overhead berhasil dikunci (LOCKED)")
+
+	// 9. Upaya menambah pengeluaran pada periode terkunci harus ditolak (Guard)
+	reqExpLocked, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/overhead/periods/%s/expenses", periodID), bytes.NewBuffer(e1Bytes))
+	reqExpLocked.Header.Set("Authorization", "Bearer "+token)
+	reqExpLocked.Header.Set("Content-Type", "application/json")
+	wExpLocked := httptest.NewRecorder()
+	application.server.Handler.ServeHTTP(wExpLocked, reqExpLocked)
+	if wExpLocked.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for adding expense on locked period, got %d", wExpLocked.Code)
+	}
+	t.Logf("Tahap 7.1 PASS: Immutability guard terbukti memblokir perubahan pada periode LOCKED")
+
+	// 10. GET /api/v1/reports/cogs/:orderId (Laporan COGS Komprehensif)
+	var sampleOrderID string
+	_ = application.db.QueryRow("SELECT id FROM orders ORDER BY created_at DESC LIMIT 1").Scan(&sampleOrderID)
+	if sampleOrderID != "" {
+		reqCOGS, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/reports/cogs/%s", sampleOrderID), nil)
+		reqCOGS.Header.Set("Authorization", "Bearer "+token)
+		wCOGS := httptest.NewRecorder()
+		application.server.Handler.ServeHTTP(wCOGS, reqCOGS)
+		if wCOGS.Code != http.StatusOK {
+			t.Fatalf("expected 200 for COGS report, got %d. Body: %s", wCOGS.Code, wCOGS.Body.String())
+		}
+		t.Logf("Tahap 7.1 PASS: Laporan COGS / HPP komprehensif berhasil diambil untuk order %s", sampleOrderID)
+	}
+}
+
+
 
 
 

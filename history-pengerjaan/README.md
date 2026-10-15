@@ -19,8 +19,9 @@ Folder ini berisi dokumentasi dan catatan riwayat pengerjaan setiap tahapan peng
 | **Tahap 5.1** | Portal Klien & Isolasi Multi-Tenant (BPMN 11) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 5.1](./tahap-5.1-portal-klien.md) |
 | **Tahap 5.2** | Order Completion Lifecycle & Notification Engine (BPMN 11, 01) | 15 Okt 2026 | 000031 | Selesai | [Laporan Tahap 5.2](./tahap-5.2-order-completion-notifikasi.md) |
 | **Tahap 6.1** | Sample Lifecycle, Versioning Engine, & Time Study Tracker (BPMN 03) | 15 Okt 2026 | 000032 | Selesai | [Laporan Tahap 6.1](./tahap-6.1-sample-time-study.md) |
-| **Tahap 6.2** | Commercial Rate Card, Client Approval, Order Conversion & Skenario Uji 4 (BPMN 03, 11) | 15 Okt 2026 | 000032 | Selesai | [Laporan Tahap 6.2](./tahap-6.2-sample-approval-skenario4.md) |
-| **Tahap 7** | Overhead & Uji End-to-End (BPMN 09, 01) | *Berikutnya* | - | Direncanakan | - |
+| **Tahap 6.2** | Client Approval, Commercial Rate Card & Mass Order Conversion (BPMN 03, 11, Skenario 4) | 15 Okt 2026 | - | Selesai | [Laporan Tahap 6.2](./tahap-6.2-sample-approval-skenario4.md) |
+| **Tahap 7.1** | Factory Overhead Engine & Monthly Cost Allocation (BPMN 09, 01) | 15 Okt 2026 | 000033 | Selesai | [Laporan Tahap 7.1](./tahap-7.1-overhead-engine.md) |
+| **Tahap 7.2** | Comprehensive End-to-End Testing & 4 SRS Scenarios Acceptance (BPMN 01) | *Berikutnya* | - | [Direncanakan](./analisis-dan-rencana-tahap-7.md) | [Laporan Rencana Tahap 7](./analisis-dan-rencana-tahap-7.md) |
 
 ---
 

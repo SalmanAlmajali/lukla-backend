@@ -1,0 +1,971 @@
+openapi: 3.1.0
+info:
+  title: "Lukla Operations Engine - API Contract (Tahap 7: Biaya Overhead Pabrik & Pengujian End-to-End)"
+  version: 1.0.0
+  description: |
+    API Contract untuk **Tahap 7 (Factory Overhead Engine, Monthly Cost Allocation & Comprehensive End-to-End Testing)** Lukla Operations Engine.
+    Berdasarkan alur kerja `urutan pengerjaan.txt`, diagram proses `Lukla_BPMN_v2.drawio` (BPMN 09 & BPMN 01), serta integrasi seluruh **4 Skenario Uji SRS**:
+
+    - **BPMN 09 (Overhead Pabrik Bulanan / Factory Overhead & Costing Engine - FR-10.4)**:
+      - Master kategori biaya overhead pabrik (`overhead_categories`): Listrik, Air, Internet, Sewa Pabrik, Pemeliharaan Mesin, Bahan Pembantu Umum, Operasional Lainnya.
+      - Periode overhead bulanan (`overhead_periods`): Pembukaan periode pembukuan biaya per bulan/tahun (misal: 2026-10).
+      - Pencatatan pengeluaran aktual per kategori (`overhead_expenses`).
+      - Mesin kalkulasi alokasi overhead (`POST /overhead/periods/{id}/calculate`):
+        - Mengagregasi secara otomatis seluruh unit barang jadi yang selesai diproduksi dan lolos QC (`passed_quantity`) pada bulan tersebut lintas seluruh order (`orders` & `qc_inspections`).
+        - Menghitung tarif overhead per unit: $\text{Overhead Per Unit} = \frac{\text{Total Biaya Overhead}}{\text{Total Unit Diproduksi}}$.
+        - Mendukung pembobotan alokasi produk pakaian (`GARMENT`) vs tas (`BAG`) berdasarkan parameter konfigurasi rasio bobot kompleksitas (misal: pakaian 1.0, tas 1.25) atau alokasi seragam (*flat allocation*).
+      - Penguncian periode overhead (`POST /overhead/periods/{id}/lock`): Mencegah penambahan atau perubahan biaya setelah rekonsiliasi bulanan ditutup oleh Finance / Owner.
+      - Laporan alokasi biaya dan kalkulasi Harga Pokok Penjualan (HPP / COGS) per order (`GET /reports/cogs/{orderId}`).
+
+    - **BPMN 01 (Alur Manufaktur Utuh End-to-End & Verifikasi 4 Skenario Uji SRS)**:
+      - Validasi pipeline manufaktur dari ujung ke ujung:
+        - 1. *Sample & Time Study* (BPMN 03) -> Persetujuan Klien & Rate Card Komersial.
+        - 2. *Order Conversion* (BPMN 03) -> Penerbitan Order Massal terikat spesifikasi sample v2.
+        - 3. *Gudang Bahan Baku* (BPMN 02) -> Penerimaan lot bertagging & verifikasi blokade kontaminasi silang (Skenario 1).
+        - 4. *Pemotongan & Scrap* (BPMN 02) -> Pengeluaran bahan ke cutting & pencatatan limbah kain.
+        - 5. *Lantai Jahit* (BPMN 04 & 05) -> Alokasi line & input ritme output per 30 menit.
+        - 6. *Inspeksi Kualitas* (BPMN 06) -> Pengecekan QC lolos, repair, reject, dan defect tagging.
+        - 7. *Bonus QC* (BPMN 08) -> Pembagian pool bonus 3-arah untuk 3.000 pcs pakaian lolos (Skenario 3).
+        - 8. *Penyelesaian Order & Portal Klien* (BPMN 11) -> Notifikasi otomatis & penutupan status order.
+        - 9. *Payroll Penjahit* (BPMN 07) -> Perhitungan upah borongan mingguan & uang makan prorata penjahit baru (Skenario 2).
+        - 10. *Overhead Bulanan* (BPMN 09) -> Alokasi biaya pabrik per unit untuk kalkulasi final HPP order.
+
+  contact:
+    name: Lukla Engineering Team
+    email: ops@lukla.co
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Engine (Port 8080)
+  - url: /api/v1
+    description: Relative API Root
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Overhead - Categories (BPMN 09)
+    description: Master kategori biaya overhead pabrik (Listrik, Air, Internet, Sewa, dll)
+  - name: Overhead - Periods & Calculation (BPMN 09)
+    description: Manajemen periode overhead bulanan, pencatatan pengeluaran, kalkulasi alokasi per unit, dan penguncian
+  - name: Overhead - Costing & Reports (BPMN 09 & BPMN 01)
+    description: Laporan ringkasan alokasi overhead bulanan dan kalkulasi COGS (HPP) komprehensif per order
+  - name: System - End-to-End Pipeline Health (BPMN 01)
+    description: Health check dan verifikasi integrasi lintas seluruh 11 proses bisnis Lukla Operations Engine
+
+paths:
+  # ==========================================================
+  # 1. OVERHEAD CATEGORIES
+  # ==========================================================
+  /overhead/categories:
+    get:
+      tags:
+        - Overhead - Categories (BPMN 09)
+      summary: Daftar kategori biaya overhead
+      description: Mengambil seluruh master kategori biaya overhead pabrik yang aktif.
+      responses:
+        "200":
+          description: Daftar kategori berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OverheadCategory"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    post:
+      tags:
+        - Overhead - Categories (BPMN 09)
+      summary: Tambah kategori biaya overhead baru
+      description: Mendaftarkan kategori pengeluaran pabrik baru (memerlukan peran Finance, Executive, atau Owner).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOverheadCategoryRequest"
+      responses:
+        "201":
+          description: Kategori overhead berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Kategori overhead berhasil ditambahkan
+                  data:
+                    $ref: "#/components/schemas/OverheadCategory"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  # ==========================================================
+  # 2. OVERHEAD PERIODS & EXPENSES
+  # ==========================================================
+  /overhead/periods:
+    get:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Daftar periode kalkulasi overhead bulanan
+      description: Menampilkan riwayat seluruh periode pembukuan overhead bulanan beserta status penguncian dan total biayanya.
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 2026
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ALL, OPEN, CALCULATED, LOCKED]
+            default: ALL
+      responses:
+        "200":
+          description: Daftar periode overhead berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OverheadPeriodSummary"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+    post:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Buka periode overhead bulanan baru
+      description: Membuka periode pembukuan biaya untuk bulan dan tahun kalender tertentu (misal: Oktober 2026).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOverheadPeriodRequest"
+      responses:
+        "201":
+          description: Periode overhead berhasil dibuka
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Periode overhead bulanan berhasil dibuka
+                  data:
+                    $ref: "#/components/schemas/OverheadPeriodDetail"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /overhead/periods/{id}:
+    get:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Detail lengkap periode overhead & daftar pengeluaran
+      description: Mengambil data periode overhead, rincian biaya yang telah diinput, statistik unit produksi, dan tarif overhead terhitung.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Detail periode overhead ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/OverheadPeriodDetail"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /overhead/periods/{id}/expenses:
+    post:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Catat pengeluaran biaya overhead bulanan
+      description: Menambahkan catatan transaksi biaya aktual pabrik (misal: Tagihan Listrik PLN Rp 8.500.000). Hanya dapat dilakukan jika periode masih OPEN atau CALCULATED (belum LOCKED).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordOverheadExpenseRequest"
+      responses:
+        "201":
+          description: Biaya overhead berhasil dicatat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Pengeluaran overhead berhasil disimpan
+                  data:
+                    $ref: "#/components/schemas/OverheadExpenseItem"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /overhead/periods/{id}/expenses/{expenseId}:
+    delete:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Hapus catatan biaya overhead
+      description: Menghapus item pengeluaran jika salah input. Dilarang apabila periode telah berstatus LOCKED.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: expenseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Biaya overhead berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Item pengeluaran berhasil dihapus
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================================
+  # 3. OVERHEAD CALCULATION & LOCKING
+  # ==========================================================
+  /overhead/periods/{id}/calculate:
+    post:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Hitung alokasi overhead per unit bulanan
+      description: |
+        Menjalankan kalkulasi agregasi unit produksi otomatis dan pembagian biaya overhead per unit:
+        1. Menghitung total biaya overhead dari seluruh item pengeluaran pada periode tersebut.
+        2. Mengambil total unit lolos QC (`passed_quantity`) dari seluruh order yang selesai diproduksi pada rentang tanggal bulan tersebut.
+        3. Menghitung alokasi biaya:
+           - Tarif Standar Rata: $\text{Tarif Rata} = \frac{\text{Total Biaya}}{\text{Total Unit}}$.
+           - Opsi Alokasi Bobot Kategori (Pakaian vs Tas): mengalikan dengan bobot rasio `weightGarment` vs `weightBag`.
+        4. Menyimpan rekap kalkulasi dan memperbarui status periode menjadi `CALCULATED`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CalculateOverheadRequest"
+      responses:
+        "200":
+          description: Kalkulasi overhead per unit berhasil dilakukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Kalkulasi alokasi overhead per unit berhasil dihitung
+                  data:
+                    $ref: "#/components/schemas/OverheadCalculationResult"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /overhead/periods/{id}/lock:
+    post:
+      tags:
+        - Overhead - Periods & Calculation (BPMN 09)
+      summary: Kunci periode overhead bulanan (Finalize & Lock)
+      description: Mengunci periode pembukuan overhead bulanan secara permanen agar tidak dapat diubah lagi oleh operator. Hanya peran Finance atau Owner yang diizinkan.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Periode overhead berhasil dikunci
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Periode overhead bulanan berhasil dikunci
+                  data:
+                    $ref: "#/components/schemas/OverheadPeriodDetail"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================================
+  # 4. OVERHEAD REPORTS & COMPREHENSIVE COGS
+  # ==========================================================
+  /overhead/periods/{id}/summary:
+    get:
+      tags:
+        - Overhead - Costing & Reports (BPMN 09 & BPMN 01)
+      summary: Ringkasan laporan alokasi overhead bulanan
+      description: Menampilkan rekapitulasi pengeluaran per kategori, total unit pakaian vs tas, serta tarif alokasi akhir.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Laporan ringkasan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/OverheadPeriodSummaryReport"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /reports/cogs/{orderId}:
+    get:
+      tags:
+        - Overhead - Costing & Reports (BPMN 09 & BPMN 01)
+      summary: Laporan HPP / COGS komprehensif per Order (BPMN 01)
+      description: |
+        Menyajikan analisis Harga Pokok Produksi (COGS) utuh per order dengan mengintegrasikan:
+        1. Biaya Jasa CMT Penjahit (dari modul `production` & `payroll`).
+        2. Biaya Pool Bonus QC (dari modul `qcbonus`).
+        3. Biaya Alokasi Overhead Pabrik (dari modul `overhead`).
+        4. Nilai Kontrak Maklon & Margin Keuntungan Kotor Pabrik.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Laporan HPP order berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/OrderCOGSReport"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  # ==========================================================
+  # 5. SYSTEM END-TO-END PIPELINE HEALTH
+  # ==========================================================
+  /health/pipeline:
+    get:
+      tags:
+        - System - End-to-End Pipeline Health (BPMN 01)
+      summary: Audit kesiapan pipeline manufaktur end-to-end
+      description: Memverifikasi integritas konektivitas data lintas 11 modul operasional dan ketersediaan 4 skenario uji SRS.
+      responses:
+        "200":
+          description: Pipeline sehat dan siap produksi go-live
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/PipelineHealthStatus"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequestError:
+      description: Parameter atau payload tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: Token otentikasi tidak disediakan atau tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: Sumber daya tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: BAD_REQUEST
+            message:
+              type: string
+              example: Kategori overhead tidak ditemukan
+
+    OverheadCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        code:
+          type: string
+          example: "ELECTRICITY"
+        name:
+          type: string
+          example: "Listrik PLN Pabrik"
+        description:
+          type: string
+          example: "Biaya konsumsi daya listrik mesin jahit dan penerangan lini produksi"
+        isDefault:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOverheadCategoryRequest:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+          example: "FACTORY_RENT"
+        name:
+          type: string
+          example: "Sewa Bangunan Pabrik"
+        description:
+          type: string
+          example: "Alokasi sewa bulanan workshop produksi"
+
+    OverheadPeriodSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        periodCode:
+          type: string
+          example: "OH-202610"
+        periodMonth:
+          type: integer
+          example: 10
+        periodYear:
+          type: integer
+          example: 2026
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-01"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-31"
+        status:
+          type: string
+          enum: [OPEN, CALCULATED, LOCKED]
+          example: "CALCULATED"
+        totalExpenseAmount:
+          type: number
+          format: double
+          example: 25000000.00
+        totalProducedUnits:
+          type: integer
+          example: 5000
+        ratePerUnit:
+          type: number
+          format: double
+          example: 5000.00
+        currency:
+          type: string
+          example: "IDR"
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOverheadPeriodRequest:
+      type: object
+      required:
+        - periodMonth
+        - periodYear
+      properties:
+        periodMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 10
+        periodYear:
+          type: integer
+          minimum: 2024
+          maximum: 2035
+          example: 2026
+        notes:
+          type: string
+          example: "Pembukuan biaya operasional pabrik periode Oktober 2026"
+
+    OverheadExpenseItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        overheadPeriodId:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+          example: "Listrik PLN Pabrik"
+        expenseDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        amount:
+          type: number
+          format: double
+          example: 8500000.00
+        invoiceReference:
+          type: string
+          example: "INV-PLN-202610-88"
+        notes:
+          type: string
+          example: "Tagihan listrik operasional mesin jahit line A-D"
+        createdAt:
+          type: string
+          format: date-time
+
+    RecordOverheadExpenseRequest:
+      type: object
+      required:
+        - categoryId
+        - expenseDate
+        - amount
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        expenseDate:
+          type: string
+          format: date
+          example: "2026-10-15"
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 8500000.00
+        invoiceReference:
+          type: string
+          example: "INV-PLN-202610-88"
+        notes:
+          type: string
+          example: "Tagihan listrik operasional mesin jahit line A-D"
+
+    CalculateOverheadRequest:
+      type: object
+      properties:
+        weightGarment:
+          type: number
+          format: double
+          default: 1.0
+          example: 1.0
+        weightBag:
+          type: number
+          format: double
+          default: 1.25
+          example: 1.25
+        notes:
+          type: string
+          example: "Kalkulasi akhir bulan dengan pembobotan pakaian 1.0x dan tas 1.25x"
+
+    OverheadCalculationResult:
+      type: object
+      properties:
+        periodId:
+          type: string
+          format: uuid
+        periodCode:
+          type: string
+          example: "OH-202610"
+        status:
+          type: string
+          example: "CALCULATED"
+        totalExpenseAmount:
+          type: number
+          format: double
+          example: 25000000.00
+        totalProducedUnits:
+          type: integer
+          example: 5000
+        garmentUnits:
+          type: integer
+          example: 4000
+        bagUnits:
+          type: integer
+          example: 1000
+        flatRatePerUnit:
+          type: number
+          format: double
+          example: 5000.00
+        garmentRatePerUnit:
+          type: number
+          format: double
+          example: 4761.90
+        bagRatePerUnit:
+          type: number
+          format: double
+          example: 5952.38
+        currency:
+          type: string
+          example: "IDR"
+        calculatedAt:
+          type: string
+          format: date-time
+
+    OverheadPeriodDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        periodCode:
+          type: string
+          example: "OH-202610"
+        periodMonth:
+          type: integer
+          example: 10
+        periodYear:
+          type: integer
+          example: 2026
+        startDate:
+          type: string
+          format: date
+          example: "2026-10-01"
+        endDate:
+          type: string
+          format: date
+          example: "2026-10-31"
+        status:
+          type: string
+          example: "LOCKED"
+        totalExpenseAmount:
+          type: number
+          format: double
+          example: 25000000.00
+        totalProducedUnits:
+          type: integer
+          example: 5000
+        flatRatePerUnit:
+          type: number
+          format: double
+          example: 5000.00
+        garmentRatePerUnit:
+          type: number
+          format: double
+          example: 4761.90
+        bagRatePerUnit:
+          type: number
+          format: double
+          example: 5952.38
+        currency:
+          type: string
+          example: "IDR"
+        lockedAt:
+          type: string
+          format: date-time
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/OverheadExpenseItem"
+
+    OverheadPeriodSummaryReport:
+      type: object
+      properties:
+        periodCode:
+          type: string
+          example: "OH-202610"
+        periodMonth:
+          type: integer
+          example: 10
+        periodYear:
+          type: integer
+          example: 2026
+        status:
+          type: string
+          example: "LOCKED"
+        expenseBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              categoryCode:
+                type: string
+                example: "ELECTRICITY"
+              categoryName:
+                type: string
+                example: "Listrik PLN Pabrik"
+              totalAmount:
+                type: number
+                format: double
+                example: 8500000.00
+              percentage:
+                type: number
+                format: double
+                example: 34.0
+        productionBreakdown:
+          type: object
+          properties:
+            totalUnits:
+              type: integer
+              example: 5000
+            garmentUnits:
+              type: integer
+              example: 4000
+            bagUnits:
+              type: integer
+              example: 1000
+        rates:
+          type: object
+          properties:
+            flatRatePerUnit:
+              type: number
+              format: double
+              example: 5000.00
+            garmentRatePerUnit:
+              type: number
+              format: double
+              example: 4761.90
+            bagRatePerUnit:
+              type: number
+              format: double
+              example: 5952.38
+
+    OrderCOGSReport:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        orderNumber:
+          type: string
+          example: "PO-SNO-2026-M9370"
+        clientName:
+          type: string
+          example: "Snøhund Brand"
+        articleCode:
+          type: string
+          example: "ART-SNO-PK01"
+        articleTitle:
+          type: string
+          example: "Snøhund Arctic Expedition Parka 2026"
+        category:
+          type: string
+          example: "GARMENT"
+        producedQuantity:
+          type: integer
+          example: 2000
+        contractPricePerUnit:
+          type: number
+          format: double
+          example: 45000.00
+        totalRevenue:
+          type: number
+          format: double
+          example: 90000000.00
+        costComponents:
+          type: object
+          properties:
+            directLaborPerUnit:
+              type: number
+              format: double
+              example: 22500.00
+            totalDirectLabor:
+              type: number
+              format: double
+              example: 45000000.00
+            qcBonusPerUnit:
+              type: number
+              format: double
+              example: 500.00
+            totalQCBonus:
+              type: number
+              format: double
+              example: 1000000.00
+            overheadPerUnit:
+              type: number
+              format: double
+              example: 4761.90
+            totalOverhead:
+              type: number
+              format: double
+              example: 9523800.00
+        totalCostPerUnit:
+          type: number
+          format: double
+          example: 27761.90
+        totalCOGS:
+          type: number
+          format: double
+          example: 55523800.00
+        grossMarginPerUnit:
+          type: number
+          format: double
+          example: 17238.10
+        totalGrossMargin:
+          type: number
+          format: double
+          example: 34476200.00
+        grossMarginPercentage:
+          type: number
+          format: double
+          example: 38.31
+
+    PipelineHealthStatus:
+      type: object
+      properties:
+        overallStatus:
+          type: string
+          example: "HEALTHY"
+        modulesCount:
+          type: integer
+          example: 12
+        modulesVerified:
+          type: array
+          items:
+            type: string
+            example: "sample, inventory, production, quality, qcbonus, payroll, portal, order, notification, masterdata, ratecard, overhead"
+        scenariosVerified:
+          type: object
+          properties:
+            scenario1CrossContaminationBlock:
+              type: boolean
+              example: true
+            scenario2MidWeekSewerPayroll:
+              type: boolean
+              example: true
+            scenario3QCPoolBonus3WaySplit:
+              type: boolean
+              example: true
+            scenario4SampleVersionBinding:
+              type: boolean
+              example: true
+

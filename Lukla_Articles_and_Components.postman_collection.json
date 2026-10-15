@@ -7464,6 +7464,639 @@
             ],
             "name": "15. Tahap 6.2: Client Approval, Commercial Rate Card \u0026 Mass Order Conversion (BPMN 03 \u0026 Skenario Uji 4)",
             "response": null
+        },
+        {
+            "item": [
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Overhead categories list returned\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.length).to.be.above(0);",
+                                    "});",
+                                    "var elec = jsonData.data.find(function(c) { return c.code === 'ELECTRICITY'; });",
+                                    "if (elec) { pm.collectionVariables.set('overhead_category_id', elec.id); }",
+                                    "var rent = jsonData.data.find(function(c) { return c.code === 'RENT'; });",
+                                    "if (rent) { pm.collectionVariables.set('overhead_rent_category_id', rent.id); }"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.1 GET Daftar Master Kategori Biaya Overhead",
+                    "request": {
+                        "description": "Mengambil seluruh kategori biaya overhead operasional pabrik yang aktif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "categories"
+                            ],
+                            "raw": "{{base_url}}/overhead/categories"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":[{\"id\":\"f33fe467-c5c7-401e-b2fa-a926aeb7226b\",\"code\":\"WATER\",\"name\":\"Air \\u0026 Sanitasi Pabrik\",\"description\":\"Biaya utilitas air bersih dan sanitasi workshop\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"code\":\"INDIRECT_MATERIALS\",\"name\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"description\":\"Kertas pola, kapur jahit, plastik pelindung, dan ATK mandor/QC\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"7dc0f1ca-845f-4066-89d6-2d06bc64858a\",\"code\":\"CUSTOM_PACK_850\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:10.985879+07:00\",\"updatedAt\":\"2026-10-15T14:54:10.985879+07:00\"},{\"id\":\"7beea11c-3219-4abd-91ec-ee655a839e56\",\"code\":\"CUSTOM_PACK_114\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:41:54.707131+07:00\",\"updatedAt\":\"2026-10-15T14:41:54.707131+07:00\"},{\"id\":\"6a88518d-8c5a-4397-88e2-b0d9caef08fd\",\"code\":\"CUSTOM_PACK_213\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:43:33.814182+07:00\",\"updatedAt\":\"2026-10-15T14:43:33.814182+07:00\"},{\"id\":\"81006325-4fdc-4759-a7c3-44dead26ed0a\",\"code\":\"CUSTOM_PACK_290\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:44:50.08654+07:00\",\"updatedAt\":\"2026-10-15T14:44:50.08654+07:00\"},{\"id\":\"fb2b7a74-2d67-4830-8f78-8953dba1d9cf\",\"code\":\"CUSTOM_PACK_333\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:45:33.95632+07:00\",\"updatedAt\":\"2026-10-15T14:45:33.95632+07:00\"},{\"id\":\"15fa69e2-63d4-4723-9990-0651616af052\",\"code\":\"INTERNET\",\"name\":\"Internet \\u0026 Telekomunikasi Operasional\",\"description\":\"Biaya jaringan internet WiFi dan komunikasi operasional\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fd87dc34-764a-4506-8606-6532b087a779\",\"code\":\"SECURITY_SERVICES_724\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:52:04.80645+07:00\",\"updatedAt\":\"2026-10-15T14:52:04.80645+07:00\"},{\"id\":\"472ad5d3-20a4-4ef6-8afa-ff06126af6a6\",\"code\":\"SECURITY_SERVICES_793\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:53:13.533193+07:00\",\"updatedAt\":\"2026-10-15T14:53:13.533193+07:00\"},{\"id\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"code\":\"ELECTRICITY\",\"name\":\"Listrik PLN Pabrik\",\"description\":\"Biaya konsumsi daya listrik mesin jahit, kompresor dan penerangan lini produksi\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"9a9a616b-7ef6-4caa-a1b6-1318da4a593e\",\"code\":\"OPERATIONAL_OTHERS\",\"name\":\"Operasional Umum Lainnya\",\"description\":\"Biaya pendukung kebersihan, keamanan, dan logistik lokal\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"c40e1fb9-75e4-4e48-89cb-b594a72a9f18\",\"code\":\"MACHINE_MAINTENANCE\",\"name\":\"Pemeliharaan Mesin \\u0026 Spareparts\",\"description\":\"Servis rutin mesin jahit, penggantian jarum, sekoci, dan minyak mesin\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"},{\"id\":\"fe7d8f40-179a-4bf7-a92f-a0bc56f7ebc6\",\"code\":\"FACTORY_RENT\",\"name\":\"Sewa Gedung Pabrik \\u0026 Workshop\",\"description\":\"Alokasi bulanan sewa tempat workshop manufaktur\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:35:31.957997+07:00\",\"updatedAt\":\"2026-10-15T14:35:31.957997+07:00\"}],\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Category created successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.id).to.be.a('string');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.2 POST Daftarkan Kategori Overhead Kustom",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"SECURITY_SERVICES\",\n    \"name\": \"Jasa Pengamanan \u0026 Sekuriti Pabrik\",\n    \"description\": \"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\n    \"isDefault\": false\n}"
+                        },
+                        "description": "Menambahkan kategori biaya overhead kustom baru yang spesifik untuk pabrik.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "categories"
+                            ],
+                            "raw": "{{base_url}}/overhead/categories"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"4fee78e3-7e36-473c-8bb4-31afda48a25d\",\"code\":\"SECURITY_SERVICES_851\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-15T14:54:11.387664+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.387664+07:00\"},\"message\":\"Kategori overhead berhasil ditambahkan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Overhead period opened with OPEN status\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.status).to.eql('OPEN');",
+                                    "    pm.collectionVariables.set('overhead_period_id', jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.3 POST Buka Periode Overhead Bulanan Baru",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"periodMonth\": 10,\n    \"periodYear\": 2026,\n    \"notes\": \"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\"\n}"
+                        },
+                        "description": "Membuka periode buku alokasi biaya overhead bulanan baru dengan status OPEN.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.406361+07:00\",\"expenses\":[]},\"message\":\"Periode overhead bulanan berhasil dibuka\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.4 GET Daftar Seluruh Periode Overhead",
+                    "request": {
+                        "description": "Melihat riwayat seluruh periode overhead bulanan yang tercatat di sistem.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2026"
+                                }
+                            ],
+                            "raw": "{{base_url}}/overhead/periods?year=2026"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":[{\"id\":\"69a3e08b-baad-4834-bd2a-7aa99e1078b3\",\"periodCode\":\"OH-202611\",\"periodMonth\":11,\"periodYear\":2026,\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-30\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":3000,\"flatRatePerUnit\":8333.33,\"garmentRatePerUnit\":8333.33,\"bagRatePerUnit\":10416.67,\"currency\":\"IDR\",\"notes\":\"Kalkulasi akhir bulan November 2026\",\"createdAt\":\"2026-10-15T14:54:11.000656+07:00\"},{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\"}],\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.5 GET Detail Periode Overhead Aktif",
+                    "request": {
+                        "description": "Mengambil rincian periode overhead lengkap dengan daftar biaya pengeluaran dan ringkasan tarif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.406361+07:00\",\"expenses\":[]},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Expense recorded successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.amount).to.eql(15000000);",
+                                    "    pm.collectionVariables.set('overhead_expense_id', jsonData.data.id);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.6 POST Catat Biaya Pengeluaran 1 - Tagihan Listrik \u0026 Air",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"categoryId\": \"{{overhead_category_id}}\",\n    \"expenseDate\": \"2026-10-10\",\n    \"amount\": 15000000,\n    \"invoiceReference\": \"PLN-OKT-2026-883\",\n    \"notes\": \"Tagihan listrik PLN mesin jahit dan kompresor pabrik\"\n}"
+                        },
+                        "description": "Mencatat biaya riil operasional utilitas listrik \u0026 air pabrik ke periode aktif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}",
+                                "expenses"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}/expenses"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"eea791e9-1821-4ff0-8893-35a034d7ee46\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T14:54:11.412585+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.412585+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201 Created\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Expense recorded successfully\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.amount).to.eql(10000000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.7 POST Catat Biaya Pengeluaran 2 - Sewa Gedung Pabrik",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"categoryId\": \"{{overhead_rent_category_id}}\",\n    \"expenseDate\": \"2026-10-01\",\n    \"amount\": 10000000,\n    \"invoiceReference\": \"RENT-OKT-2026-01\",\n    \"notes\": \"Alokasi sewa bulanan fasilitas workshop produksi\"\n}"
+                        },
+                        "description": "Mencatat biaya riil sewa gedung fasilitas produksi ke periode aktif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}",
+                                "expenses"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}/expenses"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"19e16aef-eddb-4186-9098-748c0bfebabf\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T14:54:11.41818+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.41818+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "code": 201,
+                            "name": "Success 201 Created",
+                            "status": "Created"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Overhead calculation returns calculated status and rates\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.status).to.eql('CALCULATED');",
+                                    "    pm.expect(jsonData.data.totalExpenseAmount).to.eql(25000000);",
+                                    "    pm.expect(jsonData.data.flatRatePerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.bagRatePerUnit).to.be.above(jsonData.data.garmentRatePerUnit);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.8 POST Kalkulasi Alokasi Tarif Overhead Flat \u0026 Terbobot",
+                    "request": {
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"weightGarment\": 1.0,\n    \"weightBag\": 1.25,\n    \"notes\": \"Kalkulasi final alokasi overhead periode Oktober 2026\"\n}"
+                        },
+                        "description": "Menjalankan kalkulasi tarif overhead flat rate dan weighted rate (Garment bobot 1.0 vs Tas bobot 1.25) terhadap total unit lolos QC.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "type": "text",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}",
+                                "calculate"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}/calculate"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"periodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":728,\"garmentUnits\":728,\"bagUnits\":0,\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82,\"currency\":\"IDR\",\"calculatedAt\":\"2026-10-15T14:54:11.4437814+07:00\"},\"message\":\"Kalkulasi alokasi overhead per unit berhasil dihitung\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Summary report contains expense breakdown and rates\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.expenseBreakdown.length).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.totalExpenseAmount).to.eql(25000000);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.9 GET Laporan Ringkasan Alokasi Overhead Bulanan",
+                    "request": {
+                        "description": "Menampilkan rekapitulasi persentase pengeluaran per kategori, total unit produksi, dan ringkasan tarif.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}",
+                                "summary"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}/summary"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"expenseBreakdown\":[{\"categoryCode\":\"ELECTRICITY\",\"categoryName\":\"Listrik PLN Pabrik\",\"totalAmount\":15000000,\"percentage\":60},{\"categoryCode\":\"INDIRECT_MATERIALS\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"totalAmount\":10000000,\"percentage\":40}],\"productionBreakdown\":{\"totalUnits\":728,\"garmentUnits\":728,\"bagUnits\":0},\"rates\":{\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82}},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"Period successfully locked\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.status).to.eql('LOCKED');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.10 POST Kunci Periode Overhead Bulanan (Lock \u0026 Immutable)",
+                    "request": {
+                        "description": "Mengunci periode overhead menjadi status LOCKED sehingga tidak dapat diubah atau ditambah biaya lagi.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "POST",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "overhead",
+                                "periods",
+                                "{{overhead_period_id}}",
+                                "lock"
+                            ],
+                            "raw": "{{base_url}}/overhead/periods/{{overhead_period_id}}/lock"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"id\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":728,\"garmentUnits\":728,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":34340.66,\"garmentRatePerUnit\":34340.66,\"bagRatePerUnit\":42925.82,\"currency\":\"IDR\",\"notes\":\"Kalkulasi final alokasi overhead periode Oktober 2026\",\"calculatedAt\":\"2026-10-15T14:54:11.443874+07:00\",\"lockedAt\":\"2026-10-15T14:54:11.453814+07:00\",\"lockedBy\":\"22f67fa5-3cb7-4b00-9dcc-307c515e0786\",\"lockedByName\":\"Budi Santoso\",\"createdAt\":\"2026-10-15T14:54:11.406361+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.453814+07:00\",\"expenses\":[{\"id\":\"19e16aef-eddb-4186-9098-748c0bfebabf\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"8e3759ef-99db-41a8-9ef8-215e48bd538c\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-15T14:54:11.41818+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.41818+07:00\"},{\"id\":\"eea791e9-1821-4ff0-8893-35a034d7ee46\",\"overheadPeriodId\":\"8a3e2768-1bd2-4579-a68b-46b7c700fa79\",\"categoryId\":\"c3c86a43-1aa2-41fb-94ed-baaf38de2393\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-15T14:54:11.412585+07:00\",\"updatedAt\":\"2026-10-15T14:54:11.412585+07:00\"}]},\"message\":\"Periode overhead bulanan berhasil dikunci\",\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                },
+                {
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200 OK\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "pm.test(\"COGS report verifies labor, qc bonus, and overhead components\", function () {",
+                                    "    pm.expect(jsonData.success).to.eql(true);",
+                                    "    pm.expect(jsonData.data.costComponents.directLaborPerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.costComponents.overheadPerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.totalCostPerUnit).to.be.above(0);",
+                                    "    pm.expect(jsonData.data.grossMarginPerUnit).to.be.a('number');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "name": "16.11 GET Laporan HPP / COGS Komprehensif Order (BPMN 01)",
+                    "request": {
+                        "description": "Menampilkan analisis HPP komprehensif order mencakup Biaya Tenaga Kerja Langsung, QC Bonus, Alokasi Overhead Pabrik, dan Gross Profit Margin.",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "type": "text",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "method": "GET",
+                        "url": {
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "reports",
+                                "cogs",
+                                "{{mass_order_id}}"
+                            ],
+                            "raw": "{{base_url}}/reports/cogs/{{mass_order_id}}"
+                        }
+                    },
+                    "response": [
+                        {
+                            "_postman_previewlanguage": "json",
+                            "body": "{\"data\":{\"orderId\":\"2b07e483-7a05-40fd-bf84-81be672f2ad2\",\"orderNumber\":\"PO-SNO-TEST4-1792050850\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":2000,\"contractPricePerUnit\":45000,\"totalRevenue\":90000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":46400000,\"qcBonusPerUnit\":500,\"totalQCBonus\":1000000,\"overheadPerUnit\":34340.66,\"totalOverhead\":68681320},\"totalCostPerUnit\":58040.66,\"totalCOGS\":116081320,\"grossMarginPerUnit\":-13040.66,\"totalGrossMargin\":-26081320,\"grossMarginPercentage\":-28.98},\"success\":true}",
+                            "code": 200,
+                            "name": "Success 200 OK",
+                            "status": "OK"
+                        }
+                    ]
+                }
+            ],
+            "name": "16. Tahap 7.1: Factory Overhead Engine \u0026 Cost Allocation (BPMN 09)",
+            "response": null
         }
     ],
     "variable": [
@@ -7641,6 +8274,26 @@
             "key": "mass_order_id",
             "type": "string",
             "value": "6c23be23-ae55-4fbb-bf78-21ed896fcd89"
+        },
+        {
+            "key": "overhead_period_id",
+            "type": "string",
+            "value": "8a3e2768-1bd2-4579-a68b-46b7c700fa79"
+        },
+        {
+            "key": "overhead_category_id",
+            "type": "string",
+            "value": "c3c86a43-1aa2-41fb-94ed-baaf38de2393"
+        },
+        {
+            "key": "overhead_rent_category_id",
+            "type": "string",
+            "value": "8e3759ef-99db-41a8-9ef8-215e48bd538c"
+        },
+        {
+            "key": "overhead_expense_id",
+            "type": "string",
+            "value": "37a1ce18-dd5f-4765-ad2c-a335994b2117"
         }
     ]
 }
