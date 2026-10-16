@@ -19,6 +19,17 @@ type Config struct {
 	DB   DBConfig
 	Auth AuthConfig
 	Log  LogConfig
+	AWS  AWSConfig
+}
+
+// AWSConfig holds Amazon S3 and Amazon Bedrock configuration.
+type AWSConfig struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	Bucket          string
+	BedrockModelID  string
+	BedrockKBID     string
 }
 
 // HTTPConfig holds HTTP server settings.
@@ -85,6 +96,14 @@ func LoadConfig() (Config, error) {
 		Log: LogConfig{
 			Level:  getEnv("LOG_LEVEL", "info"),
 			Format: getEnv("LOG_FORMAT", "json"),
+		},
+		AWS: AWSConfig{
+			Region:          getEnv("AWS_REGION", "ap-southeast-1"),
+			AccessKeyID:     getEnv("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey: getEnv("AWS_SECRET_ACCESS_KEY", ""),
+			Bucket:          getEnv("AWS_S3_BUCKET", "bedrock-kb-student8-1791858316"),
+			BedrockModelID:  getEnv("BEDROCK_MODEL_ID", "amazon.nova-pro-v1:0"),
+			BedrockKBID:     getEnv("BEDROCK_KB_ID", "NXQHNABELF"),
 		},
 	}
 

@@ -21,5 +21,11 @@ type Repository interface {
 
 	// Mass Order Conversion (BPMN 03 / Skenario Uji 4)
 	ConvertToOrder(ctx context.Context, sampleID string, payload ConvertSampleToOrderPayload) (*ConvertedMassOrderResponse, error)
+
+	// Attachments (Amazon S3)
+	SaveAttachment(ctx context.Context, att *SampleAttachment) (*SampleAttachment, error)
+	ListAttachmentsByVersion(ctx context.Context, sampleRequestID string, versionNumber int) ([]SampleAttachment, error)
+	GetAttachmentByID(ctx context.Context, id string) (*SampleAttachment, error)
+	DeleteAttachment(ctx context.Context, id string) error
 }
 

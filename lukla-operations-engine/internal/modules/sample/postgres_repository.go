@@ -353,6 +353,13 @@ func (r *PostgresRepository) GetSampleRequestByID(ctx context.Context, id string
 		}
 		v.Components = studies
 
+		// Ambil attachments untuk versi ini
+		atts, err := r.listAttachmentsByVersionID(ctx, v.ID)
+		if err != nil {
+			return nil, err
+		}
+		v.Attachments = atts
+
 		d.Versions = append(d.Versions, v)
 	}
 
@@ -631,6 +638,12 @@ func (r *PostgresRepository) GetSampleVersionByNumber(ctx context.Context, sampl
 		return nil, err
 	}
 	v.Components = studies
+
+	atts, err := r.listAttachmentsByVersionID(ctx, v.ID)
+	if err != nil {
+		return nil, err
+	}
+	v.Attachments = atts
 
 	return &v, nil
 }
@@ -967,4 +980,230 @@ func (r *PostgresRepository) ConvertToOrder(ctx context.Context, sampleID string
 		SpecSnapshotSAM: totalSAM,
 	}, nil
 }
+
+// SaveAttachment menyimpan metadata lampiran foto sampel ke database lukla_db.
+func (r *PostgresRepository) SaveAttachment(ctx context.Context, att *SampleAttachment) (*SampleAttachment, error) {
+	query := `
+		INSERT INTO sample_attachments (
+			id, sample_request_id, sample_version_id, file_name, s3_bucket, s3_key, file_url,
+			file_size, mime_type, caption, attachment_type, uploaded_by, uploader_name, uploader_role, created_at
+		) VALUES (
+			COALESCE(NULLIF($1, '')::uuid, gen_random_uuid()), $2, $3, $4, $5, $6, $7,
+			$8, $9, $10, $11, $12, $13, $14, NOW()
+		)
+		RETURNING id, created_at
+	`
+
+	var uploadedByVal *string
+	if att.UploadedBy != nil && *att.UploadedBy != "" {
+		uploadedByVal = att.UploadedBy
+	}
+
+	err := r.db.QueryRowContext(
+		ctx,
+		query,
+		att.ID,
+		att.SampleRequestID,
+		att.SampleVersionID,
+		att.FileName,
+		att.S3Bucket,
+		att.S3Key,
+		att.FileURL,
+		att.FileSize,
+		att.MimeType,
+		att.Caption,
+		att.AttachmentType,
+		uploadedByVal,
+		att.UploaderName,
+		att.UploaderRole,
+	).Scan(&att.ID, &att.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("insert sample attachment: %w", err)
+	}
+
+	return att, nil
+}
+
+// listAttachmentsByVersionID helper mengambil semua lampiran foto yang terikat pada sample_version_id.
+func (r *PostgresRepository) listAttachmentsByVersionID(ctx context.Context, versionID string) ([]SampleAttachment, error) {
+	query := `
+		SELECT 
+			id, sample_request_id, sample_version_id, file_name, s3_bucket, s3_key, file_url,
+			file_size, mime_type, caption, attachment_type, uploaded_by, uploader_name, uploader_role, created_at
+		FROM sample_attachments
+		WHERE sample_version_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("query attachments by version id: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]SampleAttachment, 0)
+	for rows.Next() {
+		var a SampleAttachment
+		var versionIDNull, captionNull, uploadedByNull sql.NullString
+
+		err := rows.Scan(
+			&a.ID,
+			&a.SampleRequestID,
+			&versionIDNull,
+			&a.FileName,
+			&a.S3Bucket,
+			&a.S3Key,
+			&a.FileURL,
+			&a.FileSize,
+			&a.MimeType,
+			&captionNull,
+			&a.AttachmentType,
+			&uploadedByNull,
+			&a.UploaderName,
+			&a.UploaderRole,
+			&a.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan sample attachment: %w", err)
+		}
+
+		if versionIDNull.Valid {
+			a.SampleVersionID = &versionIDNull.String
+		}
+		if captionNull.Valid {
+			a.Caption = &captionNull.String
+		}
+		if uploadedByNull.Valid {
+			a.UploadedBy = &uploadedByNull.String
+		}
+
+		attachments = append(attachments, a)
+	}
+
+	return attachments, nil
+}
+
+// ListAttachmentsByVersion mengambil semua lampiran foto pada versi nomor tertentu dari suatu sample request.
+func (r *PostgresRepository) ListAttachmentsByVersion(ctx context.Context, sampleRequestID string, versionNumber int) ([]SampleAttachment, error) {
+	query := `
+		SELECT 
+			sa.id, sa.sample_request_id, sa.sample_version_id, sa.file_name, sa.s3_bucket, sa.s3_key, sa.file_url,
+			sa.file_size, sa.mime_type, sa.caption, sa.attachment_type, sa.uploaded_by, sa.uploader_name, sa.uploader_role, sa.created_at
+		FROM sample_attachments sa
+		JOIN sample_versions sv ON sa.sample_version_id = sv.id
+		WHERE sa.sample_request_id = $1 AND sv.version_number = $2
+		ORDER BY sa.created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, sampleRequestID, versionNumber)
+	if err != nil {
+		return nil, fmt.Errorf("query attachments by version number: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]SampleAttachment, 0)
+	for rows.Next() {
+		var a SampleAttachment
+		var versionIDNull, captionNull, uploadedByNull sql.NullString
+
+		err := rows.Scan(
+			&a.ID,
+			&a.SampleRequestID,
+			&versionIDNull,
+			&a.FileName,
+			&a.S3Bucket,
+			&a.S3Key,
+			&a.FileURL,
+			&a.FileSize,
+			&a.MimeType,
+			&captionNull,
+			&a.AttachmentType,
+			&uploadedByNull,
+			&a.UploaderName,
+			&a.UploaderRole,
+			&a.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan sample attachment: %w", err)
+		}
+
+		if versionIDNull.Valid {
+			a.SampleVersionID = &versionIDNull.String
+		}
+		if captionNull.Valid {
+			a.Caption = &captionNull.String
+		}
+		if uploadedByNull.Valid {
+			a.UploadedBy = &uploadedByNull.String
+		}
+
+		attachments = append(attachments, a)
+	}
+
+	return attachments, nil
+}
+
+// GetAttachmentByID mengambil metadata lengkap satu berkas lampiran berdasarkan ID-nya.
+func (r *PostgresRepository) GetAttachmentByID(ctx context.Context, id string) (*SampleAttachment, error) {
+	query := `
+		SELECT 
+			id, sample_request_id, sample_version_id, file_name, s3_bucket, s3_key, file_url,
+			file_size, mime_type, caption, attachment_type, uploaded_by, uploader_name, uploader_role, created_at
+		FROM sample_attachments
+		WHERE id = $1
+	`
+
+	var a SampleAttachment
+	var versionIDNull, captionNull, uploadedByNull sql.NullString
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&a.ID,
+		&a.SampleRequestID,
+		&versionIDNull,
+		&a.FileName,
+		&a.S3Bucket,
+		&a.S3Key,
+		&a.FileURL,
+		&a.FileSize,
+		&a.MimeType,
+		&captionNull,
+		&a.AttachmentType,
+		&uploadedByNull,
+		&a.UploaderName,
+		&a.UploaderRole,
+		&a.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("lampiran foto sampel tidak ditemukan")
+		}
+		return nil, fmt.Errorf("get sample attachment by id: %w", err)
+	}
+
+	if versionIDNull.Valid {
+		a.SampleVersionID = &versionIDNull.String
+	}
+	if captionNull.Valid {
+		a.Caption = &captionNull.String
+	}
+	if uploadedByNull.Valid {
+		a.UploadedBy = &uploadedByNull.String
+	}
+
+	return &a, nil
+}
+
+// DeleteAttachment menghapus data lampiran dari tabel sample_attachments.
+func (r *PostgresRepository) DeleteAttachment(ctx context.Context, id string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM sample_attachments WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete sample attachment: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("lampiran foto sampel tidak ditemukan")
+	}
+	return nil
+}
+
 

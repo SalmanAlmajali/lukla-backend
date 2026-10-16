@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lukla/operations-engine/internal/platform/authn"
 )
 
 // Handler menangani request HTTP untuk manajemen permintaan sample dan time study internal pabrik.
@@ -21,6 +22,9 @@ func NewHandler(svc *Service) *Handler {
 
 // RegisterRoutes mendaftarkan seluruh endpoint internal sample ke router Gin.
 func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.HandlerFunc, internalAuthz gin.HandlerFunc) {
+	// Streaming objek gambar dari S3 ke klien (kompatibel langsung dengan tag <img>)
+	rg.GET("/samples/attachments/:attachmentId/view", h.StreamAttachment)
+
 	samplesGroup := rg.Group("/samples", authnMiddleware, internalAuthz)
 	{
 		samplesGroup.POST("", h.CreateSampleRequest)
@@ -32,6 +36,11 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		samplesGroup.PUT("/:id/versions/:versionNumber/commercial-rate", h.SetCommercialRate)
 		samplesGroup.POST("/:id/submit-review", h.SubmitReview)
 		samplesGroup.POST("/:id/convert-to-order", h.ConvertToOrder)
+
+		// Amazon S3 Sample Attachments
+		samplesGroup.POST("/:id/versions/:versionNumber/attachments", h.UploadAttachment)
+		samplesGroup.GET("/:id/versions/:versionNumber/attachments", h.ListAttachments)
+		samplesGroup.DELETE("/attachments/:attachmentId", h.DeleteAttachment)
 	}
 }
 
@@ -421,4 +430,201 @@ func (h *Handler) ConvertToOrder(c *gin.Context) {
 		"data":    res,
 	})
 }
+
+// UploadAttachment handles POST /api/v1/samples/:id/versions/:versionNumber/attachments.
+func (h *Handler) UploadAttachment(c *gin.Context) {
+	sampleID := c.Param("id")
+	verStr := c.Param("versionNumber")
+	verNum, err := strconv.Atoi(verStr)
+	if err != nil || verNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Nomor versi sample tidak valid",
+			},
+		})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "File gambar wajib diunggah pada field 'file': " + err.Error(),
+			},
+		})
+		return
+	}
+
+	captionText := c.PostForm("caption")
+	var captionPtr *string
+	if captionText != "" {
+		captionPtr = &captionText
+	}
+	attType := c.DefaultPostForm("attachmentType", "PROTOTYPE_PHOTO")
+
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "FILE_READ_ERROR",
+				"message": "Gagal membaca berkas: " + err.Error(),
+			},
+		})
+		return
+	}
+	defer f.Close()
+
+	var uploaderIDPtr *string
+	if uid, ok := authn.UserIDFrom(c); ok && uid != "" {
+		uploaderIDPtr = &uid
+	}
+
+	role, _ := authn.RoleFrom(c)
+	if role == "" {
+		role = "SAMPLE_MAKER"
+	}
+
+	att, err := h.svc.UploadAttachment(
+		c.Request.Context(),
+		sampleID,
+		verNum,
+		f,
+		fileHeader.Filename,
+		fileHeader.Size,
+		fileHeader.Header.Get("Content-Type"),
+		captionPtr,
+		attType,
+		uploaderIDPtr,
+		"Staff R&D",
+		role,
+	)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrSampleNotFound) || errors.Is(err, ErrVersionNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrInvalidFileType) || errors.Is(err, ErrFileTooLarge) {
+			status = http.StatusBadRequest
+			code = "VALIDATION_ERROR"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Foto sampel berhasil diunggah ke Amazon S3",
+		"data":    att,
+	})
+}
+
+// ListAttachments handles GET /api/v1/samples/:id/versions/:versionNumber/attachments.
+func (h *Handler) ListAttachments(c *gin.Context) {
+	sampleID := c.Param("id")
+	verStr := c.Param("versionNumber")
+	verNum, err := strconv.Atoi(verStr)
+	if err != nil || verNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Nomor versi sample tidak valid",
+			},
+		})
+		return
+	}
+
+	attachments, err := h.svc.ListAttachments(c.Request.Context(), sampleID, verNum)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INTERNAL_SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    attachments,
+	})
+}
+
+// DeleteAttachment handles DELETE /api/v1/samples/attachments/:attachmentId.
+func (h *Handler) DeleteAttachment(c *gin.Context) {
+	attID := c.Param("attachmentId")
+	if attID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "ID lampiran wajib disertakan",
+			},
+		})
+		return
+	}
+
+	err := h.svc.DeleteAttachment(c.Request.Context(), attID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INTERNAL_SERVER_ERROR",
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Lampiran foto berhasil dihapus dari Amazon S3 dan database",
+	})
+}
+
+// StreamAttachment handles GET /api/v1/samples/attachments/:attachmentId/view.
+func (h *Handler) StreamAttachment(c *gin.Context) {
+	attID := c.Param("attachmentId")
+	if attID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "ID lampiran wajib disertakan",
+			},
+		})
+		return
+	}
+
+	body, mimeType, contentLength, err := h.svc.DownloadAttachment(c.Request.Context(), attID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "NOT_FOUND",
+				"message": "Objek gambar tidak dapat diakses dari Amazon S3: " + err.Error(),
+			},
+		})
+		return
+	}
+	defer body.Close()
+
+	c.Header("Cache-Control", "public, max-age=86400")
+	c.DataFromReader(http.StatusOK, contentLength, mimeType, body, nil)
+}
+
 

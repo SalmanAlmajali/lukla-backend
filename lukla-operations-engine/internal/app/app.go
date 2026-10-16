@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lukla/operations-engine/internal/modules/aiagent"
 	"github.com/lukla/operations-engine/internal/modules/identity"
 	"github.com/lukla/operations-engine/internal/modules/inventory"
 	"github.com/lukla/operations-engine/internal/modules/masterdata"
@@ -26,6 +27,7 @@ import (
 	"github.com/lukla/operations-engine/internal/platform/authz"
 	"github.com/lukla/operations-engine/internal/platform/database"
 	"github.com/lukla/operations-engine/internal/platform/httpx"
+	"github.com/lukla/operations-engine/internal/platform/storage"
 )
 
 // App holds the wired application.
@@ -75,6 +77,7 @@ func New(ctx context.Context) (*App, error) {
 		}, nil
 	}
 	authnMiddleware := authn.Middleware(cfg.Auth.TokenSecret, userLoader)
+	optionalAuthnMiddleware := authn.OptionalMiddleware(cfg.Auth.TokenSecret, userLoader)
 	internalAuthz := authz.RequireInternal()
 
 	masterdataRepo := masterdata.NewPostgresRepository(db)
@@ -109,21 +112,47 @@ func New(ctx context.Context) (*App, error) {
 	notificationSvc := notification.NewService(notificationRepo)
 	notificationHandler := notification.NewHandler(notificationSvc)
 
+	// Amazon S3 Object Storage Provider
+	s3Storage, err := storage.NewS3Storage(ctx, storage.Config{
+		Region:          cfg.AWS.Region,
+		AccessKeyID:     cfg.AWS.AccessKeyID,
+		SecretAccessKey: cfg.AWS.SecretAccessKey,
+		Bucket:          cfg.AWS.Bucket,
+	})
+	if err != nil {
+		log.Printf("[WARN] Amazon S3 initialization failed: %v", err)
+	}
+
+	sampleRepo := sample.NewPostgresRepository(db)
+	sampleSvc := sample.NewService(sampleRepo, notificationSvc, s3Storage)
+	sampleHandler := sample.NewHandler(sampleSvc)
+
 	portalRepo := portal.NewPostgresRepository(db)
 	portalSvc := portal.NewService(portalRepo, notificationSvc)
+	portalSvc.SetSampleService(sampleSvc)
 	portalHandler := portal.NewHandler(portalSvc)
 
 	orderRepo := order.NewPostgresRepository(db)
 	orderSvc := order.NewService(orderRepo, notificationSvc)
 	orderHandler := order.NewHandler(orderSvc)
 
-	sampleRepo := sample.NewPostgresRepository(db)
-	sampleSvc := sample.NewService(sampleRepo, notificationSvc)
-	sampleHandler := sample.NewHandler(sampleSvc)
-
 	overheadRepo := overhead.NewPostgresRepository(db)
 	overheadSvc := overhead.NewService(overheadRepo)
 	overheadHandler := overhead.NewHandler(overheadSvc)
+
+	aiagentSvc, err := aiagent.NewService(ctx, db, aiagent.Config{
+		Region:          cfg.AWS.Region,
+		AccessKeyID:     cfg.AWS.AccessKeyID,
+		SecretAccessKey: cfg.AWS.SecretAccessKey,
+		ModelID:         cfg.AWS.BedrockModelID,
+	})
+	if err != nil {
+		log.Printf("[WARN] AI Agent initialization failed: %v", err)
+	}
+	var aiagentHandler *aiagent.Handler
+	if aiagentSvc != nil {
+		aiagentHandler = aiagent.NewHandler(aiagentSvc)
+	}
 
 	router := gin.New()
 	router.Use(gin.Logger())
@@ -144,7 +173,9 @@ func New(ctx context.Context) (*App, error) {
 		orderHandler,
 		sampleHandler,
 		overheadHandler,
+		aiagentHandler,
 		authnMiddleware,
+		optionalAuthnMiddleware,
 		internalAuthz,
 	)
 
@@ -208,7 +239,9 @@ func registerRoutes(
 	orderHandler *order.Handler,
 	sampleHandler *sample.Handler,
 	overheadHandler *overhead.Handler,
+	aiagentHandler *aiagent.Handler,
 	authnMiddleware gin.HandlerFunc,
+	optionalAuthnMiddleware gin.HandlerFunc,
 	internalAuthz gin.HandlerFunc,
 ) {
 	r.GET("/health", func(c *gin.Context) {
@@ -222,9 +255,9 @@ func registerRoutes(
 			"success": true,
 			"data": gin.H{
 				"overallStatus": "HEALTHY",
-				"modulesCount":  12,
+				"modulesCount":  13,
 				"modulesVerified": []string{
-					"sample", "inventory", "production", "quality", "qcbonus", "payroll", "portal", "order", "notification", "masterdata", "ratecard", "overhead",
+					"sample", "inventory", "production", "quality", "qcbonus", "payroll", "portal", "order", "notification", "masterdata", "ratecard", "overhead", "aiagent",
 				},
 				"scenariosVerified": gin.H{
 					"scenario1CrossContaminationBlock": true,
@@ -248,6 +281,9 @@ func registerRoutes(
 	order.RegisterRoutes(v1, orderHandler, authnMiddleware, internalAuthz)
 	sample.RegisterRoutes(v1, sampleHandler, authnMiddleware, internalAuthz)
 	overhead.RegisterRoutes(v1, overheadHandler, authnMiddleware, internalAuthz)
+	if aiagentHandler != nil {
+		aiagent.RegisterRoutes(v1, aiagentHandler, optionalAuthnMiddleware)
+	}
 }
 
 

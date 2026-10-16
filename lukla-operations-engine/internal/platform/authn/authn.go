@@ -153,6 +153,88 @@ func Middleware(tokenSecret string, loaders ...UserLoader) gin.HandlerFunc {
 	}
 }
 
+// OptionalMiddleware attempts to extract identity from the JWT Bearer token if provided.
+// If the token is missing, expired, or invalid, it gracefully allows the request to continue
+// without aborting, allowing endpoints with flexible access (like AI Copilot) to operate safely.
+func OptionalMiddleware(tokenSecret string, loaders ...UserLoader) gin.HandlerFunc {
+	var loader UserLoader
+	if len(loaders) > 0 {
+		loader = loaders[0]
+	}
+
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		var tokenString string
+
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+				tokenString = strings.TrimSpace(parts[1])
+			}
+		}
+
+		if tokenString == "" {
+			c.Next()
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return []byte(tokenSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			c.Next()
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.Next()
+			return
+		}
+
+		sub, err := claims.GetSubject()
+		if err != nil || sub == "" {
+			if subVal, exists := claims["sub"].(string); exists && subVal != "" {
+				sub = subVal
+			}
+		}
+
+		if sub == "" {
+			c.Next()
+			return
+		}
+
+		c.Set("user_id", sub)
+		c.Set("claims", Claims{UserID: sub})
+
+		if loader != nil {
+			u, err := loader(c.Request.Context(), sub)
+			if err == nil && u != nil && u.IsActive {
+				c.Set("role", u.RoleCode)
+				if u.ClientID != nil {
+					c.Set("client_id", *u.ClientID)
+				}
+				c.Set("claims", Claims{
+					UserID: u.ID,
+					Roles:  []string{u.RoleCode},
+					TenantID: func() string {
+						if u.ClientID != nil {
+							return *u.ClientID
+						}
+						return ""
+					}(),
+				})
+			}
+		}
+
+		c.Next()
+	}
+}
+
 // UserIDFrom retrieves the authenticated user ID from context.
 func UserIDFrom(c *gin.Context) (string, bool) {
 	v, ok := c.Get("user_id")

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/lukla/operations-engine/internal/modules/notification"
+	"github.com/lukla/operations-engine/internal/modules/sample"
 	"github.com/lukla/operations-engine/internal/platform/authn"
 )
 
@@ -14,6 +16,7 @@ import (
 type Service struct {
 	repo            Repository
 	notificationSvc *notification.Service
+	sampleSvc       *sample.Service
 }
 
 // NewService creates a new portal Service instance.
@@ -23,6 +26,11 @@ func NewService(repo Repository, notificationSvc ...*notification.Service) *Serv
 		notif = notificationSvc[0]
 	}
 	return &Service{repo: repo, notificationSvc: notif}
+}
+
+// SetSampleService menginjeksi sample.Service untuk delegasi berkas lampiran sampel.
+func (s *Service) SetSampleService(sampleSvc *sample.Service) {
+	s.sampleSvc = sampleSvc
 }
 
 // validateClientTenant ensures actor is authorized and bound to a valid client tenant.
@@ -189,4 +197,65 @@ func (s *Service) RequestSampleRevision(ctx context.Context, actor *authn.UserId
 
 	return nil
 }
+
+// UploadSampleAttachment menangani unggahan berkas foto referensi/cacat dari klien dengan proteksi multi-tenant.
+func (s *Service) UploadSampleAttachment(
+	ctx context.Context,
+	actor *authn.UserIdentity,
+	sampleID string,
+	versionNumber int,
+	file io.Reader,
+	fileName string,
+	fileSize int64,
+	mimeType string,
+	caption *string,
+	attType string,
+) (*sample.SampleAttachment, error) {
+	clientID, err := s.validateClientTenant(actor)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(sampleID) == "" {
+		return nil, ErrSampleNotFound
+	}
+
+	// Pastikan sample dimiliki oleh klien yang login (Isolasi Multi-Tenant)
+	detail, err := s.repo.GetClientSampleDetail(ctx, clientID, strings.TrimSpace(sampleID))
+	if err != nil {
+		return nil, err
+	}
+	if detail == nil {
+		return nil, ErrForbiddenTenantCrossAccess
+	}
+
+	if s.sampleSvc == nil {
+		return nil, errors.New("sample service belum dikonfigurasi")
+	}
+
+	var uploaderID *string
+	if actor.ID != "" {
+		uid := actor.ID
+		uploaderID = &uid
+	}
+
+	if attType == "" {
+		attType = "REVISION_REFERENCE"
+	}
+
+	return s.sampleSvc.UploadAttachment(
+		ctx,
+		sampleID,
+		versionNumber,
+		file,
+		fileName,
+		fileSize,
+		mimeType,
+		caption,
+		attType,
+		uploaderID,
+		"Brand Klien",
+		"CLIENT_PORTAL",
+	)
+}
+
 

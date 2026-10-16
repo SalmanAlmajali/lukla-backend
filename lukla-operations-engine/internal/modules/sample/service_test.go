@@ -199,6 +199,30 @@ func (m *mockRepository) ConvertToOrder(ctx context.Context, sampleID string, pa
 	}, nil
 }
 
+func (m *mockRepository) SaveAttachment(ctx context.Context, att *sample.SampleAttachment) (*sample.SampleAttachment, error) {
+	att.ID = "att-uuid-1"
+	att.CreatedAt = time.Now()
+	return att, nil
+}
+
+func (m *mockRepository) ListAttachmentsByVersion(ctx context.Context, sampleRequestID string, versionNumber int) ([]sample.SampleAttachment, error) {
+	return []sample.SampleAttachment{}, nil
+}
+
+func (m *mockRepository) GetAttachmentByID(ctx context.Context, id string) (*sample.SampleAttachment, error) {
+	return &sample.SampleAttachment{
+		ID:              id,
+		SampleRequestID: "sample-uuid-1",
+		FileName:        "test.jpg",
+		S3Key:           "samples/SMP-001/test.jpg",
+		MimeType:        "image/jpeg",
+	}, nil
+}
+
+func (m *mockRepository) DeleteAttachment(ctx context.Context, id string) error {
+	return nil
+}
+
 func TestSampleService_CreateSampleRequest_Success(t *testing.T) {
 	repo := newMockRepo()
 	svc := sample.NewService(repo, nil)

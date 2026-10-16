@@ -2,23 +2,40 @@ package sample
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/lukla/operations-engine/internal/modules/notification"
+	"github.com/lukla/operations-engine/internal/platform/storage"
+)
+
+var (
+	ErrAttachmentNotFound = errors.New("lampiran foto tidak ditemukan")
+	ErrInvalidFileType    = errors.New("tipe berkas tidak didukung (hanya JPEG, PNG, dan WEBP)")
+	ErrFileTooLarge       = errors.New("ukuran berkas melebihi batas maksimum 5MB")
 )
 
 // Service mengelola logika bisnis alur kerja sample prototipe, versioning, dan time study.
 type Service struct {
 	repo            Repository
 	notificationSvc *notification.Service
+	storage         storage.Storage
 }
 
 // NewService membuat instance Service baru.
-func NewService(repo Repository, notificationSvc *notification.Service) *Service {
+func NewService(repo Repository, notificationSvc *notification.Service, st ...storage.Storage) *Service {
+	var s storage.Storage
+	if len(st) > 0 {
+		s = st[0]
+	}
 	return &Service{
 		repo:            repo,
 		notificationSvc: notificationSvc,
+		storage:         s,
 	}
 }
 
@@ -214,4 +231,145 @@ func (s *Service) ConvertToOrder(ctx context.Context, sampleID string, payload C
 
 	return s.repo.ConvertToOrder(ctx, strings.TrimSpace(sampleID), payload)
 }
+
+// UploadAttachment mengunggah foto lampiran sampel ke Amazon S3 dan mencatat metadata ke database.
+func (s *Service) UploadAttachment(
+	ctx context.Context,
+	sampleID string,
+	versionNumber int,
+	file io.Reader,
+	fileName string,
+	fileSize int64,
+	mimeType string,
+	caption *string,
+	attType string,
+	uploaderID *string,
+	uploaderName string,
+	uploaderRole string,
+) (*SampleAttachment, error) {
+	if s.storage == nil {
+		return nil, errors.New("penyimpanan Amazon S3 belum diinisialisasi")
+	}
+
+	sampleID = strings.TrimSpace(sampleID)
+	if sampleID == "" {
+		return nil, ErrSampleNotFound
+	}
+
+	// Validasi ukuran berkas (maks. 5MB)
+	if fileSize > 5*1024*1024 {
+		return nil, ErrFileTooLarge
+	}
+
+	// Validasi MIME type
+	normalizedMime := strings.ToLower(strings.TrimSpace(mimeType))
+	if normalizedMime != "image/jpeg" && normalizedMime != "image/png" && normalizedMime != "image/webp" {
+		return nil, ErrInvalidFileType
+	}
+
+	// Validasi keberadaan sample dan versi
+	sample, err := s.repo.GetSampleRequestByID(ctx, sampleID)
+	if err != nil {
+		return nil, err
+	}
+
+	var targetVersionID *string
+	for _, v := range sample.Versions {
+		if v.VersionNumber == versionNumber {
+			vid := v.ID
+			targetVersionID = &vid
+			break
+		}
+	}
+	if targetVersionID == nil {
+		return nil, ErrVersionNotFound
+	}
+
+	// Format nama berkas dan S3 Key aman
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if ext == "" {
+		switch normalizedMime {
+		case "image/jpeg":
+			ext = ".jpg"
+		case "image/png":
+			ext = ".png"
+		case "image/webp":
+			ext = ".webp"
+		}
+	}
+	cleanBaseName := strings.ReplaceAll(filepath.Base(fileName), " ", "-")
+	uniqueKey := fmt.Sprintf("samples/%s/%s-%s", sample.SampleCode, uuid.New().String()[:8], cleanBaseName)
+
+	// Unggah berkas stream langsung ke Amazon S3
+	fileURL, err := s.storage.Upload(ctx, file, uniqueKey, normalizedMime)
+	if err != nil {
+		return nil, fmt.Errorf("unggah ke Amazon S3 gagal: %w", err)
+	}
+
+	if attType == "" {
+		attType = "PROTOTYPE_PHOTO"
+	}
+
+	if strings.TrimSpace(uploaderName) == "" {
+		uploaderName = "System"
+	}
+	if strings.TrimSpace(uploaderRole) == "" {
+		uploaderRole = "SAMPLE_MAKER"
+	}
+
+	att := &SampleAttachment{
+		SampleRequestID: sampleID,
+		SampleVersionID: targetVersionID,
+		FileName:        fileName,
+		S3Bucket:        s.storage.Bucket(),
+		S3Key:           uniqueKey,
+		FileURL:         fileURL,
+		FileSize:        fileSize,
+		MimeType:        normalizedMime,
+		Caption:         caption,
+		AttachmentType:  attType,
+		UploadedBy:      uploaderID,
+		UploaderName:    uploaderName,
+		UploaderRole:    uploaderRole,
+	}
+
+	return s.repo.SaveAttachment(ctx, att)
+}
+
+// ListAttachments mengambil seluruh lampiran foto untuk versi tertentu.
+func (s *Service) ListAttachments(ctx context.Context, sampleID string, versionNumber int) ([]SampleAttachment, error) {
+	return s.repo.ListAttachmentsByVersion(ctx, strings.TrimSpace(sampleID), versionNumber)
+}
+
+// GetAttachment mengambil metadata lampiran berdasarkan ID-nya.
+func (s *Service) GetAttachment(ctx context.Context, id string) (*SampleAttachment, error) {
+	return s.repo.GetAttachmentByID(ctx, strings.TrimSpace(id))
+}
+
+// DownloadAttachment mengambil reader stream dari Amazon S3 untuk penyajian ke klien.
+func (s *Service) DownloadAttachment(ctx context.Context, id string) (io.ReadCloser, string, int64, error) {
+	if s.storage == nil {
+		return nil, "", 0, errors.New("penyimpanan Amazon S3 belum diinisialisasi")
+	}
+	att, err := s.repo.GetAttachmentByID(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return nil, "", 0, err
+	}
+	return s.storage.Download(ctx, att.S3Key)
+}
+
+// DeleteAttachment menghapus foto dari Amazon S3 dan record di database.
+func (s *Service) DeleteAttachment(ctx context.Context, id string) error {
+	att, err := s.repo.GetAttachmentByID(ctx, strings.TrimSpace(id))
+	if err != nil {
+		return err
+	}
+
+	if s.storage != nil && att.S3Key != "" {
+		_ = s.storage.Delete(ctx, att.S3Key)
+	}
+
+	return s.repo.DeleteAttachment(ctx, att.ID)
+}
+
 

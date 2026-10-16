@@ -79,6 +79,26 @@ type SampleVersionDetail struct {
 	CreatedAt         time.Time             `json:"createdAt"`
 	UpdatedAt         time.Time             `json:"updatedAt"`
 	Components        []SampleTimeStudyItem `json:"components"`
+	Attachments       []SampleAttachment    `json:"attachments"`
+}
+
+// SampleAttachment merepresentasikan metadata foto lampiran sampel pada Amazon S3.
+type SampleAttachment struct {
+	ID              string    `json:"id"`
+	SampleRequestID string    `json:"sampleRequestId"`
+	SampleVersionID *string   `json:"sampleVersionId,omitempty"`
+	FileName        string    `json:"fileName"`
+	S3Bucket        string    `json:"s3Bucket"`
+	S3Key           string    `json:"s3Key"`
+	FileURL         string    `json:"fileUrl"`
+	FileSize        int64     `json:"fileSize"`
+	MimeType        string    `json:"mimeType"`
+	Caption         *string   `json:"caption,omitempty"`
+	AttachmentType  string    `json:"attachmentType"` // PROTOTYPE_PHOTO, DEFECT_PHOTO, REVISION_REFERENCE, TECHPACK_SKETCH
+	UploadedBy      *string   `json:"uploadedBy,omitempty"`
+	UploaderName    string    `json:"uploaderName"`
+	UploaderRole    string    `json:"uploaderRole"`
+	CreatedAt       time.Time `json:"createdAt"`
 }
 
 // SampleTimeStudyItem merepresentasikan hasil observasi stopwatch time study per komponen pada versi sample.

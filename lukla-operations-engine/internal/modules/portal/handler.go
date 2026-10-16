@@ -42,6 +42,7 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		portalGroup.GET("/samples/:id", h.GetSampleDetail)
 		portalGroup.POST("/samples/:id/approve", h.ApproveSample)
 		portalGroup.POST("/samples/:id/request-revision", h.RequestSampleRevision)
+		portalGroup.POST("/samples/:id/attachments", h.UploadSampleAttachment)
 	}
 }
 
@@ -246,6 +247,74 @@ func (h *Handler) RequestSampleRevision(c *gin.Context) {
 		"message": "Permintaan revisi berhasil disampaikan ke tim pabrik",
 	})
 }
+
+// UploadSampleAttachment handles POST /api/v1/portal/samples/:id/attachments.
+func (h *Handler) UploadSampleAttachment(c *gin.Context) {
+	actor := getActor(c)
+	sampleID := c.Param("id")
+
+	verStr := c.DefaultPostForm("versionNumber", "1")
+	verNum, err := strconv.Atoi(verStr)
+	if err != nil || verNum < 1 {
+		verNum = 1
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "File foto wajib diunggah pada field 'file': " + err.Error(),
+			},
+		})
+		return
+	}
+
+	captionText := c.PostForm("caption")
+	var captionPtr *string
+	if captionText != "" {
+		captionPtr = &captionText
+	}
+	attType := c.DefaultPostForm("attachmentType", "REVISION_REFERENCE")
+
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "FILE_READ_ERROR",
+				"message": "Gagal membaca berkas: " + err.Error(),
+			},
+		})
+		return
+	}
+	defer f.Close()
+
+	att, err := h.svc.UploadSampleAttachment(
+		c.Request.Context(),
+		actor,
+		sampleID,
+		verNum,
+		f,
+		fileHeader.Filename,
+		fileHeader.Size,
+		fileHeader.Header.Get("Content-Type"),
+		captionPtr,
+		attType,
+	)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Foto referensi sampel berhasil diunggah ke Amazon S3",
+		"data":    att,
+	})
+}
+
 
 func (h *Handler) handleError(c *gin.Context, err error) {
 	switch {
