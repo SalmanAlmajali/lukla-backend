@@ -5,13 +5,15 @@
 *.local
 
 # Binaries and executables
-# *.exe
-# *.exe~
+*.exe
+*.exe~
 *.dll
 *.so
 *.dylib
-# bin/
+bin/
 dist/
+main
+server
 
 # Test binaries and profiles
 *.test

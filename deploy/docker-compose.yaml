@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lukla-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lukla_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-lukla_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-lukla_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate:v4.18.2
+    container_name: lukla-migrate
+    volumes:
+      - ../lukla-operations-engine/migrations/db/migrations:/migrations
+    command:
+      - -path=/migrations
+      - -database=postgresql://postgres:${POSTGRES_PASSWORD:-lukla_password_2026}@postgres:5432/${POSTGRES_DB:-lukla_db}?sslmode=disable
+      - up
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ../lukla-operations-engine
+      dockerfile: ../deploy/Dockerfile
+    container_name: lukla-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: production
+      APP_NAME: lukla-operations-engine
+      HTTP_ADDR: :8080
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-lukla_password_2026}@postgres:5432/${POSTGRES_DB:-lukla_db}?sslmode=disable
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-lukla-production-secret-token-key-2026}
+      # AWS Bedrock & S3 Configuration
+      # Note: Karena EC2 sudah terpasang IAM Role, AWS SDK v2 otomatis mendeteksi kredensial dari IMDS.
+      # Tidak perlu mengisi AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY!
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-bedrock-kb-student8-1791858316}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
+      BEDROCK_KB_ID: ${BEDROCK_KB_ID:-NXQHNABELF}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
