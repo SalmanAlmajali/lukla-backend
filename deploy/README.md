@@ -20,6 +20,16 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
+### Optimasi Memori untuk `t3.micro` (Swapfile 2GB)
+Khusus untuk instance `t3.micro` (RAM 1 GB), sangat disarankan mengaktifkan Swap Memory 2GB agar proses kompilasi container dan database berjalan lancar tanpa risiko kehabisan memori (OOM):
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
 Pastikan Security Group EC2 membuka inbound port:
 - Port `22` (SSH)
 - Port `8080` (Akses API backend Go)
