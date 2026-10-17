@@ -28,7 +28,6 @@ docs/
 ├── architecture/            # Panduan teknis dan catatan arsitektur
 │   ├── Lukla_Operations_Engine_Architecture.md
 │   ├── database_erd_and_seeder_guide.md   # Desain database, Mermaid ERD, & panduan seeder
-│   ├── GIN_BACKEND_STARTER_GUIDE.md
 │   ├── Pertanyaan_untuk_Client_Lukla.md
 │   └── urutan pengerjaan.txt
 │
