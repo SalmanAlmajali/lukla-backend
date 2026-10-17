@@ -67,7 +67,8 @@ sudo swapon /swapfile
 
 Pastikan Security Group EC2 membuka inbound port:
 - Port `22` (SSH)
-- Port `8080` (Akses API backend Go)
+- Port `80` (HTTP - Akses API publik jika menggunakan APP_PORT=80)
+- Port `8080` (Akses API backend default)
 
 ---
 
@@ -126,9 +127,11 @@ docker compose ps
 # Cek log aplikasi
 docker compose logs -f backend
 
-# Test endpoint health
-curl http://localhost:8080/health
+# Test endpoint health (sesuaikan dengan APP_PORT yang Anda pilih di .env)
+curl http://localhost:80/health
+# atau jika memakai port 8080: curl http://localhost:8080/health
 ```
 
 Jika sukses, API Anda kini siap diakses dari publik melalui:
-`http://<PUBLIC_IP_EC2>:8080`
+- **Port 80:** `http://<PUBLIC_IP_EC2>/health` (langsung tanpa port)
+- **Port 8080:** `http://<PUBLIC_IP_EC2>:8080/health`
