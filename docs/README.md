@@ -27,6 +27,7 @@ docs/
 │
 ├── architecture/            # Panduan teknis dan catatan arsitektur
 │   ├── Lukla_Operations_Engine_Architecture.md
+│   ├── database_erd_and_seeder_guide.md   # Desain database, Mermaid ERD, & panduan seeder
 │   ├── GIN_BACKEND_STARTER_GUIDE.md
 │   ├── Pertanyaan_untuk_Client_Lukla.md
 │   └── urutan pengerjaan.txt
@@ -40,7 +41,9 @@ docs/
 
 1. **API Contracts:**  
    Rujuk file di [openapi/](file:///c:/go/lukla-backend/docs/openapi/) untuk payload request, response DTO, dan response code saat integrasi dengan frontend Next.js.
-2. **Postman Collection:**  
+2. **Database & Seeder:**  
+   Buka [architecture/database_erd_and_seeder_guide.md](file:///c:/go/lukla-backend/docs/architecture/database_erd_and_seeder_guide.md) untuk melihat Mermaid ERD, relasi 43 tabel, serta daftar akun dan data seeder pengujian.
+3. **Postman Collection:**  
    Import file di [postman/](file:///c:/go/lukla-backend/docs/postman/) ke Postman lokal untuk validasi alur pembuatan artikel, komponen, dan otorisasi role.
-3. **Arsitektur & Aturan Bisnis:**  
+4. **Arsitektur & Aturan Bisnis:**  
    Buka [architecture/Lukla_Operations_Engine_Architecture.md](file:///c:/go/lukla-backend/docs/architecture/Lukla_Operations_Engine_Architecture.md) untuk memahami modul modular monolith, aturan anti-kontaminasi silang gudang, locking payroll, dan integrasi Amazon Bedrock.
