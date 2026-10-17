@@ -6,21 +6,47 @@ Panduan ini disiapkan agar proses deployment ke instance EC2 dapat diselesaikan 
 
 ## 1. Prasyarat di Instance EC2
 
-Pastikan instance EC2 Anda sudah terpasang Git, Docker, dan Docker Compose:
+Pilih instruksi instalasi sesuai Sistem Operasi EC2 yang Anda gunakan:
+
+### 🔹 Opsi A: Amazon Linux 2023 / AL2 (Default AWS `ec2-user`) — *Direkomendasikan*
+
+Jalankan perintah berikut di terminal EC2:
 
 ```bash
-# Update package list
+# 1. Update sistem dan install Docker & Git
+sudo dnf update -y
+sudo dnf install -y docker git
+
+# 2. Nyalakan dan aktifkan service Docker saat boot
+sudo systemctl enable --now docker
+
+# 3. Berikan izin docker ke ec2-user (tanpa perlu sudo)
+sudo usermod -aG docker ec2-user
+newgrp docker
+
+# 4. Pasang plugin Docker Compose resmi
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# 5. Verifikasi instalasi
+docker compose version
+```
+
+---
+
+### 🔹 Opsi B: Ubuntu / Debian (`ubuntu` user)
+
+```bash
 sudo apt-get update -y
-
-# Install Docker & Compose plugin (Ubuntu/Debian)
 sudo apt-get install -y docker.io docker-compose-v2 git
-
-# Berikan izin docker ke user ubuntu (opsional agar tidak perlu sudo terus menerus)
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-### Optimasi Memori untuk `t3.micro` (Swapfile 2GB)
+---
+
+### 1.1 Optimasi Memori untuk `t3.micro` (Swapfile 2GB)
 Khusus untuk instance `t3.micro` (RAM 1 GB), sangat disarankan mengaktifkan Swap Memory 2GB agar proses kompilasi container dan database berjalan lancar tanpa risiko kehabisan memori (OOM):
 
 ```bash
@@ -29,6 +55,8 @@ sudo chmod 600 /swapfile
 sudo mkswap /swapfile
 sudo swapon /swapfile
 ```
+
+> 💡 **Tips:** Jika terminal menampilkan pesan `fallocate failed: Text file busy`, ketik `free -h`. Jika baris `Swap:` sudah menunjukkan angka (~2.0Gi), artinya swap memory sudah aktif dan Anda bisa langsung melanjutkan ke langkah berikutnya.
 
 Pastikan Security Group EC2 membuka inbound port:
 - Port `22` (SSH)
