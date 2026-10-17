@@ -35,6 +35,7 @@ services:
     build:
       context: ../lukla-operations-engine
       dockerfile: ../deploy/Dockerfile
+    image: lukla-backend:latest
     container_name: lukla-backend
     restart: always
     ports:

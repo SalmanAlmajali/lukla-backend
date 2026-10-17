@@ -24,13 +24,20 @@ sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
 newgrp docker
 
-# 4. Pasang plugin Docker Compose resmi
+# 4. Pasang plugin Docker Compose & Docker Buildx resmi
 sudo mkdir -p /usr/local/lib/docker/cli-plugins
+
+# Docker Compose
 sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
+# Docker Buildx (wajib untuk compose build)
+sudo curl -SL "https://github.com/docker/buildx/releases/download/v0.18.0/buildx-v0.18.0.linux-amd64" -o /usr/local/lib/docker/cli-plugins/docker-buildx
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+
 # 5. Verifikasi instalasi
 docker compose version
+docker buildx version
 ```
 
 ---
