@@ -1,12 +1,12 @@
 {
     "schema_version": 2,
-    "commit": "5517c45d297812548324f24b88d69f7d4c7e72e6",
-    "indexed_at": "2026-10-19T14:06:01Z",
+    "commit": "44914feda7630b8f89abca0630593a6fd906d520",
+    "indexed_at": "2026-10-19T15:20:22Z",
     "project": "lukla-backend",
-    "nodes": 3769,
-    "edges": 13747,
-    "original_size": 11141120,
-    "compressed_size": 1555605,
+    "nodes": 3785,
+    "edges": 13962,
+    "original_size": 11206656,
+    "compressed_size": 1563234,
     "compression_level": 9,
     "reconcile_basis": "git-clean-head"
 }
