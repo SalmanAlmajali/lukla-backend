@@ -1497,6 +1497,9 @@ func TestApp_GenerateTahap72PostmanCollection(t *testing.T) {
 
 	// Cari file Postman collection
 	candidates := []string{
+		"../../../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
+		"../../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
+		"../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
 		"../../../Lukla_Articles_and_Components.postman_collection.json",
 		"../../Lukla_Articles_and_Components.postman_collection.json",
 		"../Lukla_Articles_and_Components.postman_collection.json",

@@ -30,6 +30,8 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		samplesGroup.POST("", h.CreateSampleRequest)
 		samplesGroup.GET("", h.ListSampleRequests)
 		samplesGroup.GET("/:id", h.GetSampleRequestByID)
+		samplesGroup.PUT("/:id", h.UpdateSampleRequest)
+		samplesGroup.DELETE("/:id", h.DeleteSampleRequest)
 		samplesGroup.POST("/:id/versions", h.CreateSampleVersion)
 		samplesGroup.GET("/:id/versions/:versionNumber/time-studies", h.ListTimeStudies)
 		samplesGroup.POST("/:id/versions/:versionNumber/time-studies", h.RecordTimeStudy)
@@ -156,6 +158,84 @@ func (h *Handler) GetSampleRequestByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    detail,
+	})
+}
+
+// UpdateSampleRequest handles PUT /api/v1/samples/:id.
+func (h *Handler) UpdateSampleRequest(c *gin.Context) {
+	id := c.Param("id")
+	var payload UpdateSampleRequestPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Payload pembaruan sample tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	detail, err := h.svc.UpdateSampleRequest(c.Request.Context(), id, payload)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrSampleNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrSampleCannotBeModified) {
+			status = http.StatusConflict
+			code = "CONFLICT"
+		} else if errors.Is(err, ErrClientNotFound) || errors.Is(err, ErrArticleNotFound) {
+			status = http.StatusBadRequest
+			code = "VALIDATION_ERROR"
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permintaan sample berhasil diperbarui",
+		"data":    detail,
+	})
+}
+
+// DeleteSampleRequest handles DELETE /api/v1/samples/:id.
+func (h *Handler) DeleteSampleRequest(c *gin.Context) {
+	id := c.Param("id")
+	err := h.svc.DeleteSampleRequest(c.Request.Context(), id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrSampleNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrSampleCannotBeDeleted) {
+			status = http.StatusConflict
+			code = "CONFLICT"
+		}
+
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Permintaan sample berhasil dihapus",
 	})
 }
 

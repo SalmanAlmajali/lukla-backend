@@ -8,7 +8,9 @@ type Repository interface {
 	CreateSampleRequest(ctx context.Context, sample *SampleRequestDetail, initialVersion *SampleVersionDetail) (*SampleRequestDetail, error)
 	ListSampleRequests(ctx context.Context, clientID, status, search string, page, limit int) ([]SampleRequestSummary, int, error)
 	GetSampleRequestByID(ctx context.Context, id string) (*SampleRequestDetail, error)
+	UpdateSampleRequest(ctx context.Context, sampleID string, payload UpdateSampleRequestPayload) (*SampleRequestDetail, error)
 	UpdateSampleStatus(ctx context.Context, sampleID string, status string, notes *string) error
+	DeleteSampleRequest(ctx context.Context, sampleID string) error
 
 	// Versioning Engine
 	CreateSampleVersion(ctx context.Context, sampleID string, newVersion *SampleVersionDetail, copyFromPrev bool) (*SampleVersionDetail, error)
@@ -25,6 +27,7 @@ type Repository interface {
 	// Attachments (Amazon S3)
 	SaveAttachment(ctx context.Context, att *SampleAttachment) (*SampleAttachment, error)
 	ListAttachmentsByVersion(ctx context.Context, sampleRequestID string, versionNumber int) ([]SampleAttachment, error)
+	ListAttachmentsBySampleID(ctx context.Context, sampleRequestID string) ([]SampleAttachment, error)
 	GetAttachmentByID(ctx context.Context, id string) (*SampleAttachment, error)
 	DeleteAttachment(ctx context.Context, id string) error
 }

@@ -762,6 +762,9 @@ func TestApp_GenerateOverheadPostmanCollection(t *testing.T) {
 
 	// Update Postman collection file
 	candidates := []string{
+		"../../../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
+		"../../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
+		"../docs/postman/Lukla_Articles_and_Components.postman_collection.json",
 		"../../../Lukla_Articles_and_Components.postman_collection.json",
 		"../../Lukla_Articles_and_Components.postman_collection.json",
 		"../Lukla_Articles_and_Components.postman_collection.json",

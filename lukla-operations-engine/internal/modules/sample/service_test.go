@@ -223,6 +223,44 @@ func (m *mockRepository) DeleteAttachment(ctx context.Context, id string) error 
 	return nil
 }
 
+func (m *mockRepository) ListAttachmentsBySampleID(ctx context.Context, sampleRequestID string) ([]sample.SampleAttachment, error) {
+	return []sample.SampleAttachment{}, nil
+}
+
+func (m *mockRepository) UpdateSampleRequest(ctx context.Context, sampleID string, payload sample.UpdateSampleRequestPayload) (*sample.SampleRequestDetail, error) {
+	s, ok := m.samples[sampleID]
+	if !ok {
+		return nil, sample.ErrSampleNotFound
+	}
+	if payload.ClientID != nil && *payload.ClientID != "" {
+		s.ClientID = *payload.ClientID
+	}
+	if payload.ArticleID != nil && *payload.ArticleID != "" {
+		s.ArticleID = *payload.ArticleID
+	}
+	if payload.ArticleTitle != nil && *payload.ArticleTitle != "" {
+		s.ArticleTitle = *payload.ArticleTitle
+	}
+	if payload.TargetDate != nil {
+		s.TargetDate = payload.TargetDate
+	}
+	if payload.InitialNotes != nil {
+		s.InitialNotes = payload.InitialNotes
+	}
+	s.UpdatedAt = time.Now()
+	return s, nil
+}
+
+func (m *mockRepository) DeleteSampleRequest(ctx context.Context, sampleID string) error {
+	if _, ok := m.samples[sampleID]; !ok {
+		return sample.ErrSampleNotFound
+	}
+	delete(m.samples, sampleID)
+	delete(m.versions, sampleID)
+	delete(m.timeStudies, sampleID)
+	return nil
+}
+
 func TestSampleService_CreateSampleRequest_Success(t *testing.T) {
 	repo := newMockRepo()
 	svc := sample.NewService(repo, nil)
@@ -401,4 +439,126 @@ func TestSampleService_ConvertToOrder(t *testing.T) {
 		t.Errorf("expected total amount 90000000, got %v", res.TotalAmount)
 	}
 }
+
+func TestSampleService_UpdateSampleRequest_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, err := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+	if err != nil {
+		t.Fatalf("failed to create sample: %v", err)
+	}
+
+	newNotes := "Spesifikasi kerah diubah menjadi cotton combed 24s"
+	newTargetDate := "2026-11-15"
+	newTitle := "Kemeja Tactical Updated"
+
+	updated, err := svc.UpdateSampleRequest(ctx, created.ID, sample.UpdateSampleRequestPayload{
+		InitialNotes: &newNotes,
+		TargetDate:   &newTargetDate,
+		ArticleTitle: &newTitle,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error updating sample: %v", err)
+	}
+
+	if updated.InitialNotes == nil || *updated.InitialNotes != newNotes {
+		t.Errorf("expected notes %s, got %v", newNotes, updated.InitialNotes)
+	}
+	if updated.TargetDate == nil || *updated.TargetDate != newTargetDate {
+		t.Errorf("expected target date %s, got %v", newTargetDate, updated.TargetDate)
+	}
+	if updated.ArticleTitle != newTitle {
+		t.Errorf("expected article title %s, got %s", newTitle, updated.ArticleTitle)
+	}
+}
+
+func TestSampleService_UpdateSampleRequest_ApprovedOrConvertedFails(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	_ = repo.UpdateSampleStatus(ctx, created.ID, sample.StatusApproved, nil)
+
+	newNotes := "Mencoba mengubah data pada sample yang sudah approved"
+	_, err := svc.UpdateSampleRequest(ctx, created.ID, sample.UpdateSampleRequestPayload{
+		InitialNotes: &newNotes,
+	})
+	if err == nil {
+		t.Fatalf("expected error ErrSampleCannotBeModified, got nil")
+	}
+	if err != sample.ErrSampleCannotBeModified {
+		t.Errorf("expected ErrSampleCannotBeModified, got %v", err)
+	}
+}
+
+func TestSampleService_DeleteSampleRequest_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	err := svc.DeleteSampleRequest(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("unexpected error deleting sample: %v", err)
+	}
+
+	// Verify sample is deleted
+	_, err = svc.GetSampleRequestByID(ctx, created.ID)
+	if err == nil {
+		t.Fatalf("expected ErrSampleNotFound after deletion, got nil")
+	}
+	if err != sample.ErrSampleNotFound {
+		t.Errorf("expected ErrSampleNotFound, got %v", err)
+	}
+}
+
+func TestSampleService_DeleteSampleRequest_ApprovedOrConvertedFails(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	_ = repo.UpdateSampleStatus(ctx, created.ID, sample.StatusApproved, nil)
+
+	err := svc.DeleteSampleRequest(ctx, created.ID)
+	if err == nil {
+		t.Fatalf("expected error ErrSampleCannotBeDeleted, got nil")
+	}
+	if err != sample.ErrSampleCannotBeDeleted {
+		t.Errorf("expected ErrSampleCannotBeDeleted, got %v", err)
+	}
+}
+
+func TestSampleService_DeleteSampleRequest_NotFound(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	err := svc.DeleteSampleRequest(ctx, "non-existent-uuid")
+	if err == nil {
+		t.Fatalf("expected ErrSampleNotFound, got nil")
+	}
+	if err != sample.ErrSampleNotFound {
+		t.Errorf("expected ErrSampleNotFound, got %v", err)
+	}
+}
+
 

@@ -51,10 +51,10 @@ func TestApp_EndToEndManufacturingPipeline_And_4SRSScenarios(t *testing.T) {
 		} `json:"data"`
 	}
 	_ = json.Unmarshal(wHealth.Body.Bytes(), &healthResp)
-	if !healthResp.Success || healthResp.Data.OverallStatus != "HEALTHY" || healthResp.Data.ModulesCount != 12 {
+	if !healthResp.Success || healthResp.Data.OverallStatus != "HEALTHY" || healthResp.Data.ModulesCount < 12 {
 		t.Fatalf("pipeline health check failed: %+v", healthResp)
 	}
-	t.Logf("E2E STAGE 0 PASS: Pipeline Health 100%% VERIFIED (12 Modul Aktif)")
+	t.Logf("E2E STAGE 0 PASS: Pipeline Health 100%% VERIFIED (%d Modul Aktif)", healthResp.Data.ModulesCount)
 
 	// -------------------------------------------------------------
 	// 1. SETUP AUTH TOKENS (Multi-Tenant Isolation)

@@ -71,6 +71,59 @@ func (s *Service) GetSampleRequestByID(ctx context.Context, id string) (*SampleR
 	return s.repo.GetSampleRequestByID(ctx, strings.TrimSpace(id))
 }
 
+// UpdateSampleRequest memperbarui data permintaan sample (klien, artikel, skema maklon / spesifikasi / catatan awal, target tanggal).
+func (s *Service) UpdateSampleRequest(ctx context.Context, sampleID string, payload UpdateSampleRequestPayload) (*SampleRequestDetail, error) {
+	sampleID = strings.TrimSpace(sampleID)
+	if sampleID == "" {
+		return nil, ErrSampleNotFound
+	}
+
+	// 1. Ambil detail sample saat ini untuk verifikasi status
+	existing, err := s.repo.GetSampleRequestByID(ctx, sampleID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Cegah perubahan jika sample sudah APPROVED atau CONVERTED_TO_ORDER
+	if existing.Status == StatusApproved || existing.Status == StatusConvertedToOrder || existing.ConvertedOrderID != nil {
+		return nil, ErrSampleCannotBeModified
+	}
+
+	return s.repo.UpdateSampleRequest(ctx, sampleID, payload)
+}
+
+// DeleteSampleRequest menghapus permintaan sample beserta seluruh versi, time study, dan lampiran foto dari S3 & database.
+func (s *Service) DeleteSampleRequest(ctx context.Context, sampleID string) error {
+	sampleID = strings.TrimSpace(sampleID)
+	if sampleID == "" {
+		return ErrSampleNotFound
+	}
+
+	// 1. Ambil detail sample saat ini untuk verifikasi status
+	existing, err := s.repo.GetSampleRequestByID(ctx, sampleID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Cegah penghapusan jika sample sudah APPROVED atau CONVERTED_TO_ORDER
+	if existing.Status == StatusApproved || existing.Status == StatusConvertedToOrder || existing.ConvertedOrderID != nil {
+		return ErrSampleCannotBeDeleted
+	}
+
+	// 3. Bersihkan seluruh file objek lampiran pada Amazon S3 jika S3 storage aktif
+	if s.storage != nil {
+		attachments, _ := s.repo.ListAttachmentsBySampleID(ctx, sampleID)
+		for _, att := range attachments {
+			if att.S3Key != "" {
+				_ = s.storage.Delete(ctx, att.S3Key)
+			}
+		}
+	}
+
+	// 4. Hapus data dari database (cascade versi, time study, attachments)
+	return s.repo.DeleteSampleRequest(ctx, sampleID)
+}
+
 // CreateSampleVersion menerbitkan revisi versi baru (misal v1 -> v2) dan mengunci versi sebelumnya.
 func (s *Service) CreateSampleVersion(ctx context.Context, sampleID string, payload CreateSampleVersionPayload) (*SampleVersionDetail, error) {
 	if strings.TrimSpace(sampleID) == "" {

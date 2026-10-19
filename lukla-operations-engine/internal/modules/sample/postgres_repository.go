@@ -852,6 +852,132 @@ func (r *PostgresRepository) UpdateSampleStatus(ctx context.Context, sampleID st
 	return tx.Commit()
 }
 
+// UpdateSampleRequest memperbarui informasi dasar permintaan sample (klien, artikel, nama artikel, target tanggal, catatan awal).
+func (r *PostgresRepository) UpdateSampleRequest(ctx context.Context, sampleID string, payload UpdateSampleRequestPayload) (*SampleRequestDetail, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Cek keberadaan sample dan ambil article_id saat ini
+	var currentArticleID string
+	err = tx.QueryRowContext(ctx, "SELECT article_id FROM sample_requests WHERE id = $1 FOR UPDATE", sampleID).Scan(&currentArticleID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSampleNotFound
+		}
+		return nil, fmt.Errorf("lock sample request: %w", err)
+	}
+
+	// 2. Validasi client jika disediakan
+	if payload.ClientID != nil && strings.TrimSpace(*payload.ClientID) != "" {
+		var dummy string
+		err = tx.QueryRowContext(ctx, "SELECT id FROM clients WHERE id = $1", strings.TrimSpace(*payload.ClientID)).Scan(&dummy)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ErrClientNotFound
+			}
+			return nil, fmt.Errorf("check client: %w", err)
+		}
+	}
+
+	targetArticleID := currentArticleID
+	// 3. Validasi article jika disediakan
+	if payload.ArticleID != nil && strings.TrimSpace(*payload.ArticleID) != "" {
+		var dummy string
+		targetArticleID = strings.TrimSpace(*payload.ArticleID)
+		err = tx.QueryRowContext(ctx, "SELECT id FROM articles WHERE id = $1", targetArticleID).Scan(&dummy)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ErrArticleNotFound
+			}
+			return nil, fmt.Errorf("check article: %w", err)
+		}
+	}
+
+	// 4. Update nama/judul artikel jika diminta
+	if payload.ArticleTitle != nil && strings.TrimSpace(*payload.ArticleTitle) != "" {
+		_, err = tx.ExecContext(ctx, "UPDATE articles SET title = $1, updated_at = NOW() WHERE id = $2", strings.TrimSpace(*payload.ArticleTitle), targetArticleID)
+		if err != nil {
+			return nil, fmt.Errorf("update article title: %w", err)
+		}
+	}
+
+	// 5. Update sample_requests
+	var sets []string
+	var args []interface{}
+	argIdx := 1
+
+	if payload.ClientID != nil && strings.TrimSpace(*payload.ClientID) != "" {
+		sets = append(sets, fmt.Sprintf("client_id = $%d", argIdx))
+		args = append(args, strings.TrimSpace(*payload.ClientID))
+		argIdx++
+	}
+
+	if payload.ArticleID != nil && strings.TrimSpace(*payload.ArticleID) != "" {
+		sets = append(sets, fmt.Sprintf("article_id = $%d", argIdx))
+		args = append(args, strings.TrimSpace(*payload.ArticleID))
+		argIdx++
+	}
+
+	if payload.TargetDate != nil {
+		sets = append(sets, fmt.Sprintf("target_date = $%d", argIdx))
+		if strings.TrimSpace(*payload.TargetDate) == "" {
+			args = append(args, nil)
+		} else {
+			args = append(args, strings.TrimSpace(*payload.TargetDate))
+		}
+		argIdx++
+	}
+
+	if payload.InitialNotes != nil {
+		sets = append(sets, fmt.Sprintf("initial_notes = $%d", argIdx))
+		args = append(args, payload.InitialNotes)
+		argIdx++
+	}
+
+	if len(sets) > 0 {
+		sets = append(sets, "updated_at = NOW()")
+		query := fmt.Sprintf("UPDATE sample_requests SET %s WHERE id = $%d", strings.Join(sets, ", "), argIdx)
+		args = append(args, sampleID)
+
+		res, err := tx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("update sample_requests: %w", err)
+		}
+		rowsAffected, err := res.RowsAffected()
+		if err != nil {
+			return nil, fmt.Errorf("rows affected: %w", err)
+		}
+		if rowsAffected == 0 {
+			return nil, ErrSampleNotFound
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return r.GetSampleRequestByID(ctx, sampleID)
+}
+
+// DeleteSampleRequest menghapus permintaan sample beserta relasi cascaded (versi, time study, attachments) dari database.
+func (r *PostgresRepository) DeleteSampleRequest(ctx context.Context, sampleID string) error {
+	res, err := r.db.ExecContext(ctx, "DELETE FROM sample_requests WHERE id = $1", sampleID)
+	if err != nil {
+		return fmt.Errorf("delete sample request: %w", err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrSampleNotFound
+	}
+	return nil
+}
+
 // ConvertToOrder mengonversi sample approved menjadi Order Produksi Massal (BPMN 03 / Skenario Uji 4).
 func (r *PostgresRepository) ConvertToOrder(ctx context.Context, sampleID string, payload ConvertSampleToOrderPayload) (*ConvertedMassOrderResponse, error) {
 	// 1. Ambil data sample request
@@ -1098,6 +1224,65 @@ func (r *PostgresRepository) ListAttachmentsByVersion(ctx context.Context, sampl
 	rows, err := r.db.QueryContext(ctx, query, sampleRequestID, versionNumber)
 	if err != nil {
 		return nil, fmt.Errorf("query attachments by version number: %w", err)
+	}
+	defer rows.Close()
+
+	attachments := make([]SampleAttachment, 0)
+	for rows.Next() {
+		var a SampleAttachment
+		var versionIDNull, captionNull, uploadedByNull sql.NullString
+
+		err := rows.Scan(
+			&a.ID,
+			&a.SampleRequestID,
+			&versionIDNull,
+			&a.FileName,
+			&a.S3Bucket,
+			&a.S3Key,
+			&a.FileURL,
+			&a.FileSize,
+			&a.MimeType,
+			&captionNull,
+			&a.AttachmentType,
+			&uploadedByNull,
+			&a.UploaderName,
+			&a.UploaderRole,
+			&a.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan sample attachment: %w", err)
+		}
+
+		if versionIDNull.Valid {
+			a.SampleVersionID = &versionIDNull.String
+		}
+		if captionNull.Valid {
+			a.Caption = &captionNull.String
+		}
+		if uploadedByNull.Valid {
+			a.UploadedBy = &uploadedByNull.String
+		}
+
+		attachments = append(attachments, a)
+	}
+
+	return attachments, nil
+}
+
+// ListAttachmentsBySampleID mengambil seluruh berkas lampiran yang terkait dengan suatu sample request.
+func (r *PostgresRepository) ListAttachmentsBySampleID(ctx context.Context, sampleRequestID string) ([]SampleAttachment, error) {
+	query := `
+		SELECT 
+			id, sample_request_id, sample_version_id, file_name, s3_bucket, s3_key, file_url,
+			file_size, mime_type, caption, attachment_type, uploaded_by, uploader_name, uploader_role, created_at
+		FROM sample_attachments
+		WHERE sample_request_id = $1
+		ORDER BY created_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, sampleRequestID)
+	if err != nil {
+		return nil, fmt.Errorf("query attachments by sample request id: %w", err)
 	}
 	defer rows.Close()
 

@@ -15,6 +15,8 @@ var (
 	ErrSampleAlreadyConverted  = errors.New("sample telah dikonversi menjadi order massal sebelumnya")
 	ErrArticleNotFound         = errors.New("artikel tidak ditemukan")
 	ErrClientNotFound          = errors.New("klien tidak ditemukan")
+	ErrSampleCannotBeModified  = errors.New("sample yang telah disetujui atau dikonversi tidak dapat diubah")
+	ErrSampleCannotBeDeleted   = errors.New("sample yang telah disetujui atau dikonversi tidak dapat dihapus")
 )
 
 // Status konstanta siklus hidup sample dan versinya
@@ -122,6 +124,15 @@ type SampleTimeStudyItem struct {
 type CreateSampleRequestPayload struct {
 	ClientID     string  `json:"clientId" binding:"required"`
 	ArticleID    string  `json:"articleId" binding:"required"`
+	InitialNotes *string `json:"initialNotes"`
+	TargetDate   *string `json:"targetDate"`
+}
+
+// UpdateSampleRequestPayload payload saat memperbarui informasi umum permintaan sample (artikel, klien, skema/catatan, target tanggal).
+type UpdateSampleRequestPayload struct {
+	ClientID     *string `json:"clientId"`
+	ArticleID    *string `json:"articleId"`
+	ArticleTitle *string `json:"articleTitle"`
 	InitialNotes *string `json:"initialNotes"`
 	TargetDate   *string `json:"targetDate"`
 }
