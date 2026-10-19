@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lukla/operations-engine/internal/platform/authn"
@@ -35,6 +36,8 @@ func RegisterRoutes(rg *gin.RouterGroup, h *Handler, authnMiddleware gin.Handler
 		samplesGroup.POST("/:id/versions", h.CreateSampleVersion)
 		samplesGroup.GET("/:id/versions/:versionNumber/time-studies", h.ListTimeStudies)
 		samplesGroup.POST("/:id/versions/:versionNumber/time-studies", h.RecordTimeStudy)
+		samplesGroup.PUT("/:id/versions/:versionNumber/time-studies/:componentId", h.UpdateTimeStudy)
+		samplesGroup.DELETE("/:id/versions/:versionNumber/time-studies/:componentId", h.DeleteTimeStudy)
 		samplesGroup.PUT("/:id/versions/:versionNumber/commercial-rate", h.SetCommercialRate)
 		samplesGroup.POST("/:id/submit-review", h.SubmitReview)
 		samplesGroup.POST("/:id/convert-to-order", h.ConvertToOrder)
@@ -377,6 +380,127 @@ func (h *Handler) RecordTimeStudy(c *gin.Context) {
 		"success": true,
 		"message": "Pencatatan time study berhasil disimpan",
 		"data":    study,
+	})
+}
+
+// UpdateTimeStudy handles PUT /api/v1/samples/:id/versions/:versionNumber/time-studies/:componentId.
+func (h *Handler) UpdateTimeStudy(c *gin.Context) {
+	id := c.Param("id")
+	verNum, err := strconv.Atoi(c.Param("versionNumber"))
+	if err != nil || verNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Nomor versi sample tidak valid",
+			},
+		})
+		return
+	}
+
+	compID := c.Param("componentId")
+	if strings.TrimSpace(compID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "ID komponen wajib disertakan",
+			},
+		})
+		return
+	}
+
+	var payload UpdateTimeStudyPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Payload pembaruan time study tidak valid: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	study, err := h.svc.UpdateTimeStudy(c.Request.Context(), id, verNum, compID, payload)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrVersionNotFound) || errors.Is(err, ErrSampleNotFound) || errors.Is(err, ErrComponentNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrVersionAlreadyLocked) {
+			status = http.StatusConflict
+			code = "CONFLICT"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Pembaruan time study komponen berhasil disimpan",
+		"data":    study,
+	})
+}
+
+// DeleteTimeStudy handles DELETE /api/v1/samples/:id/versions/:versionNumber/time-studies/:componentId.
+func (h *Handler) DeleteTimeStudy(c *gin.Context) {
+	id := c.Param("id")
+	verNum, err := strconv.Atoi(c.Param("versionNumber"))
+	if err != nil || verNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Nomor versi sample tidak valid",
+			},
+		})
+		return
+	}
+
+	compID := c.Param("componentId")
+	if strings.TrimSpace(compID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "ID komponen wajib disertakan",
+			},
+		})
+		return
+	}
+
+	err = h.svc.DeleteTimeStudy(c.Request.Context(), id, verNum, compID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "INTERNAL_SERVER_ERROR"
+		if errors.Is(err, ErrVersionNotFound) || errors.Is(err, ErrSampleNotFound) || errors.Is(err, ErrComponentNotFound) {
+			status = http.StatusNotFound
+			code = "NOT_FOUND"
+		} else if errors.Is(err, ErrVersionAlreadyLocked) {
+			status = http.StatusConflict
+			code = "CONFLICT"
+		}
+		c.JSON(status, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    code,
+				"message": err.Error(),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Catatan time study komponen berhasil dihapus",
 	})
 }
 

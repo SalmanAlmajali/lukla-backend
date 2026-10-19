@@ -155,6 +155,14 @@ type RecordTimeStudyPayload struct {
 	Notes               *string  `json:"notes"`
 }
 
+// UpdateTimeStudyPayload payload saat memperbarui hasil observasi stopwatch time study per komponen.
+type UpdateTimeStudyPayload struct {
+	ObservedSeconds     float64  `json:"observedSeconds" binding:"required,gt=0"`
+	AllowancePercentage *float64 `json:"allowancePercentage"` // default 15.0%
+	OperatorID          *string  `json:"operatorId"`
+	Notes               *string  `json:"notes"`
+}
+
 // SetCommercialRatePayload payload saat menetapkan atau memperbarui harga maklon ke klien.
 type SetCommercialRatePayload struct {
 	ProposedUnitPrice float64 `json:"proposedUnitPrice" binding:"required,gte=0"`

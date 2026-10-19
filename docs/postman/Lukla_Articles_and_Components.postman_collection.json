@@ -7571,7 +7571,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"8b207fa3-ec01-4e1b-8391-1d3999c2e57e\",\"sampleCode\":\"SMP-202610-016\",\"clientId\":\"0be6b881-04dd-4eeb-9fe0-91f6a79673dc\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"d61ac4f4-fafb-403a-8153-e5423ceb7f52\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"status\":\"DRAFT\",\"targetDate\":\"2026-11-01\",\"createdAt\":\"2026-10-19T21:01:20.260571+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.260571+07:00\",\"versions\":[{\"id\":\"54dbb549-12d6-491d-9ab7-648626e780c4\",\"sampleRequestId\":\"8b207fa3-ec01-4e1b-8391-1d3999c2e57e\",\"versionNumber\":1,\"versionLabel\":\"v1\",\"status\":\"DRAFT\",\"revisionNotes\":\"Versi awal inisiasi spesifikasi sample prototipe\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-19T21:01:20.260571+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.260571+07:00\",\"components\":[],\"attachments\":[]}]},\"message\":\"Permintaan sample v1 berhasil dibuat\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"b4b75ee3-8827-43e8-be5a-bc1c1d4df077\",\"sampleCode\":\"SMP-202610-021\",\"clientId\":\"0be6b881-04dd-4eeb-9fe0-91f6a79673dc\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"d61ac4f4-fafb-403a-8153-e5423ceb7f52\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"status\":\"DRAFT\",\"targetDate\":\"2026-11-01\",\"createdAt\":\"2026-10-19T22:18:36.708547+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.708547+07:00\",\"versions\":[{\"id\":\"e9d16072-fc24-4392-92d6-3fee174c5c66\",\"sampleRequestId\":\"b4b75ee3-8827-43e8-be5a-bc1c1d4df077\",\"versionNumber\":1,\"versionLabel\":\"v1\",\"status\":\"DRAFT\",\"revisionNotes\":\"Versi awal inisiasi spesifikasi sample prototipe\",\"totalSAM\":0,\"currency\":\"IDR\",\"createdAt\":\"2026-10-19T22:18:36.708547+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.708547+07:00\",\"components\":[],\"attachments\":[]}]},\"message\":\"Permintaan sample v1 berhasil dibuat\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7629,7 +7629,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"b3018fc9-28f5-47d4-ad13-5a45c0e1abab\",\"sampleVersionId\":\"54dbb549-12d6-491d-9ab7-648626e780c4\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-19T21:01:20.306563+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"6a92779b-5384-4c0a-90c1-2878f6abb3d5\",\"sampleVersionId\":\"e9d16072-fc24-4392-92d6-3fee174c5c66\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-19T22:18:36.890678+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7793,7 +7793,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"sampleRequestId\":\"8b207fa3-ec01-4e1b-8391-1d3999c2e57e\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.18,\"currency\":\"IDR\",\"createdAt\":\"2026-10-19T21:01:20.318214+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.318214+07:00\",\"components\":[{\"id\":\"e0671ec5-43bb-40e8-bc9e-e6b634029085\",\"sampleVersionId\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-19T21:01:20.318214+07:00\"}],\"attachments\":[]},\"message\":\"Versi revisi sample berhasil diterbitkan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"sampleRequestId\":\"b4b75ee3-8827-43e8-be5a-bc1c1d4df077\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.18,\"currency\":\"IDR\",\"createdAt\":\"2026-10-19T22:18:36.904064+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.904064+07:00\",\"components\":[{\"id\":\"b944e002-487c-4814-91a9-9e00007a46e4\",\"sampleVersionId\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":270,\"allowancePercentage\":15,\"calculatedSAM\":5.18,\"targetPerHour\":11,\"notes\":\"Observasi time study awal prototipe v1\",\"createdAt\":\"2026-10-19T22:18:36.904064+07:00\"}],\"attachments\":[]},\"message\":\"Versi revisi sample berhasil diterbitkan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7851,7 +7851,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"e0671ec5-43bb-40e8-bc9e-e6b634029085\",\"sampleVersionId\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-19T21:01:20.318214+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"b944e002-487c-4814-91a9-9e00007a46e4\",\"sampleVersionId\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-19T22:18:36.904064+07:00\"},\"message\":\"Pencatatan time study berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -7909,7 +7909,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"sampleRequestId\":\"8b207fa3-ec01-4e1b-8391-1d3999c2e57e\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.52,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"priceNotes\":\"Tarif jasa CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \\u0026 packing\",\"createdAt\":\"2026-10-19T21:01:20.318214+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.325541+07:00\",\"components\":[{\"id\":\"e0671ec5-43bb-40e8-bc9e-e6b634029085\",\"sampleVersionId\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-19T21:01:20.318214+07:00\"}],\"attachments\":[]},\"message\":\"Commercial rate card berhasil ditetapkan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"sampleRequestId\":\"b4b75ee3-8827-43e8-be5a-bc1c1d4df077\",\"versionNumber\":2,\"versionLabel\":\"v2\",\"status\":\"DRAFT\",\"revisionNotes\":\"Perbaikan pola saku dada naik 3 cm dan zipper matte black\",\"totalSAM\":5.52,\"proposedUnitPrice\":45000,\"currency\":\"IDR\",\"priceNotes\":\"Tarif jasa CMT Jaket Parka v2 approved mencakup cutting, sewing, finishing \\u0026 packing\",\"createdAt\":\"2026-10-19T22:18:36.904064+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.912157+07:00\",\"components\":[{\"id\":\"b944e002-487c-4814-91a9-9e00007a46e4\",\"sampleVersionId\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"componentId\":\"6203adbd-9637-4edc-bd58-56598d6a2c46\",\"componentName\":\"Potong \\u0026 Persiapan Pola Badan Parka\",\"sequenceNumber\":1,\"observedSeconds\":288,\"allowancePercentage\":15,\"calculatedSAM\":5.52,\"targetPerHour\":10,\"notes\":\"Time study akurat versi 2 final\",\"createdAt\":\"2026-10-19T22:18:36.904064+07:00\"}],\"attachments\":[]},\"message\":\"Commercial rate card berhasil ditetapkan\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8031,7 +8031,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"orderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderNumber\":\"PO-SNO-E2E-PM-22500\",\"sampleCode\":\"SMP-202610-016\",\"approvedVersion\":2,\"targetQuantity\":4000,\"unitPrice\":45000,\"totalAmount\":180000000,\"currency\":\"IDR\",\"status\":\"IN_PRODUCTION\",\"specSnapshotSAM\":5.52},\"message\":\"Sample berhasil dikonversi menjadi Order Produksi Massal\",\"success\":true}",
+                            "body": "{\"data\":{\"orderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderNumber\":\"PO-SNO-E2E-PM-75100\",\"sampleCode\":\"SMP-202610-021\",\"approvedVersion\":2,\"targetQuantity\":4000,\"unitPrice\":45000,\"totalAmount\":180000000,\"currency\":\"IDR\",\"status\":\"IN_PRODUCTION\",\"specSnapshotSAM\":5.52},\"message\":\"Sample berhasil dikonversi menjadi Order Produksi Massal\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8090,7 +8090,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"error\":{\"code\":\"INVENTORY_CLIENT_ORDER_MISMATCH\",\"message\":\"BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan: BLOKIR KEAMANAN: Bahan pada lot 'LOT-E2E-PM-AVE-22500' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-SNO-E2E-PM-22500' milik klien 'Snøhund Brand'.\"},\"success\":false}",
+                            "body": "{\"error\":{\"code\":\"INVENTORY_CLIENT_ORDER_MISMATCH\",\"message\":\"BLOKIR KEAMANAN: Bahan tidak dapat dikeluarkan karena pemilik lot bahan berbeda dengan klien order tujuan: BLOKIR KEAMANAN: Bahan pada lot 'LOT-E2E-PM-AVE-75100' milik klien 'Aventura Outdoor Gear' tidak dapat dikeluarkan untuk order 'PO-SNO-E2E-PM-75100' milik klien 'Snøhund Brand'.\"},\"success\":false}",
                             "code": 400,
                             "name": "Bad Request (Blocked Cross-Contamination)",
                             "status": "Bad Request"
@@ -8145,7 +8145,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"b48c289a-33cf-497b-b465-68006fb5e124\",\"issueNumber\":\"ISS-20261019-0006\",\"targetOrderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"targetOrderCode\":\"PO-SNO-E2E-PM-22500\",\"targetClientName\":\"Snøhund Brand\",\"cuttingTableNumber\":\"MEJA-CUTTING-E2E\",\"issuedDate\":\"2026-10-15\",\"totalItemsCount\":1,\"createdAt\":\"2026-10-19T21:01:20.34221+07:00\",\"issuedByName\":\"Agus Pratama\",\"notes\":\"Pengeluaran sah kain Snøhund\",\"items\":[{\"id\":\"13299fb3-097a-451d-847d-49a5d439b969\",\"lotId\":\"5ca288de-772f-49b3-b752-209daa32c97a\",\"lotNumber\":\"LOT-E2E-PM-SNO-22500\",\"materialCode\":\"MAT-CTN-30S-BLK\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"clientName\":\"Snøhund Brand\",\"quantity\":20,\"unit\":\"KG\",\"remainingLotQuantity\":480,\"notes\":\"Pengeluaran roll sah\"}]},\"message\":\"Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-SNO-E2E-PM-22500\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"86d30b2c-69e6-4087-993f-c94465437e05\",\"issueNumber\":\"ISS-20261019-0008\",\"targetOrderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"targetOrderCode\":\"PO-SNO-E2E-PM-75100\",\"targetClientName\":\"Snøhund Brand\",\"cuttingTableNumber\":\"MEJA-CUTTING-E2E\",\"issuedDate\":\"2026-10-15\",\"totalItemsCount\":1,\"createdAt\":\"2026-10-19T22:18:36.929547+07:00\",\"issuedByName\":\"Agus Pratama\",\"notes\":\"Pengeluaran sah kain Snøhund\",\"items\":[{\"id\":\"5f3e5b99-d700-42fb-acb5-e63f118140ba\",\"lotId\":\"48a07338-e8e9-4c34-a3af-bbf177e640b9\",\"lotNumber\":\"LOT-E2E-PM-SNO-75100\",\"materialCode\":\"MAT-CTN-30S-BLK\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"clientName\":\"Snøhund Brand\",\"quantity\":20,\"unit\":\"KG\",\"remainingLotQuantity\":480,\"notes\":\"Pengeluaran roll sah\"}]},\"message\":\"Bahan berhasil dikeluarkan ke bagian cutting untuk order PO-SNO-E2E-PM-75100\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8200,7 +8200,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"0e2c41a9-98cd-4fd7-a93c-07d7f24206e5\",\"orderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderCode\":\"PO-SNO-E2E-PM-22500\",\"materialId\":\"cc454c1f-36ec-4ac6-b0c4-f2e87bc5a68a\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"scrapCategory\":\"PERCA_KECIL\",\"quantity\":1,\"unit\":\"KG\",\"disposition\":\"SIMPAN_GUDANG_SISA\",\"notes\":\"Limbah potongan pinggir pola jaket parka\",\"recordedByName\":\"Bambang Supriyadi\",\"createdAt\":\"2026-10-19T21:01:20.348982+07:00\"},\"message\":\"Data sisa potongan cutting berhasil dicatat\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"94d97d49-d74e-4d70-b391-2c9b672e2eb4\",\"orderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderCode\":\"PO-SNO-E2E-PM-75100\",\"materialId\":\"cc454c1f-36ec-4ac6-b0c4-f2e87bc5a68a\",\"materialName\":\"Cotton Combed 30s Reaktif - Hitam Jet Black\",\"scrapCategory\":\"PERCA_KECIL\",\"quantity\":1,\"unit\":\"KG\",\"disposition\":\"SIMPAN_GUDANG_SISA\",\"notes\":\"Limbah potongan pinggir pola jaket parka\",\"recordedByName\":\"Bambang Supriyadi\",\"createdAt\":\"2026-10-19T22:18:36.936357+07:00\"},\"message\":\"Data sisa potongan cutting berhasil dicatat\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8259,7 +8259,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"e89e5d18-df9a-4e7b-996c-63af405bc6d5\",\"periodCode\":\"PAY-E2E-PM-22500\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"DRAFT\",\"totalOperatorsCount\":0,\"totalGrossPieceRate\":0,\"totalMealAllowance\":0,\"totalAdjustments\":0,\"totalNetPayable\":0,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-19T21:01:20.357944+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.357944+07:00\"},\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"c643a7d2-3dbe-456a-a35c-5a13802d6ffa\",\"periodCode\":\"PAY-E2E-PM-75100\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"DRAFT\",\"totalOperatorsCount\":0,\"totalGrossPieceRate\":0,\"totalMealAllowance\":0,\"totalAdjustments\":0,\"totalNetPayable\":0,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-19T22:18:36.946094+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.946094+07:00\"},\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8316,7 +8316,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"e89e5d18-df9a-4e7b-996c-63af405bc6d5\",\"periodCode\":\"PAY-E2E-PM-22500\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"CALCULATED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-19T21:01:20.357944+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.362753+07:00\"},\"message\":\"Kalkulasi payroll berhasil dijalankan untuk periode PAY-E2E-PM-22500\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"c643a7d2-3dbe-456a-a35c-5a13802d6ffa\",\"periodCode\":\"PAY-E2E-PM-75100\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"CALCULATED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"notes\":\"Payroll mingguan e2e test\",\"createdAt\":\"2026-10-19T22:18:36.946094+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.951144+07:00\"},\"message\":\"Kalkulasi payroll berhasil dijalankan untuk periode PAY-E2E-PM-75100\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8377,7 +8377,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"e89e5d18-df9a-4e7b-996c-63af405bc6d5\",\"periodCode\":\"PAY-E2E-PM-22500\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"LOCKED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"lockedAt\":\"2026-10-19T21:01:20.365735+07:00\",\"lockedByUserId\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"notes\":\"Payroll disetujui \\u0026 dikunci\",\"createdAt\":\"2026-10-19T21:01:20.357944+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.365735+07:00\"},\"message\":\"Payroll period PAY-E2E-PM-22500 locked successfully. Data is now finalized.\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"c643a7d2-3dbe-456a-a35c-5a13802d6ffa\",\"periodCode\":\"PAY-E2E-PM-75100\",\"startDate\":\"2026-11-09\",\"endDate\":\"2026-11-15\",\"mealAllowancePercentage\":10,\"status\":\"LOCKED\",\"totalOperatorsCount\":1,\"totalGrossPieceRate\":12000000,\"totalMealAllowance\":1200000,\"totalAdjustments\":0,\"totalNetPayable\":13200000,\"lockedAt\":\"2026-10-19T22:18:36.954293+07:00\",\"lockedByUserId\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"notes\":\"Payroll disetujui \\u0026 dikunci\",\"createdAt\":\"2026-10-19T22:18:36.946094+07:00\",\"updatedAt\":\"2026-10-19T22:18:36.954293+07:00\"},\"message\":\"Payroll period PAY-E2E-PM-75100 locked successfully. Data is now finalized.\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8432,7 +8432,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"67ed2385-19fe-4ab0-9d90-63e9e38a6d99\",\"inspectionNumber\":\"QC-20261015-0014\",\"assemblyId\":\"b1101ad1-0c4f-44f6-a032-13aa3e8d981a\",\"orderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderCode\":\"PO-SNO-E2E-PM-22500\",\"clientName\":\"Snøhund Brand\",\"articleName\":\"Snøhund Arctic Expedition Parka 2026\",\"inspectorId\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"inspectorName\":\"Budi Santoso\",\"inspectionDate\":\"2026-10-15\",\"passedQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"totalChecked\":3000,\"notes\":\"Inspeksi massal lolos kualifikasi mutu\",\"createdAt\":\"2026-10-19T21:01:20.368135+07:00\",\"defects\":[]},\"message\":\"Pemeriksaan QC berhasil dicatat\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"653deb5a-91f4-4fbe-b230-d47f8f09fd64\",\"inspectionNumber\":\"QC-20261015-0018\",\"assemblyId\":\"521c5edc-23f1-4b02-b36f-0e124e66cdcc\",\"orderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderCode\":\"PO-SNO-E2E-PM-75100\",\"clientName\":\"Snøhund Brand\",\"articleName\":\"Snøhund Arctic Expedition Parka 2026\",\"inspectorId\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"inspectorName\":\"Budi Santoso\",\"inspectionDate\":\"2026-10-15\",\"passedQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"totalChecked\":3000,\"notes\":\"Inspeksi massal lolos kualifikasi mutu\",\"createdAt\":\"2026-10-19T22:18:36.955909+07:00\",\"defects\":[]},\"message\":\"Pemeriksaan QC berhasil dicatat\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8484,7 +8484,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"ea3ac35b-88e2-4430-a595-5af73197fa03\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 22500\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"CALCULATED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":18224,\"totalPoolAmount\":27336000,\"recipientCount\":3,\"amountPerRecipient\":9112000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"788cb489-637d-4f7b-8e5d-2715d6e0e819\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"99a94378-257a-4410-bc87-eeefebfb7e0e\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"af223e95-87d0-44f9-be50-05422c2f1415\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-19T21:01:20.381342+07:00\"},\"message\":\"Kalkulasi pool bonus berhasil: 18224 pcs lolos x Rp 1500 = Rp 27336000, dibagi rata ke 3 orang (Rp 9112000/orang)\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"8ea82d2f-e921-4fc6-8aed-65c65815e0f6\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 75100\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"CALCULATED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":24280,\"totalPoolAmount\":36420000,\"recipientCount\":3,\"amountPerRecipient\":12140000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"788cb489-637d-4f7b-8e5d-2715d6e0e819\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"99a94378-257a-4410-bc87-eeefebfb7e0e\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"af223e95-87d0-44f9-be50-05422c2f1415\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-19T22:18:36.969231+07:00\"},\"message\":\"Kalkulasi pool bonus berhasil: 24280 pcs lolos x Rp 1500 = Rp 36420000, dibagi rata ke 3 orang (Rp 12140000/orang)\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8536,7 +8536,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"ea3ac35b-88e2-4430-a595-5af73197fa03\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 22500\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":18224,\"totalPoolAmount\":27336000,\"recipientCount\":3,\"amountPerRecipient\":9112000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"788cb489-637d-4f7b-8e5d-2715d6e0e819\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"99a94378-257a-4410-bc87-eeefebfb7e0e\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"af223e95-87d0-44f9-be50-05422c2f1415\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":9112000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-19T21:01:20.381342+07:00\"},\"message\":\"Periode bonus QC berhasil dikunci\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"8ea82d2f-e921-4fc6-8aed-65c65815e0f6\",\"name\":\"Pool Bonus QC - Skenario Uji 3 Postman 75100\",\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"ratePerPcsApplied\":1500,\"totalPassedPcs\":24280,\"totalPoolAmount\":36420000,\"recipientCount\":3,\"amountPerRecipient\":12140000,\"notes\":\"Bonus QC periode Oktober 2026\",\"distributions\":[{\"userId\":\"788cb489-637d-4f7b-8e5d-2715d6e0e819\",\"fullName\":\"Bambang Supriyadi\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"99a94378-257a-4410-bc87-eeefebfb7e0e\",\"fullName\":\"Cecep Hidayat\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"},{\"userId\":\"af223e95-87d0-44f9-be50-05422c2f1415\",\"fullName\":\"Dadang Kurnia\",\"role\":\"Kepala Produksi / Mandor\",\"shareAmount\":12140000,\"payoutStatus\":\"PENDING_DISBURSEMENT\"}],\"createdAt\":\"2026-10-19T22:18:36.969231+07:00\"},\"message\":\"Periode bonus QC berhasil dikunci\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8596,7 +8596,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderNumber\":\"PO-SNO-E2E-PM-22500\",\"clientId\":\"0be6b881-04dd-4eeb-9fe0-91f6a79673dc\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"d61ac4f4-fafb-403a-8153-e5423ceb7f52\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"sampleVersionId\":\"05b5718f-5a52-4e38-a085-513d413250af\",\"unitPrice\":45000,\"totalAmount\":180000000,\"targetQuantity\":4000,\"passedQuantity\":3000,\"status\":\"COMPLETED\",\"startDate\":\"2026-10-19\",\"targetDate\":\"2026-12-20\",\"completedAt\":\"2026-10-19T21:01:20.411185+07:00\",\"createdAt\":\"2026-10-19T21:01:20.33213+07:00\",\"notes\":\"Pesanan massal 3000 pcs selesai diproduksi \\u0026 siap kirim ke warehouse klien\",\"cuttingQuantity\":4000,\"sewingQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"passRate\":100},\"message\":\"Pesanan berhasil ditandai selesai dan notifikasi telah dikirim ke klien\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderNumber\":\"PO-SNO-E2E-PM-75100\",\"clientId\":\"0be6b881-04dd-4eeb-9fe0-91f6a79673dc\",\"clientName\":\"Snøhund Brand\",\"articleId\":\"d61ac4f4-fafb-403a-8153-e5423ceb7f52\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"sampleVersionId\":\"88c637a9-ded4-41b2-adef-004bf75bf238\",\"unitPrice\":45000,\"totalAmount\":180000000,\"targetQuantity\":4000,\"passedQuantity\":3000,\"status\":\"COMPLETED\",\"startDate\":\"2026-10-19\",\"targetDate\":\"2026-12-20\",\"completedAt\":\"2026-10-19T22:18:37.003563+07:00\",\"createdAt\":\"2026-10-19T22:18:36.919235+07:00\",\"notes\":\"Pesanan massal 3000 pcs selesai diproduksi \\u0026 siap kirim ke warehouse klien\",\"cuttingQuantity\":4000,\"sewingQuantity\":3000,\"repairQuantity\":0,\"rejectQuantity\":0,\"passRate\":100},\"message\":\"Pesanan berhasil ditandai selesai dan notifikasi telah dikirim ke klien\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8652,7 +8652,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"orderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderNumber\":\"PO-SNO-E2E-PM-22500\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":3809.52,\"totalOverhead\":15238080},\"totalCostPerUnit\":27509.52,\"totalCOGS\":110038080,\"grossMarginPerUnit\":17490.48,\"totalGrossMargin\":69961920,\"grossMarginPercentage\":38.87},\"success\":true}",
+                            "body": "{\"data\":{\"orderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderNumber\":\"PO-SNO-E2E-PM-75100\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":3809.52,\"totalOverhead\":15238080},\"totalCostPerUnit\":27509.52,\"totalCOGS\":110038080,\"grossMarginPerUnit\":17490.48,\"totalGrossMargin\":69961920,\"grossMarginPercentage\":38.87},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8713,7 +8713,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":[{\"id\":\"9080fa80-1e5c-4be1-a8fb-472fece6c5bc\",\"code\":\"WATER\",\"name\":\"Air \\u0026 Sanitasi Pabrik\",\"description\":\"Biaya utilitas air bersih dan sanitasi workshop\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"code\":\"INDIRECT_MATERIALS\",\"name\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"description\":\"Kertas pola, kapur jahit, plastik pelindung, dan ATK mandor/QC\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"6115d8ee-bf3c-4d00-b0c4-13000ce18a94\",\"code\":\"CUSTOM_PACK_8479\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:01:19.37486+07:00\",\"updatedAt\":\"2026-10-19T21:01:19.37486+07:00\"},{\"id\":\"513bff1f-6b40-4c79-a769-ff5be58ac1f6\",\"code\":\"CUSTOM_PACK_8000\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:53:20.636509+07:00\",\"updatedAt\":\"2026-10-19T20:53:20.636509+07:00\"},{\"id\":\"5f40b6b1-9f5c-4bf6-b2d0-b239c5a7cbf9\",\"code\":\"CUSTOM_PACK_8118\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:55:18.195752+07:00\",\"updatedAt\":\"2026-10-19T20:55:18.195752+07:00\"},{\"id\":\"456d3b0f-300e-4b06-86db-bbe6a376b3fc\",\"code\":\"CUSTOM_PACK_8440\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:00:40.135191+07:00\",\"updatedAt\":\"2026-10-19T21:00:40.135191+07:00\"},{\"id\":\"4654c0ef-7e68-4d80-8286-ddfe62fa8a47\",\"code\":\"INTERNET\",\"name\":\"Internet \\u0026 Telekomunikasi Operasional\",\"description\":\"Biaya jaringan internet WiFi dan komunikasi operasional\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"77106cc2-a927-4479-abbf-f5a6cd3a3f9c\",\"code\":\"SECURITY_SERVICES_8001\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:53:21.27695+07:00\",\"updatedAt\":\"2026-10-19T20:53:21.27695+07:00\"},{\"id\":\"b00d8165-d23e-497e-83a9-ad0f1b1403c2\",\"code\":\"SECURITY_SERVICES_8441\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:00:41.50442+07:00\",\"updatedAt\":\"2026-10-19T21:00:41.50442+07:00\"},{\"id\":\"b011b319-e920-430c-b19a-56b9102fc373\",\"code\":\"SECURITY_SERVICES_8118\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:55:18.93284+07:00\",\"updatedAt\":\"2026-10-19T20:55:18.93284+07:00\"},{\"id\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"code\":\"ELECTRICITY\",\"name\":\"Listrik PLN Pabrik\",\"description\":\"Biaya konsumsi daya listrik mesin jahit, kompresor dan penerangan lini produksi\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"8bc72b52-542d-4ffd-a564-aece956d31f1\",\"code\":\"OPERATIONAL_OTHERS\",\"name\":\"Operasional Umum Lainnya\",\"description\":\"Biaya pendukung kebersihan, keamanan, dan logistik lokal\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"24ceccd1-1cc0-4cb2-b6c0-0b4279046ead\",\"code\":\"MACHINE_MAINTENANCE\",\"name\":\"Pemeliharaan Mesin \\u0026 Spareparts\",\"description\":\"Servis rutin mesin jahit, penggantian jarum, sekoci, dan minyak mesin\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"ccb474a8-1380-4c42-b28c-701c7d5202d3\",\"code\":\"FACTORY_RENT\",\"name\":\"Sewa Gedung Pabrik \\u0026 Workshop\",\"description\":\"Alokasi bulanan sewa tempat workshop manufaktur\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"}],\"success\":true}",
+                            "body": "{\"data\":[{\"id\":\"9080fa80-1e5c-4be1-a8fb-472fece6c5bc\",\"code\":\"WATER\",\"name\":\"Air \\u0026 Sanitasi Pabrik\",\"description\":\"Biaya utilitas air bersih dan sanitasi workshop\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"code\":\"INDIRECT_MATERIALS\",\"name\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"description\":\"Kertas pola, kapur jahit, plastik pelindung, dan ATK mandor/QC\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"6115d8ee-bf3c-4d00-b0c4-13000ce18a94\",\"code\":\"CUSTOM_PACK_8479\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:01:19.37486+07:00\",\"updatedAt\":\"2026-10-19T21:01:19.37486+07:00\"},{\"id\":\"513bff1f-6b40-4c79-a769-ff5be58ac1f6\",\"code\":\"CUSTOM_PACK_8000\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:53:20.636509+07:00\",\"updatedAt\":\"2026-10-19T20:53:20.636509+07:00\"},{\"id\":\"c84f084f-03f7-42d4-a1df-70bfa25d1690\",\"code\":\"CUSTOM_PACK_3115\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T22:18:35.766125+07:00\",\"updatedAt\":\"2026-10-19T22:18:35.766125+07:00\"},{\"id\":\"5f40b6b1-9f5c-4bf6-b2d0-b239c5a7cbf9\",\"code\":\"CUSTOM_PACK_8118\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:55:18.195752+07:00\",\"updatedAt\":\"2026-10-19T20:55:18.195752+07:00\"},{\"id\":\"456d3b0f-300e-4b06-86db-bbe6a376b3fc\",\"code\":\"CUSTOM_PACK_8440\",\"name\":\"Bahan Pembantu Pengemasan \\u0026 Lakban\",\"description\":\"Biaya isolasi, kardus, dan karung pelindung packing akhir\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:00:40.135191+07:00\",\"updatedAt\":\"2026-10-19T21:00:40.135191+07:00\"},{\"id\":\"4654c0ef-7e68-4d80-8286-ddfe62fa8a47\",\"code\":\"INTERNET\",\"name\":\"Internet \\u0026 Telekomunikasi Operasional\",\"description\":\"Biaya jaringan internet WiFi dan komunikasi operasional\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"77106cc2-a927-4479-abbf-f5a6cd3a3f9c\",\"code\":\"SECURITY_SERVICES_8001\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:53:21.27695+07:00\",\"updatedAt\":\"2026-10-19T20:53:21.27695+07:00\"},{\"id\":\"b011b319-e920-430c-b19a-56b9102fc373\",\"code\":\"SECURITY_SERVICES_8118\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T20:55:18.93284+07:00\",\"updatedAt\":\"2026-10-19T20:55:18.93284+07:00\"},{\"id\":\"b00d8165-d23e-497e-83a9-ad0f1b1403c2\",\"code\":\"SECURITY_SERVICES_8441\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:00:41.50442+07:00\",\"updatedAt\":\"2026-10-19T21:00:41.50442+07:00\"},{\"id\":\"091f2647-8ad8-4e45-85e5-5b7cae57c774\",\"code\":\"SECURITY_SERVICES_8480\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:01:20.522771+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.522771+07:00\"},{\"id\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"code\":\"ELECTRICITY\",\"name\":\"Listrik PLN Pabrik\",\"description\":\"Biaya konsumsi daya listrik mesin jahit, kompresor dan penerangan lini produksi\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"8bc72b52-542d-4ffd-a564-aece956d31f1\",\"code\":\"OPERATIONAL_OTHERS\",\"name\":\"Operasional Umum Lainnya\",\"description\":\"Biaya pendukung kebersihan, keamanan, dan logistik lokal\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"24ceccd1-1cc0-4cb2-b6c0-0b4279046ead\",\"code\":\"MACHINE_MAINTENANCE\",\"name\":\"Pemeliharaan Mesin \\u0026 Spareparts\",\"description\":\"Servis rutin mesin jahit, penggantian jarum, sekoci, dan minyak mesin\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"},{\"id\":\"ccb474a8-1380-4c42-b28c-701c7d5202d3\",\"code\":\"FACTORY_RENT\",\"name\":\"Sewa Gedung Pabrik \\u0026 Workshop\",\"description\":\"Alokasi bulanan sewa tempat workshop manufaktur\",\"isActive\":true,\"createdAt\":\"2026-10-18T04:15:16.905349+07:00\",\"updatedAt\":\"2026-10-18T04:15:16.905349+07:00\"}],\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8773,7 +8773,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"091f2647-8ad8-4e45-85e5-5b7cae57c774\",\"code\":\"SECURITY_SERVICES_8480\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T21:01:20.522771+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.522771+07:00\"},\"message\":\"Kategori overhead berhasil ditambahkan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"a1244d40-45c3-4b73-ad22-5ab5e1f483c0\",\"code\":\"SECURITY_SERVICES_3117\",\"name\":\"Jasa Pengamanan \\u0026 Sekuriti Pabrik\",\"description\":\"Biaya jasa sekuriti dan penjagaan fasilitas pabrik operasional bulanan\",\"isActive\":true,\"createdAt\":\"2026-10-19T22:18:37.120593+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.120593+07:00\"},\"message\":\"Kategori overhead berhasil ditambahkan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8834,7 +8834,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T21:01:20.530459+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.530459+07:00\",\"expenses\":[]},\"message\":\"Periode overhead bulanan berhasil dibuka\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T22:18:37.130245+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.130245+07:00\",\"expenses\":[]},\"message\":\"Periode overhead bulanan berhasil dibuka\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -8886,7 +8886,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":[{\"id\":\"4af027da-8d03-4332-a6f5-aafde1899a38\",\"periodCode\":\"OH-202612\",\"periodMonth\":12,\"periodYear\":2026,\"startDate\":\"2026-12-01\",\"endDate\":\"2026-12-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":20000000,\"totalProducedUnits\":5000,\"flatRatePerUnit\":4000,\"garmentRatePerUnit\":3809.52,\"bagRatePerUnit\":4761.9,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead final Desember\",\"createdAt\":\"2026-10-19T21:01:19.889601+07:00\"},{\"id\":\"63bbc0ef-544e-4a31-ba67-4f6b6e64f5fa\",\"periodCode\":\"OH-202611\",\"periodMonth\":11,\"periodYear\":2026,\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-30\",\"status\":\"LOCKED\",\"totalExpenseAmount\":16000000,\"totalProducedUnits\":3000,\"flatRatePerUnit\":5333.33,\"garmentRatePerUnit\":5333.33,\"bagRatePerUnit\":6666.67,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead November\",\"createdAt\":\"2026-10-19T21:01:20.402044+07:00\"},{\"id\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T21:01:20.530459+07:00\"}],\"success\":true}",
+                            "body": "{\"data\":[{\"id\":\"e4261bf6-bfbc-44e3-9f5e-01f52334639f\",\"periodCode\":\"OH-202612\",\"periodMonth\":12,\"periodYear\":2026,\"startDate\":\"2026-12-01\",\"endDate\":\"2026-12-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":20000000,\"totalProducedUnits\":5000,\"flatRatePerUnit\":4000,\"garmentRatePerUnit\":3809.52,\"bagRatePerUnit\":4761.9,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead final Desember\",\"createdAt\":\"2026-10-19T22:18:36.305073+07:00\"},{\"id\":\"cdb96288-29b4-47c0-b561-0a8b2f8f9afa\",\"periodCode\":\"OH-202611\",\"periodMonth\":11,\"periodYear\":2026,\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-30\",\"status\":\"LOCKED\",\"totalExpenseAmount\":16000000,\"totalProducedUnits\":3000,\"flatRatePerUnit\":5333.33,\"garmentRatePerUnit\":5333.33,\"bagRatePerUnit\":6666.67,\"currency\":\"IDR\",\"notes\":\"Kalkulasi overhead November\",\"createdAt\":\"2026-10-19T22:18:36.994032+07:00\"},{\"id\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T22:18:37.130245+07:00\"}],\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8933,7 +8933,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T21:01:20.530459+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.530459+07:00\",\"expenses\":[]},\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"OPEN\",\"totalExpenseAmount\":0,\"totalProducedUnits\":0,\"garmentUnits\":0,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":0,\"garmentRatePerUnit\":0,\"bagRatePerUnit\":0,\"currency\":\"IDR\",\"notes\":\"Pembukuan Biaya Overhead Pabrik Periode Oktober 2026\",\"createdAt\":\"2026-10-19T22:18:37.130245+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.130245+07:00\",\"expenses\":[]},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -8996,7 +8996,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"2faef247-0dfd-4d6d-b91a-508ce115ac94\",\"overheadPeriodId\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"categoryId\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-19T21:01:20.534137+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.534137+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"c9c31087-3eb1-47ea-8568-bf08133cd1ea\",\"overheadPeriodId\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"categoryId\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-19T22:18:37.133136+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.133136+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -9058,7 +9058,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"d3ec5c78-2a8c-44f8-9b2c-0d0e08f5b1cd\",\"overheadPeriodId\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"categoryId\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-19T21:01:20.536105+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.536105+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"1a2b021c-8204-41b0-8074-be3755d40491\",\"overheadPeriodId\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"categoryId\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-19T22:18:37.135289+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.135289+07:00\"},\"message\":\"Pengeluaran overhead berhasil disimpan\",\"success\":true}",
                             "code": 201,
                             "name": "Success 201 Created",
                             "status": "Created"
@@ -9123,7 +9123,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"periodId\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"periodCode\":\"OH-202610\",\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":18224,\"garmentUnits\":18224,\"bagUnits\":0,\"flatRatePerUnit\":1371.82,\"garmentRatePerUnit\":1371.82,\"bagRatePerUnit\":1714.77,\"currency\":\"IDR\",\"calculatedAt\":\"2026-10-19T21:01:20.5470814+07:00\"},\"message\":\"Kalkulasi alokasi overhead per unit berhasil dihitung\",\"success\":true}",
+                            "body": "{\"data\":{\"periodId\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"periodCode\":\"OH-202610\",\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":24280,\"garmentUnits\":24280,\"bagUnits\":0,\"flatRatePerUnit\":1029.65,\"garmentRatePerUnit\":1029.65,\"bagRatePerUnit\":1287.07,\"currency\":\"IDR\",\"calculatedAt\":\"2026-10-19T22:18:37.1491983+07:00\"},\"message\":\"Kalkulasi alokasi overhead per unit berhasil dihitung\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -9177,7 +9177,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"expenseBreakdown\":[{\"categoryCode\":\"ELECTRICITY\",\"categoryName\":\"Listrik PLN Pabrik\",\"totalAmount\":15000000,\"percentage\":60},{\"categoryCode\":\"INDIRECT_MATERIALS\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"totalAmount\":10000000,\"percentage\":40}],\"productionBreakdown\":{\"totalUnits\":18224,\"garmentUnits\":18224,\"bagUnits\":0},\"rates\":{\"flatRatePerUnit\":1371.82,\"garmentRatePerUnit\":1371.82,\"bagRatePerUnit\":1714.77}},\"success\":true}",
+                            "body": "{\"data\":{\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"status\":\"CALCULATED\",\"totalExpenseAmount\":25000000,\"expenseBreakdown\":[{\"categoryCode\":\"ELECTRICITY\",\"categoryName\":\"Listrik PLN Pabrik\",\"totalAmount\":15000000,\"percentage\":60},{\"categoryCode\":\"INDIRECT_MATERIALS\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"totalAmount\":10000000,\"percentage\":40}],\"productionBreakdown\":{\"totalUnits\":24280,\"garmentUnits\":24280,\"bagUnits\":0},\"rates\":{\"flatRatePerUnit\":1029.65,\"garmentRatePerUnit\":1029.65,\"bagRatePerUnit\":1287.07}},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -9230,7 +9230,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"id\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":18224,\"garmentUnits\":18224,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":1371.82,\"garmentRatePerUnit\":1371.82,\"bagRatePerUnit\":1714.77,\"currency\":\"IDR\",\"notes\":\"Kalkulasi final alokasi overhead periode Oktober 2026\",\"calculatedAt\":\"2026-10-19T21:01:20.547144+07:00\",\"lockedAt\":\"2026-10-19T21:01:20.551428+07:00\",\"lockedBy\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"lockedByName\":\"Budi Santoso\",\"createdAt\":\"2026-10-19T21:01:20.530459+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.551428+07:00\",\"expenses\":[{\"id\":\"d3ec5c78-2a8c-44f8-9b2c-0d0e08f5b1cd\",\"overheadPeriodId\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"categoryId\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-19T21:01:20.536105+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.536105+07:00\"},{\"id\":\"2faef247-0dfd-4d6d-b91a-508ce115ac94\",\"overheadPeriodId\":\"dbb1f163-137e-48d2-af45-eebe47ef6d93\",\"categoryId\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-19T21:01:20.534137+07:00\",\"updatedAt\":\"2026-10-19T21:01:20.534137+07:00\"}]},\"message\":\"Periode overhead bulanan berhasil dikunci\",\"success\":true}",
+                            "body": "{\"data\":{\"id\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"periodCode\":\"OH-202610\",\"periodMonth\":10,\"periodYear\":2026,\"startDate\":\"2026-10-01\",\"endDate\":\"2026-10-31\",\"status\":\"LOCKED\",\"totalExpenseAmount\":25000000,\"totalProducedUnits\":24280,\"garmentUnits\":24280,\"bagUnits\":0,\"weightGarment\":1,\"weightBag\":1.25,\"flatRatePerUnit\":1029.65,\"garmentRatePerUnit\":1029.65,\"bagRatePerUnit\":1287.07,\"currency\":\"IDR\",\"notes\":\"Kalkulasi final alokasi overhead periode Oktober 2026\",\"calculatedAt\":\"2026-10-19T22:18:37.149257+07:00\",\"lockedAt\":\"2026-10-19T22:18:37.153894+07:00\",\"lockedBy\":\"783b378e-ad23-4b2a-bded-fabc80f7a8b1\",\"lockedByName\":\"Budi Santoso\",\"createdAt\":\"2026-10-19T22:18:37.130245+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.153894+07:00\",\"expenses\":[{\"id\":\"1a2b021c-8204-41b0-8074-be3755d40491\",\"overheadPeriodId\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"categoryId\":\"b8efad78-398b-45e6-8129-d154d732c1eb\",\"categoryName\":\"Bahan Pembantu \\u0026 ATK Produksi\",\"categoryCode\":\"INDIRECT_MATERIALS\",\"expenseDate\":\"2026-10-01\",\"amount\":10000000,\"invoiceReference\":\"RENT-OKT-2026-01\",\"notes\":\"Alokasi sewa bulanan fasilitas workshop produksi\",\"createdAt\":\"2026-10-19T22:18:37.135289+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.135289+07:00\"},{\"id\":\"c9c31087-3eb1-47ea-8568-bf08133cd1ea\",\"overheadPeriodId\":\"5d2a91a7-0f91-499e-b56f-548a82ed7ced\",\"categoryId\":\"3db53f0c-33f8-4c18-92c4-124902c4bb43\",\"categoryName\":\"Listrik PLN Pabrik\",\"categoryCode\":\"ELECTRICITY\",\"expenseDate\":\"2026-10-10\",\"amount\":15000000,\"invoiceReference\":\"PLN-OKT-2026-883\",\"notes\":\"Tagihan listrik PLN mesin jahit dan kompresor pabrik\",\"createdAt\":\"2026-10-19T22:18:37.133136+07:00\",\"updatedAt\":\"2026-10-19T22:18:37.133136+07:00\"}]},\"message\":\"Periode overhead bulanan berhasil dikunci\",\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -9285,7 +9285,7 @@
                     "response": [
                         {
                             "_postman_previewlanguage": "json",
-                            "body": "{\"data\":{\"orderId\":\"ebdff8b6-af92-4114-87da-28f966b96295\",\"orderNumber\":\"PO-SNO-E2E-PM-22500\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":1371.82,\"totalOverhead\":5487280},\"totalCostPerUnit\":25071.82,\"totalCOGS\":100287280,\"grossMarginPerUnit\":19928.18,\"totalGrossMargin\":79712720,\"grossMarginPercentage\":44.28},\"success\":true}",
+                            "body": "{\"data\":{\"orderId\":\"deea7069-57e4-4e86-8c36-066fc337dbea\",\"orderNumber\":\"PO-SNO-E2E-PM-75100\",\"clientName\":\"Snøhund Brand\",\"articleCode\":\"ART-SNO-PK01\",\"articleTitle\":\"Snøhund Arctic Expedition Parka 2026\",\"category\":\"GARMENT\",\"producedQuantity\":4000,\"contractPricePerUnit\":45000,\"totalRevenue\":180000000,\"costComponents\":{\"directLaborPerUnit\":23200,\"totalDirectLabor\":92800000,\"qcBonusPerUnit\":500,\"totalQCBonus\":2000000,\"overheadPerUnit\":1029.65,\"totalOverhead\":4118600},\"totalCostPerUnit\":24729.65,\"totalCOGS\":98918600,\"grossMarginPerUnit\":20270.35,\"totalGrossMargin\":81081400,\"grossMarginPercentage\":45.05},\"success\":true}",
                             "code": 200,
                             "name": "Success 200 OK",
                             "status": "OK"
@@ -9311,7 +9311,7 @@
         {
             "key": "client_token",
             "type": "string",
-            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MTkzODAsImlhdCI6MTc5MjQxODQ4MCwic3ViIjoiNTEwYjU3ZWQtYTI4OC00Mjk0LTlmYmQtNmNkZmE2MmVlYTQ1In0.IhaIiqajNfygBDk0ISJMtiq16rMe7RmqeVF_P4mwmKw"
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MjQwMTYsImlhdCI6MTc5MjQyMzExNiwic3ViIjoiNTEwYjU3ZWQtYTI4OC00Mjk0LTlmYmQtNmNkZmE2MmVlYTQ1In0.IPZl9iX7AgmrsCPEHY6Xee5i0xx36iDyrUu1Uitvjmg"
         },
         {
             "key": "client_snohund_id",
@@ -9341,7 +9341,7 @@
         {
             "key": "production_token",
             "type": "string",
-            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MTkzODAsImlhdCI6MTc5MjQxODQ4MCwic3ViIjoiNzg4Y2I0ODktNjM3ZC00ZjdiLThlNWQtMjcxNWQ2ZTBlODE5In0.IT0x0_5gh3KxFw3z_LOBnmuJCf5cgBCcT3RaFlJp44w"
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MjQwMTYsImlhdCI6MTc5MjQyMzExNiwic3ViIjoiNzg4Y2I0ODktNjM3ZC00ZjdiLThlNWQtMjcxNWQ2ZTBlODE5In0.miNQOwdo9UPwLnRmXXQlPgfaDaEkWpAnOVmw2o5osfg"
         },
         {
             "key": "rate_card_id",
@@ -9396,7 +9396,7 @@
         {
             "key": "warehouse_token",
             "type": "string",
-            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MTkzODAsImlhdCI6MTc5MjQxODQ4MCwic3ViIjoiMzMzNWQ1MmEtOTU5ZC00N2UxLThiM2QtNTNlYzg5N2U1NmYxIn0.O5kXFQyoRnOBOuzLEYVdzQ72IfpJu2uMdwxxxr_M-VQ"
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MjQwMTYsImlhdCI6MTc5MjQyMzExNiwic3ViIjoiMzMzNWQ1MmEtOTU5ZC00N2UxLThiM2QtNTNlYzg5N2U1NmYxIn0.o8lTZOkz-wo_U0SIevHiW4N7D4pF5Qrr0IswrTTE7r0"
         },
         {
             "key": "material_id",
@@ -9476,7 +9476,7 @@
         {
             "key": "overhead_period_id",
             "type": "string",
-            "value": "dbb1f163-137e-48d2-af45-eebe47ef6d93"
+            "value": "5d2a91a7-0f91-499e-b56f-548a82ed7ced"
         },
         {
             "key": "overhead_category_id",
@@ -9496,17 +9496,17 @@
         {
             "key": "finance_token",
             "type": "string",
-            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MTkzODAsImlhdCI6MTc5MjQxODQ4MCwic3ViIjoiNjNkNzEwNTUtMTVkMi00NTk3LWEzODAtOGVkMmQ2MDc0YTkyIn0.EiPKFUP4Q9qtRD8n4kzpCVHGizWqMmUo5hAcSPVgbVo"
+            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTI0MjQwMTYsImlhdCI6MTc5MjQyMzExNiwic3ViIjoiNjNkNzEwNTUtMTVkMi00NTk3LWEzODAtOGVkMmQ2MDc0YTkyIn0.FRV9taEhig20MSNwuGdIBdQUk5Ic2lrQ2Bg-anjkm24"
         },
         {
             "key": "e2e_sample_code",
             "type": "string",
-            "value": "SMP-E2E-PM-22500"
+            "value": "SMP-E2E-PM-75100"
         },
         {
             "key": "e2e_sample_id",
             "type": "string",
-            "value": "8b207fa3-ec01-4e1b-8391-1d3999c2e57e"
+            "value": "b4b75ee3-8827-43e8-be5a-bc1c1d4df077"
         },
         {
             "key": "e2e_article_id",
@@ -9526,12 +9526,12 @@
         {
             "key": "e2e_order_number",
             "type": "string",
-            "value": "PO-SNO-E2E-PM-22500"
+            "value": "PO-SNO-E2E-PM-75100"
         },
         {
             "key": "e2e_order_id",
             "type": "string",
-            "value": "ebdff8b6-af92-4114-87da-28f966b96295"
+            "value": "deea7069-57e4-4e86-8c36-066fc337dbea"
         },
         {
             "key": "e2e_material_id",
@@ -9541,32 +9541,32 @@
         {
             "key": "e2e_aventura_lot_id",
             "type": "string",
-            "value": "1d73d940-7562-4757-9be0-c336c2f07a43"
+            "value": "5082489c-edd3-4cf6-9391-4a2f060a6992"
         },
         {
             "key": "e2e_snohund_lot_id",
             "type": "string",
-            "value": "5ca288de-772f-49b3-b752-209daa32c97a"
+            "value": "48a07338-e8e9-4c34-a3af-bbf177e640b9"
         },
         {
             "key": "e2e_assembly_id",
             "type": "string",
-            "value": "b1101ad1-0c4f-44f6-a032-13aa3e8d981a"
+            "value": "521c5edc-23f1-4b02-b36f-0e124e66cdcc"
         },
         {
             "key": "e2e_pay_period_code",
             "type": "string",
-            "value": "PAY-E2E-PM-22500"
+            "value": "PAY-E2E-PM-75100"
         },
         {
             "key": "e2e_pay_period_id",
             "type": "string",
-            "value": "e89e5d18-df9a-4e7b-996c-63af405bc6d5"
+            "value": "c643a7d2-3dbe-456a-a35c-5a13802d6ffa"
         },
         {
             "key": "e2e_qc_bonus_period_id",
             "type": "string",
-            "value": "ea3ac35b-88e2-4430-a595-5af73197fa03"
+            "value": "8ea82d2f-e921-4fc6-8aed-65c65815e0f6"
         }
     ]
 }

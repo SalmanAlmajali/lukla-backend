@@ -2,6 +2,7 @@ package sample_test
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -122,6 +123,14 @@ func (m *mockRepository) GetSampleVersionByNumber(ctx context.Context, sampleID 
 }
 
 func (m *mockRepository) RecordTimeStudy(ctx context.Context, sampleID string, versionNumber int, study *sample.SampleTimeStudyItem) (*sample.SampleTimeStudyItem, error) {
+	v, err := m.GetSampleVersionByNumber(ctx, sampleID, versionNumber)
+	if err != nil {
+		return nil, err
+	}
+	if v.Status == sample.StatusRevised || v.Status == sample.StatusApproved {
+		return nil, sample.ErrVersionAlreadyLocked
+	}
+
 	// Formula: SAM = (Observed_Seconds * (1 + Allowance% / 100)) / 60.0
 	allowance := study.AllowancePercentage
 	if allowance <= 0 {
@@ -135,8 +144,92 @@ func (m *mockRepository) RecordTimeStudy(ctx context.Context, sampleID string, v
 	study.TargetPerHour = targetPerHour
 	study.ComponentName = "Jahit Kerah & Placket"
 	study.SequenceNumber = 1
+	study.SampleVersionID = v.ID
+
+	m.timeStudies[sampleID] = append(m.timeStudies[sampleID], *study)
+	v.TotalSAM += calculatedSAM
 
 	return study, nil
+}
+
+func (m *mockRepository) UpdateTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string, study *sample.SampleTimeStudyItem) (*sample.SampleTimeStudyItem, error) {
+	v, err := m.GetSampleVersionByNumber(ctx, sampleID, versionNumber)
+	if err != nil {
+		return nil, err
+	}
+	if v.Status == sample.StatusRevised || v.Status == sample.StatusApproved {
+		return nil, sample.ErrVersionAlreadyLocked
+	}
+
+	allowance := study.AllowancePercentage
+	if allowance <= 0 {
+		allowance = 15.00
+	}
+	calculatedSAM := (study.ObservedSeconds * (1.0 + (allowance / 100.0))) / 60.0
+	targetPerHour := int(60.0 / calculatedSAM)
+
+	study.ID = "study-uuid-updated"
+	study.CalculatedSAM = calculatedSAM
+	study.TargetPerHour = targetPerHour
+	study.ComponentName = "Jahit Kerah & Placket"
+	study.SequenceNumber = 1
+	study.ComponentID = componentID
+	study.SampleVersionID = v.ID
+
+	found := false
+	studies := m.timeStudies[sampleID]
+	for i := range studies {
+		if studies[i].ComponentID == componentID {
+			studies[i] = *study
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, sample.ErrComponentNotFound
+	}
+	m.timeStudies[sampleID] = studies
+
+	var total float64
+	for _, s := range studies {
+		total += s.CalculatedSAM
+	}
+	v.TotalSAM = total
+
+	return study, nil
+}
+
+func (m *mockRepository) DeleteTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string) error {
+	v, err := m.GetSampleVersionByNumber(ctx, sampleID, versionNumber)
+	if err != nil {
+		return err
+	}
+	if v.Status == sample.StatusRevised || v.Status == sample.StatusApproved {
+		return sample.ErrVersionAlreadyLocked
+	}
+
+	studies := m.timeStudies[sampleID]
+	newStudies := make([]sample.SampleTimeStudyItem, 0)
+	found := false
+	for _, st := range studies {
+		if st.ComponentID == componentID {
+			found = true
+			continue
+		}
+		newStudies = append(newStudies, st)
+	}
+	if !found {
+		return sample.ErrComponentNotFound
+	}
+	m.timeStudies[sampleID] = newStudies
+
+	var total float64
+	for _, s := range newStudies {
+		total += s.CalculatedSAM
+	}
+	v.TotalSAM = total
+
+	return nil
 }
 
 func (m *mockRepository) ListTimeStudies(ctx context.Context, sampleID string, versionNumber int) ([]sample.SampleTimeStudyItem, error) {
@@ -560,5 +653,174 @@ func TestSampleService_DeleteSampleRequest_NotFound(t *testing.T) {
 		t.Errorf("expected ErrSampleNotFound, got %v", err)
 	}
 }
+
+func TestSampleService_UpdateTimeStudy_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	compID := "comp-uuid-1"
+	_, err := svc.RecordTimeStudy(ctx, created.ID, 1, sample.RecordTimeStudyPayload{
+		ComponentID:     compID,
+		ObservedSeconds: 30.0,
+	})
+	if err != nil {
+		t.Fatalf("failed to record initial time study: %v", err)
+	}
+
+	notes := "Re-observasi durasi lebih akurat"
+	allowance := 15.0
+	updated, err := svc.UpdateTimeStudy(ctx, created.ID, 1, compID, sample.UpdateTimeStudyPayload{
+		ObservedSeconds:     45.0,
+		AllowancePercentage: &allowance,
+		Notes:               &notes,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error updating time study: %v", err)
+	}
+
+	if updated.ObservedSeconds != 45.0 {
+		t.Errorf("expected observed seconds 45.0, got %v", updated.ObservedSeconds)
+	}
+	expectedSAM := (45.0 * 1.15) / 60.0
+	if math.Abs(updated.CalculatedSAM-expectedSAM) > 0.01 {
+		t.Errorf("expected SAM %v, got %v", expectedSAM, updated.CalculatedSAM)
+	}
+}
+
+func TestSampleService_UpdateTimeStudy_LockedVersionFails(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	compID := "comp-uuid-1"
+	_, _ = svc.RecordTimeStudy(ctx, created.ID, 1, sample.RecordTimeStudyPayload{
+		ComponentID:     compID,
+		ObservedSeconds: 30.0,
+	})
+
+	// Buat v2 yang mengunci v1
+	revNotes := "Revisi ke v2"
+	_, _ = svc.CreateSampleVersion(ctx, created.ID, sample.CreateSampleVersionPayload{
+		RevisionNotes: revNotes,
+	})
+
+	// Coba update v1 yang sudah REVISED
+	_, err := svc.UpdateTimeStudy(ctx, created.ID, 1, compID, sample.UpdateTimeStudyPayload{
+		ObservedSeconds: 40.0,
+	})
+	if err == nil {
+		t.Fatalf("expected ErrVersionAlreadyLocked, got nil")
+	}
+	if err != sample.ErrVersionAlreadyLocked {
+		t.Errorf("expected ErrVersionAlreadyLocked, got %v", err)
+	}
+}
+
+func TestSampleService_DeleteTimeStudy_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	compID1 := "comp-uuid-1"
+	compID2 := "comp-uuid-2"
+	_, _ = svc.RecordTimeStudy(ctx, created.ID, 1, sample.RecordTimeStudyPayload{
+		ComponentID:     compID1,
+		ObservedSeconds: 30.0,
+	})
+	_, _ = svc.RecordTimeStudy(ctx, created.ID, 1, sample.RecordTimeStudyPayload{
+		ComponentID:     compID2,
+		ObservedSeconds: 60.0,
+	})
+
+	// Hapus compID1
+	err := svc.DeleteTimeStudy(ctx, created.ID, 1, compID1)
+	if err != nil {
+		t.Fatalf("unexpected error deleting time study: %v", err)
+	}
+
+	studies, err := svc.ListTimeStudies(ctx, created.ID, 1)
+	if err != nil {
+		t.Fatalf("list time studies error: %v", err)
+	}
+	if len(studies) != 1 {
+		t.Fatalf("expected 1 remaining time study, got %d", len(studies))
+	}
+	if studies[0].ComponentID != compID2 {
+		t.Errorf("expected remaining component %s, got %s", compID2, studies[0].ComponentID)
+	}
+
+	// Cek totalSAM versi 1
+	v, _ := svc.GetSampleVersion(ctx, created.ID, 1)
+	expectedTotalSAM := (60.0 * 1.15) / 60.0
+	if math.Abs(v.TotalSAM-expectedTotalSAM) > 0.01 {
+		t.Errorf("expected total SAM %v, got %v", expectedTotalSAM, v.TotalSAM)
+	}
+}
+
+func TestSampleService_DeleteTimeStudy_LockedVersionFails(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	compID := "comp-uuid-1"
+	_, _ = svc.RecordTimeStudy(ctx, created.ID, 1, sample.RecordTimeStudyPayload{
+		ComponentID:     compID,
+		ObservedSeconds: 30.0,
+	})
+
+	// Kunci versi dengan membuat v2
+	_, _ = svc.CreateSampleVersion(ctx, created.ID, sample.CreateSampleVersionPayload{
+		RevisionNotes: "Revisi v2",
+	})
+
+	err := svc.DeleteTimeStudy(ctx, created.ID, 1, compID)
+	if err == nil {
+		t.Fatalf("expected ErrVersionAlreadyLocked, got nil")
+	}
+	if err != sample.ErrVersionAlreadyLocked {
+		t.Errorf("expected ErrVersionAlreadyLocked, got %v", err)
+	}
+}
+
+func TestSampleService_DeleteTimeStudy_NotFound(t *testing.T) {
+	repo := newMockRepo()
+	svc := sample.NewService(repo, nil)
+	ctx := context.Background()
+
+	created, _ := svc.CreateSampleRequest(ctx, sample.CreateSampleRequestPayload{
+		ClientID:  "client-uuid-1",
+		ArticleID: "article-uuid-1",
+	})
+
+	err := svc.DeleteTimeStudy(ctx, created.ID, 1, "non-existent-comp-id")
+	if err == nil {
+		t.Fatalf("expected ErrComponentNotFound, got nil")
+	}
+	if err != sample.ErrComponentNotFound {
+		t.Errorf("expected ErrComponentNotFound, got %v", err)
+	}
+}
+
 
 

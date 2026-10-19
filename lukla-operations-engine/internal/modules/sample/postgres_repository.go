@@ -770,6 +770,185 @@ func (r *PostgresRepository) RecordTimeStudy(ctx context.Context, sampleID strin
 	return study, nil
 }
 
+// UpdateTimeStudy memperbarui data observasi stopwatch komponen tertentu pada versi sample.
+func (r *PostgresRepository) UpdateTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string, study *SampleTimeStudyItem) (*SampleTimeStudyItem, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Verifikasi sample version dan kunci baris
+	var versionID, versionStatus string
+	err = tx.QueryRowContext(ctx, `
+		SELECT sv.id, sv.status 
+		FROM sample_versions sv
+		WHERE sv.sample_request_id = $1 AND sv.version_number = $2
+		FOR UPDATE
+	`, sampleID, versionNumber).Scan(&versionID, &versionStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrVersionNotFound
+		}
+		return nil, fmt.Errorf("check version: %w", err)
+	}
+
+	// Cegah perubahan jika versi telah dikunci (REVISED atau APPROVED)
+	if versionStatus == StatusRevised || versionStatus == StatusApproved {
+		return nil, ErrVersionAlreadyLocked
+	}
+
+	// 2. Verifikasi komponen terdaftar pada artikel terkait
+	var compName string
+	var seqNum int
+	err = tx.QueryRowContext(ctx, `
+		SELECT c.name, c.sequence_number
+		FROM components c
+		JOIN sample_requests sr ON c.article_id = sr.article_id
+		WHERE sr.id = $1 AND c.id = $2
+	`, sampleID, componentID).Scan(&compName, &seqNum)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrComponentNotFound
+		}
+		return nil, fmt.Errorf("check component: %w", err)
+	}
+
+	// 3. Kalkulasi SAM dan Target Per Jam
+	allowance := study.AllowancePercentage
+	if allowance <= 0 {
+		allowance = 15.00
+	}
+	calculatedSAM := (study.ObservedSeconds * (1.0 + (allowance / 100.0))) / 60.0
+	calculatedSAM = math.Round(calculatedSAM*100) / 100
+
+	targetPerHour := 0
+	if calculatedSAM > 0 {
+		targetPerHour = int(math.Floor(60.0 / calculatedSAM))
+	}
+
+	// 4. Update baris di sample_time_studies
+	var studyID string
+	var createdAt time.Time
+	updateQuery := `
+		UPDATE sample_time_studies
+		SET observed_seconds = $1,
+		    allowance_percentage = $2,
+		    calculated_sam = $3,
+		    target_per_hour = $4,
+		    operator_id = $5,
+		    notes = $6,
+		    updated_at = NOW()
+		WHERE sample_version_id = $7 AND component_id = $8
+		RETURNING id, created_at
+	`
+	err = tx.QueryRowContext(ctx, updateQuery,
+		study.ObservedSeconds, allowance, calculatedSAM, targetPerHour,
+		study.OperatorID, study.Notes, versionID, componentID,
+	).Scan(&studyID, &createdAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrComponentNotFound
+		}
+		return nil, fmt.Errorf("update sample_time_study: %w", err)
+	}
+
+	// 5. Rekalkulasi Total SAM pada sample_versions
+	updateTotalSAMQuery := `
+		UPDATE sample_versions
+		SET total_sam = (
+			SELECT COALESCE(SUM(calculated_sam), 0.00)
+			FROM sample_time_studies
+			WHERE sample_version_id = $1
+		),
+		updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err = tx.ExecContext(ctx, updateTotalSAMQuery, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("recalculate total sam: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	study.ID = studyID
+	study.SampleVersionID = versionID
+	study.ComponentID = componentID
+	study.ComponentName = compName
+	study.SequenceNumber = seqNum
+	study.AllowancePercentage = allowance
+	study.CalculatedSAM = calculatedSAM
+	study.TargetPerHour = targetPerHour
+	study.CreatedAt = createdAt
+
+	return study, nil
+}
+
+// DeleteTimeStudy menghapus data observasi stopwatch komponen tertentu pada versi sample dan mereposisi total SAM.
+func (r *PostgresRepository) DeleteTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Verifikasi sample version dan kunci baris
+	var versionID, versionStatus string
+	err = tx.QueryRowContext(ctx, `
+		SELECT sv.id, sv.status 
+		FROM sample_versions sv
+		WHERE sv.sample_request_id = $1 AND sv.version_number = $2
+		FOR UPDATE
+	`, sampleID, versionNumber).Scan(&versionID, &versionStatus)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrVersionNotFound
+		}
+		return fmt.Errorf("check version: %w", err)
+	}
+
+	// Cegah perubahan jika versi telah dikunci (REVISED atau APPROVED)
+	if versionStatus == StatusRevised || versionStatus == StatusApproved {
+		return ErrVersionAlreadyLocked
+	}
+
+	// 2. Hapus baris dari sample_time_studies
+	res, err := tx.ExecContext(ctx, `
+		DELETE FROM sample_time_studies
+		WHERE sample_version_id = $1 AND component_id = $2
+	`, versionID, componentID)
+	if err != nil {
+		return fmt.Errorf("delete sample_time_study: %w", err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrComponentNotFound
+	}
+
+	// 3. Rekalkulasi Total SAM pada sample_versions
+	updateTotalSAMQuery := `
+		UPDATE sample_versions
+		SET total_sam = (
+			SELECT COALESCE(SUM(calculated_sam), 0.00)
+			FROM sample_time_studies
+			WHERE sample_version_id = $1
+		),
+		updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err = tx.ExecContext(ctx, updateTotalSAMQuery, versionID)
+	if err != nil {
+		return fmt.Errorf("recalculate total sam after delete: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 // ListTimeStudies mengambil seluruh time study untuk versi sample tertentu.
 func (r *PostgresRepository) ListTimeStudies(ctx context.Context, sampleID string, versionNumber int) ([]SampleTimeStudyItem, error) {
 	var versionID string

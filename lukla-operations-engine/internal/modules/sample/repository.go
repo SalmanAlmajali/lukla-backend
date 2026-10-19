@@ -19,6 +19,8 @@ type Repository interface {
 
 	// Time Study Tracker
 	RecordTimeStudy(ctx context.Context, sampleID string, versionNumber int, study *SampleTimeStudyItem) (*SampleTimeStudyItem, error)
+	UpdateTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string, study *SampleTimeStudyItem) (*SampleTimeStudyItem, error)
+	DeleteTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string) error
 	ListTimeStudies(ctx context.Context, sampleID string, versionNumber int) ([]SampleTimeStudyItem, error)
 
 	// Mass Order Conversion (BPMN 03 / Skenario Uji 4)

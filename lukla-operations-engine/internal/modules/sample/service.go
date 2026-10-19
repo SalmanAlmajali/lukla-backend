@@ -195,6 +195,52 @@ func (s *Service) RecordTimeStudy(ctx context.Context, sampleID string, versionN
 	return s.repo.RecordTimeStudy(ctx, strings.TrimSpace(sampleID), versionNumber, study)
 }
 
+// UpdateTimeStudy memperbarui hasil observasi stopwatch time study komponen tertentu pada versi sample.
+func (s *Service) UpdateTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string, payload UpdateTimeStudyPayload) (*SampleTimeStudyItem, error) {
+	if strings.TrimSpace(sampleID) == "" {
+		return nil, ErrSampleNotFound
+	}
+	if versionNumber < 1 {
+		return nil, ErrVersionNotFound
+	}
+	if strings.TrimSpace(componentID) == "" {
+		return nil, ErrComponentNotFound
+	}
+	if payload.ObservedSeconds <= 0 {
+		return nil, fmt.Errorf("durasi observasi detik harus lebih besar dari 0")
+	}
+
+	allowance := 15.00
+	if payload.AllowancePercentage != nil {
+		allowance = *payload.AllowancePercentage
+	}
+
+	study := &SampleTimeStudyItem{
+		ComponentID:         strings.TrimSpace(componentID),
+		ObservedSeconds:     payload.ObservedSeconds,
+		AllowancePercentage: allowance,
+		OperatorID:          payload.OperatorID,
+		Notes:               payload.Notes,
+	}
+
+	return s.repo.UpdateTimeStudy(ctx, strings.TrimSpace(sampleID), versionNumber, strings.TrimSpace(componentID), study)
+}
+
+// DeleteTimeStudy menghapus data observasi stopwatch komponen tertentu pada versi sample.
+func (s *Service) DeleteTimeStudy(ctx context.Context, sampleID string, versionNumber int, componentID string) error {
+	if strings.TrimSpace(sampleID) == "" {
+		return ErrSampleNotFound
+	}
+	if versionNumber < 1 {
+		return ErrVersionNotFound
+	}
+	if strings.TrimSpace(componentID) == "" {
+		return ErrComponentNotFound
+	}
+
+	return s.repo.DeleteTimeStudy(ctx, strings.TrimSpace(sampleID), versionNumber, strings.TrimSpace(componentID))
+}
+
 // ListTimeStudies mengambil daftar seluruh hasil observasi time study pada versi sample tertentu.
 func (s *Service) ListTimeStudies(ctx context.Context, sampleID string, versionNumber int) ([]SampleTimeStudyItem, error) {
 	if strings.TrimSpace(sampleID) == "" {
